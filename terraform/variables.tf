@@ -13,3 +13,9 @@ variable "region" {
   type        = string
   default     = "ca-central-1"
 }
+
+variable "cidr_block" {
+  description = "CIDR block to use for this service's VPC."
+  type        = string
+  default     = "172.16.0.0/16"
+}
