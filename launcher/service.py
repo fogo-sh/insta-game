@@ -17,6 +17,9 @@ def game():
         data = request.form
         return f"{data['game']} {data['config_file']}\n"
 
+    if request.method == 'DELETE':
+        return "deleted\n"
+
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
