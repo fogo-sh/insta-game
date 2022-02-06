@@ -3,7 +3,6 @@
 ## Routes
 * GET `/`
   * Shows a HTML page with server info
-    * 
 -----
 * GET `/game`
   * Returns game state in JSON
