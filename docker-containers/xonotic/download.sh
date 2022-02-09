@@ -13,9 +13,11 @@ exists() {
 }
 
 if [ -f "$FILE" ]; then
+  unzip "$FILE"
   exists
 else 
   echo "$FILE does not exist, downloading..."
-  curl https://dl.xonotic.org/xonotic-0.8.2.zip -L -o xonotic.zip
+  curl https://dl.xonotic.org/xonotic-0.8.2.zip -L -o "$FILE"
+  unzip "$FILE"
   exists
 fi
