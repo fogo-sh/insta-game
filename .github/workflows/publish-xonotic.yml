@@ -19,6 +19,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Download Xonotic and Setup Build Dependencies
+        run: |
+          cd ./docker-containers/xonotic
+          make download && make clean
+
       - name: Log in to the Container registry
         uses: docker/login-action@v1.12
         with:
