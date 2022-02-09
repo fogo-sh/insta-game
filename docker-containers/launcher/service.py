@@ -1,6 +1,6 @@
 import os
 from time import sleep
-
+from inspect import getframeinfo, stack
 import boto3
 import requests
 from flask import Flask, render_template
@@ -8,7 +8,6 @@ from flask import request
 
 REGION_NAME = 'ca-central-1'
 CLUSTER = 'insta-game-cluster'
-XONOTIC_CONFIG_FILE = 'xonotic_config_file'
 
 DEBUG = True
 DEFAULT_PORT = 5000
@@ -41,17 +40,6 @@ def game_route():
     except Exception as e:
         log(str(e))
         return str(e)
-
-
-@app.route('/config', methods=['GET', 'POST'])
-def config_route():
-    if request.method == 'GET':
-        with open(XONOTIC_CONFIG_FILE, 'rb') as f:
-            return f.read(-1)
-
-    if request.method == 'POST':
-        replace_game_config(request.form['config'])
-        return {'status': 'success'}
 
 
 def run_game():
@@ -107,27 +95,20 @@ def get_game_state():
     network_interface = ec2.describe_network_interfaces(NetworkInterfaceIds=[network_interfaces])
     log(network_interface)
 
-    public_ip = network_interface['NetworkInterfaces'][0]['Association']['PublicIp']
+    network_interface0 = network_interface['NetworkInterfaces'][0]
+    if 'Association' not in network_interface0:
+        return {'status': 'offline'}
+
+    public_ip = network_interface0['Association']['PublicIp']
     log(public_ip)
 
     return {'status': 'online', 'public_ip': public_ip}
 
 
-def trigger_restart():
-    # TODO: tell container to restart game
-    pass
-
-
-def replace_game_config(config_file):
-    with open(XONOTIC_CONFIG_FILE, 'wb') as f:
-        f.write(requests.get(config_file).content)
-    if get_game_state()['status'] == 'online':
-        trigger_restart()
-
-
 def log(msg):
     if DEBUG:
-        print(f'DEBUG: {msg}')
+        caller = getframeinfo(stack()[1][0])
+        print("%s:%d - %s\n" % (caller.filename, caller.lineno, msg))
 
 
 if __name__ == '__main__':

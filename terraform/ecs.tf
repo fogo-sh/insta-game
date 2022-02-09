@@ -26,7 +26,7 @@ resource "aws_ecs_task_definition" "testing" {
   container_definitions = jsonencode([
     {
       name   = "testing"
-      image  = "nginx"
+      image  = "ghcr.io/fogo-sh/insta-game:release-xonotic"
       cpu    = 256
       memory = 512
     }
