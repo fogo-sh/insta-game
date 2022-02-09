@@ -1,3 +1,6 @@
+docker-containers/xonotic/xonotic.zip
+docker-containers/xonotic/Xonotic*
+
 # Local .terraform directories
 **/.terraform/*
 

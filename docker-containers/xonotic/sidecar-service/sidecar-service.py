@@ -1,0 +1,87 @@
+from enum import Enum
+import os
+import subprocess
+from subprocess import PIPE
+from datetime import datetime
+from typing import Optional
+
+import requests
+from flask import Flask
+
+DEBUG = bool(os.environ.get("DEBUG", False))
+CONFIG_URL = os.environ.get(
+    "CONFIG_URL",
+    "https://raw.githubusercontent.com/xonotic/xonotic/master/server/server.cfg",
+)
+
+HOST = os.environ.get("HOST", "0.0.0.0")
+
+DEFAULT_PORT = 5001
+PORT = int(os.environ.get("PORT", DEFAULT_PORT))
+
+app = Flask(__name__)
+process = None
+
+
+def log(message):
+    print(f"SIDECAR: {message}")
+
+
+def get_game_pid() -> Optional[int]:
+    try:
+        int(subprocess.check_output(["pidof", "./xonotic-linux64-dedicated"]))
+    except:
+        log("Failed to get game pid, assuming not currently running")
+        return None
+
+
+def write_config():
+    with open("/opt/server/server.cfg", "wb") as f:
+        f.write(requests.get(CONFIG_URL).content)
+
+
+class Response(Enum):
+    STARTED = "started"
+    RESTARTED = "restarted"
+
+
+def start_or_restart_game() -> Response:
+    global process
+
+    def fresh():
+        return subprocess.Popen(["./xonotic-linux64-dedicated"], stdin=PIPE)
+
+    if process is None:
+        log("No process, starting initial process")
+        process = fresh()
+        return Response.STARTED
+    else:
+        log("Process already running, shutting down")
+        process.stdin.write(str.encode("exit\n"))
+        process.stdin.flush()
+        process.wait(15)
+        log("Process shutdown, starting fresh process")
+        process = fresh()
+        log("Fresh process started")
+        return Response.RESTARTED
+
+
+@app.route("/")
+def home():
+    global process
+    return {"pid": process.pid, "timestamp": datetime.now().isoformat()}
+
+
+@app.route("/restart")
+def restart():
+    global process
+    response = start_or_restart_game()
+    return {"pid": process.pid, "status": response.value}
+
+
+if __name__ == "__main__":
+    write_config()
+    start_or_restart_game()
+
+    log(f"Starting sidecar-service on {HOST}:{PORT}")
+    app.run(debug=DEBUG, host=HOST, port=PORT)
