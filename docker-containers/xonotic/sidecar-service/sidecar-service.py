@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import wraps
 import os
 import signal
 import subprocess
@@ -8,7 +9,7 @@ import sys
 from typing import Optional
 
 import requests
-from flask import Flask
+from flask import Flask, request, abort
 
 DEBUG = bool(os.environ.get("DEBUG", False))
 CONFIG_URL = os.environ.get(
@@ -20,6 +21,8 @@ HOST = os.environ.get("HOST", "0.0.0.0")
 
 DEFAULT_PORT = 5001
 PORT = int(os.environ.get("PORT", DEFAULT_PORT))
+
+TOKEN = os.environ.get("TOKEN", "abc123")
 
 app = Flask(__name__)
 process = None
@@ -73,6 +76,25 @@ def exit_game():
     process.wait(15)
 
 
+def authorize(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not "Authorization" in request.headers:
+            log("Authorization header missing in request")
+            abort(401)
+
+        data = request.headers.get('Authorization')
+        token = str.replace(str(data), "Bearer ", "")
+
+        if token != TOKEN:
+            log("Invalid token provided")
+            abort(401)
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
 @app.route("/")
 def home():
     global process
@@ -80,6 +102,7 @@ def home():
 
 
 @app.route("/restart")
+@authorize
 def restart():
     global process
     response = start_or_restart_game()
