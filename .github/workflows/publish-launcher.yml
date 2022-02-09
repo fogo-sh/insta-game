@@ -1,8 +1,8 @@
-name: Create and publish the Xonotic Docker image
+name: Create and publish the game launcher API image
 
 on:
   push:
-    branches: ["release-xonotic"]
+    branches: ["release-launcher"]
 
 env:
   REGISTRY: ghcr.io
