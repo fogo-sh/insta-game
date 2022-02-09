@@ -1,8 +1,10 @@
 from enum import Enum
 import os
+import signal
 import subprocess
 from subprocess import PIPE
 from datetime import datetime
+import sys
 from typing import Optional
 
 import requests
@@ -57,13 +59,18 @@ def start_or_restart_game() -> Response:
         return Response.STARTED
     else:
         log("Process already running, shutting down")
-        process.stdin.write(str.encode("exit\n"))
-        process.stdin.flush()
-        process.wait(15)
+        exit_game()
         log("Process shutdown, starting fresh process")
         process = fresh()
         log("Fresh process started")
         return Response.RESTARTED
+
+
+def exit_game():
+    global process
+    process.stdin.write(str.encode("exit\n"))
+    process.stdin.flush()
+    process.wait(15)
 
 
 @app.route("/")
@@ -82,6 +89,14 @@ def restart():
 if __name__ == "__main__":
     write_config()
     start_or_restart_game()
+
+    def handle_signal(_signo, _stack_frame):
+        log("Handling signal to exit...")
+        exit_game()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
 
     log(f"Starting sidecar-service on {HOST}:{PORT}")
     app.run(debug=DEBUG, host=HOST, port=PORT)
