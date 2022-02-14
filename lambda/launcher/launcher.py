@@ -1,45 +1,34 @@
-import os
 from time import sleep
-from inspect import getframeinfo, stack
+
 import boto3
-import requests
-from flask import Flask, render_template
-from flask import request
+from inspect import getframeinfo, stack
 
 REGION_NAME = 'ca-central-1'
 CLUSTER = 'insta-game-cluster'
-
 DEBUG = True
-DEFAULT_PORT = 5000
-
-app = Flask(__name__, template_folder='static')
 
 
-@app.route('/')
-def home():
+def handler(event, context):
+    operation = event['operation']
+
     try:
-        response = get_game_state()
-    except Exception as e:
-        response = str(e)
 
-    return render_template('index.html', response=response)
-
-
-@app.route('/game', methods=['POST', 'DELETE', 'GET'])
-def game_route():
-    try:
-        if request.method == 'POST':
+        if operation == 'start':
             return run_game()
-
-        if request.method == 'DELETE':
+        if operation == 'stop':
             return kill_existing_game()
-
-        if request.method == 'GET':
+        if operation == 'info':
             return get_game_state()
-
     except Exception as e:
         log(str(e))
         return str(e)
+
+
+def change_desired_count(desired_count):
+    ecs = boto3.client('ecs', region_name=REGION_NAME)
+    services = ecs.list_services(cluster=CLUSTER)
+    service = services['serviceArns'][0]
+    ecs.update_service(cluster=CLUSTER, service=service, desiredCount=desired_count)
 
 
 def run_game():
@@ -51,13 +40,6 @@ def run_game():
 def kill_existing_game():
     change_desired_count(0)
     return wait_for_game_state('offline', 60)
-
-
-def change_desired_count(desired_count):
-    ecs = boto3.client('ecs', region_name=REGION_NAME)
-    services = ecs.list_services(cluster=CLUSTER)
-    service = services['serviceArns'][0]
-    ecs.update_service(cluster=CLUSTER, service=service, desiredCount=desired_count)
 
 
 def wait_for_game_state(desired_status, max_wait_period):
@@ -109,8 +91,3 @@ def log(msg):
     if DEBUG:
         caller = getframeinfo(stack()[1][0])
         print("%s:%d - %s\n" % (caller.filename, caller.lineno, msg))
-
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', DEFAULT_PORT))
-    app.run(debug=DEBUG, host='0.0.0.0', port=port)
