@@ -9,10 +9,8 @@ DEBUG = True
 
 
 def handler(event, context):
-    operation = event['operation']
-
     try:
-
+        operation = event['queryStringParameters']['operation']
         if operation == 'start':
             return run_game()
         if operation == 'stop':
@@ -71,6 +69,8 @@ def get_game_state():
     task_info = ecs.describe_tasks(cluster=CLUSTER, tasks=[task_arn])
     log(task_info)
 
+    # TODO: Subscript out of range here and below sometimes when the initial start takes too long
+    # TODO: Need to handle gracefully
     network_interfaces = task_info['tasks'][0]['attachments'][0]['details'][1]['value']
     log(network_interfaces)
 
@@ -90,4 +90,4 @@ def get_game_state():
 def log(msg):
     if DEBUG:
         caller = getframeinfo(stack()[1][0])
-        print("%s:%d - %s\n" % (caller.filename, caller.lineno, msg))
+        print(f'{caller.filename}:{caller.lineno} - {msg}\n')
