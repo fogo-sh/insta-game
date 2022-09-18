@@ -1,4 +1,4 @@
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 
 WORKDIR /opt
 
@@ -7,7 +7,7 @@ RUN apt-get -y install python3 python3-pip
 
 COPY Xonotic-clean .
 
-RUN mkdir -p /opt/server && touch /opt/server/server.cfg
+RUN mkdir -p /opt/data && touch /opt/data/server.cfg
 
 COPY sidecar-service/requirements.txt .
 COPY sidecar-service/sidecar-service.py .

@@ -14,7 +14,7 @@ from flask import Flask, request, abort
 DEBUG = bool(os.environ.get("DEBUG", False))
 CONFIG_URL = os.environ.get(
     "CONFIG_URL",
-    "https://raw.githubusercontent.com/xonotic/xonotic/master/server/server.cfg",
+    "https://raw.githubusercontent.com/xonotic/xonotic/a4eee56551654a2c34debfd450aa44eda2934e0b/server/server.cfg",
 )
 
 HOST = os.environ.get("HOST", "0.0.0.0")
@@ -41,7 +41,7 @@ def get_game_pid() -> Optional[int]:
 
 
 def write_config():
-    with open("/opt/server/server.cfg", "wb") as f:
+    with open("/opt/data/server.cfg", "wb") as f:
         f.write(requests.get(CONFIG_URL).content)
 
 
