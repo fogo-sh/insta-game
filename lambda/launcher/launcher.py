@@ -1,11 +1,11 @@
 from time import sleep
 
 import boto3
-from inspect import getframeinfo, stack
 
 REGION_NAME = 'ca-central-1'
 CLUSTER = 'insta-game-cluster'
 DEBUG = True
+MAX_WAIT_PERIOD = 60
 
 
 def handler(event, context):
@@ -13,13 +13,10 @@ def handler(event, context):
         operation = event['queryStringParameters']['operation']
         if operation == 'start':
             return run_game()
-        if operation == 'stop':
+        elif operation == 'stop':
             return kill_existing_game()
-        if operation == 'info':
-            return get_game_state()
-    except Exception as e:
-        log(str(e))
-        return str(e)
+    except Exception:
+        return get_game_state()
 
 
 def change_desired_count(desired_count):
@@ -32,22 +29,22 @@ def change_desired_count(desired_count):
 def run_game():
     kill_existing_game()
     change_desired_count(1)
-    return wait_for_game_state('online', 60)
+    return wait_for_game_state('online')
 
 
 def kill_existing_game():
     change_desired_count(0)
-    return wait_for_game_state('offline', 60)
+    return wait_for_game_state('offline', )
 
 
-def wait_for_game_state(desired_status, max_wait_period):
+def wait_for_game_state(desired_status):
     state = get_game_state()
 
     for i in range(10):
         if state['status'] == desired_status:
             return state
         else:
-            sleep(min(5, max_wait_period // 10))
+            sleep(min(5, MAX_WAIT_PERIOD // 10))
             state = get_game_state()
 
     return state
@@ -57,37 +54,15 @@ def get_game_state():
     ecs = boto3.client('ecs', region_name=REGION_NAME)
     ec2 = boto3.client('ec2', region_name=REGION_NAME)
 
-    tasks = ecs.list_tasks(cluster=CLUSTER)
-    log(tasks)
+    try:
+        tasks = ecs.list_tasks(cluster=CLUSTER)
+        task_arn = tasks['taskArns'][0]
+        task_info = ecs.describe_tasks(cluster=CLUSTER, tasks=[task_arn])
+        network_interfaces = task_info['tasks'][0]['attachments'][0]['details'][1]['value']
+        network_interface = ec2.describe_network_interfaces(NetworkInterfaceIds=[network_interfaces])
+        network_interface0 = network_interface['NetworkInterfaces'][0]
+        public_ip = network_interface0['Association']['PublicIp']
+        return {'status': 'online', 'public_ip': public_ip}
 
-    if len(tasks['taskArns']) == 0:
+    except Exception:
         return {'status': 'offline'}
-
-    task_arn = tasks['taskArns'][0]
-    log(task_arn)
-
-    task_info = ecs.describe_tasks(cluster=CLUSTER, tasks=[task_arn])
-    log(task_info)
-
-    # TODO: Subscript out of range here and below sometimes when the initial start takes too long
-    # TODO: Need to handle gracefully
-    network_interfaces = task_info['tasks'][0]['attachments'][0]['details'][1]['value']
-    log(network_interfaces)
-
-    network_interface = ec2.describe_network_interfaces(NetworkInterfaceIds=[network_interfaces])
-    log(network_interface)
-
-    network_interface0 = network_interface['NetworkInterfaces'][0]
-    if 'Association' not in network_interface0:
-        return {'status': 'offline'}
-
-    public_ip = network_interface0['Association']['PublicIp']
-    log(public_ip)
-
-    return {'status': 'online', 'public_ip': public_ip}
-
-
-def log(msg):
-    if DEBUG:
-        caller = getframeinfo(stack()[1][0])
-        print(f'{caller.filename}:{caller.lineno} - {msg}\n')
