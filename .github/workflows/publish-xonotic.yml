@@ -2,7 +2,7 @@ name: Create and publish the Xonotic Docker image
 
 on:
   push:
-    branches: ["release-xonotic"]
+    branches: ["main"]
 
 env:
   REGISTRY: ghcr.io
