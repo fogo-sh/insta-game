@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-docker-compose up xonotic
+docker compose up xonotic

@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 FILE=xonotic.zip
-SHA_512_SUM=4ffc4b73eeb5f580d178a98419d5b44cbff0c56e356a62baa729b5b7a6c3d43b2b425b123428c9b1bf3f4718eaf61bcf5d62914521cc061c7563a253440c807e
+SHA_512_SUM=cb39879e96f19abb2877588c2d50c5d3e64dd68153bec3dd1bebedf4d765e506afa419c28381d7005aed664cb1a042571c132b5b319e4308cab67745d996c2a6
 
 validate() {
   echo "$SHA_512_SUM $FILE" | sha512sum -c
@@ -13,11 +13,11 @@ exists() {
 }
 
 if [ -f "$FILE" ]; then
-  unzip "$FILE"
   exists
+  unzip "$FILE"
 else 
   echo "$FILE does not exist, downloading..."
-  curl https://dl.xonotic.org/xonotic-0.8.5.zip -L -o "$FILE"
-  unzip "$FILE"
+  curl https://dl.xonotic.org/xonotic-0.8.6.zip -L -o "$FILE"
   exists
+  unzip "$FILE"
 fi

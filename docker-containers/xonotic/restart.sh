@@ -1,3 +1,5 @@
 #!/usr/bin/env sh
 
-curl --header "Authorization: Bearer abc123" localhost:5001/restart
+TOKEN="${TOKEN:-abc123}"
+
+curl --header "Authorization: Bearer ${TOKEN}" localhost:5001/restart
