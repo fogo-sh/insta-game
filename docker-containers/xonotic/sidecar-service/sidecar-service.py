@@ -1,11 +1,12 @@
+from datetime import datetime
 from enum import Enum
 from functools import wraps
 import os
+import shutil
 import signal
 import socket
 import subprocess
 from subprocess import PIPE
-from datetime import datetime
 import sys
 import threading
 from time import sleep
@@ -16,10 +17,8 @@ import requests
 from flask import Flask, request, abort
 
 DEBUG = bool(os.environ.get("DEBUG", False))
-CONFIG_URL = os.environ.get(
-    "CONFIG_URL",
-    "https://gist.githubusercontent.com/SteveParson/05753fbd68446d43c287d8134bffa591/raw/b93243f565151a2baab1c745f25c90345a727e44/server.cfg",
-)
+CONFIG_URL = os.environ.get("CONFIG_URL", "")
+DEFAULT_CONFIG_PATH = "/opt/default-server.cfg"
 AWS_REGION = os.environ.get("AWS_REGION", "ca-central-1")
 ECS_CLUSTER = os.environ.get("ECS_CLUSTER", "insta-game-cluster")
 ECS_SERVICE = os.environ.get("ECS_SERVICE", "")
@@ -39,7 +38,7 @@ def log(message):
     print(f"SIDECAR: {message}")
 
 
-def get_player_count() -> int:
+def get_server_info() -> Optional[dict]:
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(2)
@@ -52,18 +51,30 @@ def get_player_count() -> int:
         info_dict = {}
         for i in range(1, len(parts) - 1, 2):
             info_dict[parts[i]] = parts[i + 1]
-        return int(info_dict.get("clients", 0))
+        return info_dict
     except Exception:
+        return None
+
+
+def get_player_count() -> int:
+    info = get_server_info()
+    if not info:
         return 0
+    return int(info.get("clients", 0))
 
 
 def write_config(config_url: Optional[str] = None):
     source_url = config_url or CONFIG_URL
-    log(f"Fetching config from URL: {source_url}")
-    response = requests.get(source_url, timeout=30)
-    response.raise_for_status()
-    with open("/opt/data/server.cfg", "wb") as f:
-        f.write(response.content)
+    if source_url:
+        log(f"Fetching config from URL: {source_url}")
+        response = requests.get(source_url, timeout=30)
+        response.raise_for_status()
+        with open("/opt/data/server.cfg", "wb") as f:
+            f.write(response.content)
+        return
+
+    log(f"Using bundled default config: {DEFAULT_CONFIG_PATH}")
+    shutil.copyfile(DEFAULT_CONFIG_PATH, "/opt/data/server.cfg")
 
 
 def shutdown_ecs_service():
@@ -113,20 +124,37 @@ def start_or_restart_game() -> Response:
         log("No process, starting initial process")
         process = fresh()
         return Response.STARTED
-    else:
-        log("Process already running, shutting down")
-        exit_game()
-        log("Process shutdown, starting fresh process")
-        process = fresh()
-        log("Fresh process started")
-        return Response.RESTARTED
+
+    log("Process already running, shutting down")
+    exit_game()
+    log("Process shutdown, starting fresh process")
+    process = fresh()
+    log("Fresh process started")
+    return Response.RESTARTED
 
 
 def exit_game():
     global process
-    process.stdin.write(str.encode("exit\n"))
-    process.stdin.flush()
-    process.wait(15)
+    if process is None:
+        return
+
+    if process.poll() is not None:
+        log("Game process already exited")
+        process = None
+        return
+
+    try:
+        process.stdin.write(str.encode("exit\n"))
+        process.stdin.flush()
+        process.wait(15)
+    except BrokenPipeError:
+        log("Game process stdin already closed during shutdown")
+    except subprocess.TimeoutExpired:
+        log("Game process did not exit cleanly, terminating")
+        process.terminate()
+        process.wait(5)
+    finally:
+        process = None
 
 
 def authorize(f):
@@ -151,9 +179,11 @@ def authorize(f):
 @app.route("/status")
 def status():
     global process
+    info = get_server_info()
     return {
         "running": process is not None and process.poll() is None,
-        "players": get_player_count(),
+        "ready": info is not None,
+        "players": int((info or {}).get("clients", 0)),
         "timestamp": datetime.now().isoformat(),
     }
 
@@ -173,10 +203,8 @@ def restart():
 @app.route("/stop", methods=["POST"])
 @authorize
 def stop():
-    global process
     if process is not None:
         exit_game()
-        process = None
     return {"status": "stopped"}
 
 

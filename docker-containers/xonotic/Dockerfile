@@ -8,6 +8,7 @@ COPY Xonotic-clean .
 
 RUN mkdir -p /opt/data && touch /opt/data/server.cfg
 
+COPY server.cfg /opt/default-server.cfg
 COPY sidecar-service/requirements.txt .
 COPY sidecar-service/sidecar-service.py .
 RUN pip3 install -r requirements.txt
