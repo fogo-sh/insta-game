@@ -229,6 +229,8 @@ xonotic = GameService(
     task_role_arn=ecs_task_role.arn,
     execution_role_arn=ecs_execution_role.arn,
     sidecar_token=sidecar_token,
+    cpu=512,
+    memory=1024,
     config_url=default_config_url,
 )
 
