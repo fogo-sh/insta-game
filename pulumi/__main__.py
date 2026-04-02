@@ -257,7 +257,7 @@ xonotic_arm = GameService(
 launcher = aws.lambda_.Function(
     "launcher",
     name=regional_name("launcher"),
-    runtime="python3.8",
+    runtime="python3.12",
     handler="launcher.handler",
     timeout=120,
     role=lambda_role.arn,
