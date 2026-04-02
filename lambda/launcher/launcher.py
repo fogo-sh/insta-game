@@ -19,7 +19,11 @@ GAMES = json.loads(
                 "xonotic": {
                     "service_name": "instagame-xonotic-service",
                     "sidecar_port": 5001,
-                }
+                },
+                "qssm": {
+                    "service_name": "instagame-qssm-service",
+                    "sidecar_port": 5001,
+                },
             }
         ),
     )

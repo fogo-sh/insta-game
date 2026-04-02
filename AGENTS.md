@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-`pulumi/` contains AWS infrastructure code in Python. `pulumi/__main__.py` defines the stack, and `pulumi/game_service.py` holds the reusable ECS game service component. `lambda/launcher/` contains the Lambda Function URL handler for start, stop, and status operations. `docker-containers/xonotic/` contains the Xonotic image build, local shell scripts, Docker Compose setup, and the Flask sidecar in `sidecar-service/`. There is no dedicated `tests/` directory yet; validation is mostly command-based.
+`pulumi/` contains AWS infrastructure code in Python. `pulumi/__main__.py` defines the stack, and `pulumi/game_service.py` holds the reusable ECS game service component. `lambda/launcher/` contains the Lambda Function URL handler for start, stop, and status operations. `docker-containers/xonotic/`, `docker-containers/xonotic-arm/`, and `docker-containers/qssm/` contain the game image builds, local shell scripts, Docker Compose setup, and the Flask sidecar in `sidecar-service/`. There is no dedicated `tests/` directory yet; validation is mostly command-based.
 
 ## Build, Test, and Development Commands
 From `pulumi/`:
@@ -14,7 +14,7 @@ uv run pulumi up
 
 Use `preview` before applying infrastructure changes.
 
-From `docker-containers/xonotic/`:
+From `docker-containers/xonotic/`, `docker-containers/xonotic-arm/`, or `docker-containers/qssm/`:
 
 ```sh
 make download   # fetch Xonotic 0.8.6

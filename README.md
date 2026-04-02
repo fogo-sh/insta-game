@@ -8,6 +8,7 @@
 - `lambda/launcher/`: public Lambda handler for start, stop, and status
 - `docker-containers/xonotic/`: Xonotic server image (x86_64), sidecar service, and local build scripts
 - `docker-containers/xonotic-arm/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
+- `docker-containers/qssm/`: QSS-M Quake server image, sidecar service, and local build scripts
 
 ## Local Workflow
 
@@ -33,6 +34,19 @@ For the ARM image, build with:
 docker buildx build --platform linux/arm64 -t xonotic-arm:latest .
 ```
 
+From `docker-containers/qssm/`:
+
+```sh
+docker compose run --rm --build \
+  -e DATA_URL=https://example.com/quake-assets.zip \
+  -p 26000:26000/udp \
+  -p 5001:5001/tcp \
+  qssm
+```
+
+The Quake asset zip should contain `id1/pak0.pak`, `id1/pak1.pak`, and an
+optional `id1/server.cfg`.
+
 Local sidecar status:
 
 ```sh
@@ -54,9 +68,16 @@ Set required config:
 ```sh
 uv run pulumi config set --secret sidecarToken <token>
 uv run pulumi config set defaultDataUrl <data-url>
+uv run pulumi config set xonoticDataUrl <xonotic-data-url>
+uv run pulumi config set qssmDataUrl <quake-data-url>
 ```
 
-`defaultDataUrl` is passed to all game services as `DATA_URL`. It accepts one or more `url=path` pairs separated by `;`. Each entry is downloaded at container startup — zip files are extracted to the given path, and raw files are written directly to the given path. This is the mechanism for supplying game data and server config without baking it into the image.
+`xonoticDataUrl` and `qssmDataUrl` override `defaultDataUrl` for those services.
+Each value is passed to the container as `DATA_URL` and accepts one or more
+`url=path` pairs separated by `;`. Each entry is downloaded at container
+startup, zip files are extracted to the given path, and raw files are written
+directly to the given path. This is the mechanism for supplying game data and
+server config without baking it into the image.
 
 Example:
 
@@ -87,6 +108,8 @@ Examples:
 ```sh
 curl "<prod_url>?game=xonotic&operation=start"
 curl "<prod_url>?game=xonotic-arm&operation=start"
+curl "<prod_url>?game=qssm&operation=start"
+curl "<prod_url>?game=qssm-arm&operation=start"
 curl "<prod_url>?game=xonotic"
 curl "<prod_url>?game=xonotic&operation=stop"
 ```
