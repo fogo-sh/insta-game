@@ -1,5 +1,13 @@
+all: download clean build
+
 UV_PROJECT=../../pulumi
 RUFF_TARGETS=../../pulumi ../../lambda sidecar-service
+
+download:
+	./download.sh
+
+clean:
+	./clean.sh
 
 build:
 	./build.sh
