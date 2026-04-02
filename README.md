@@ -6,11 +6,12 @@
 
 - `pulumi/`: AWS infrastructure in Python, managed with `uv`
 - `lambda/launcher/`: public Lambda handler for start, stop, and status
-- `docker-containers/xonotic/`: Xonotic server image, sidecar service, and local build scripts
+- `docker-containers/xonotic/`: Xonotic server image (x86_64), sidecar service, and local build scripts
+- `docker-containers/xonotic-arm/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
 
-## Local Xonotic Workflow
+## Local Workflow
 
-From `docker-containers/xonotic/`:
+From `docker-containers/xonotic/` or `docker-containers/xonotic-arm/`:
 
 ```sh
 make download
@@ -24,6 +25,12 @@ Useful extras:
 ```sh
 make all   # download + clean + build
 make ruff  # format + lint pulumi/, lambda/, and sidecar-service/
+```
+
+For the ARM image, build with:
+
+```sh
+docker buildx build --platform linux/arm64 -t xonotic-arm:latest .
 ```
 
 Local sidecar status:
@@ -46,7 +53,15 @@ Set required config:
 
 ```sh
 uv run pulumi config set --secret sidecarToken <token>
-uv run pulumi config set defaultConfigUrl <server-cfg-url>
+uv run pulumi config set defaultDataUrl <data-url>
+```
+
+`defaultDataUrl` is passed to all game services as `DATA_URL`. It accepts one or more `url=path` pairs separated by `;`. Each entry is downloaded at container startup — zip files are extracted to the given path, and raw files are written directly to the given path. This is the mechanism for supplying game data and server config without baking it into the image.
+
+Example:
+
+```
+https://example.com/data.zip=/opt/;https://example.com/server.cfg=/opt/data/server.cfg
 ```
 
 Authenticate with standard AWS environment variables, for example:
@@ -71,9 +86,7 @@ Examples:
 
 ```sh
 curl "<prod_url>?game=xonotic&operation=start"
-curl "<prod_url>?game=xonotic&operation=start&config_url=https%3A%2F%2Fexample.com%2Fserver.cfg"
+curl "<prod_url>?game=xonotic-arm&operation=start"
 curl "<prod_url>?game=xonotic"
 curl "<prod_url>?game=xonotic&operation=stop"
 ```
-
-The default Xonotic config is URL-based via `defaultConfigUrl`, and `config_url` can override it for a single launch.

@@ -1,0 +1,10 @@
+services:
+  xonotic-arm:
+    image: xonotic-arm:latest
+    build:
+      context: .
+      platforms:
+        - linux/arm64
+    ports:
+      - "127.0.0.1:26000:26000/udp"
+      - "127.0.0.1:5001:5001/tcp"

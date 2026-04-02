@@ -25,12 +25,13 @@ class GameService(pulumi.ComponentResource):
         task_role_arn: pulumi.Input[str],
         execution_role_arn: pulumi.Input[str],
         sidecar_token: pulumi.Input[str],
-        config_url: str | None = None,
+        data_url: str | None = None,
         game_port: int = 26000,
         sidecar_port: int = 5001,
         cpu: int = 256,
         memory: int = 512,
         idle_timeout_seconds: int = 600,
+        cpu_architecture: str = "X86_64",
         opts: pulumi.ResourceOptions = None,
     ):
         super().__init__("insta-game:index:GameService", name, {}, opts)
@@ -65,7 +66,7 @@ class GameService(pulumi.ComponentResource):
                             {"name": "ECS_SERVICE", "value": service_name},
                             {"name": "TOKEN", "value": args[1]},
                             {"name": "IDLE_TIMEOUT_SECONDS", "value": str(idle_timeout_seconds)},
-                            *([{"name": "CONFIG_URL", "value": config_url}] if config_url else []),
+                            *([{"name": "DATA_URL", "value": data_url}] if data_url else []),
                         ],
                         "logConfiguration": {
                             "logDriver": "awslogs",
@@ -90,6 +91,10 @@ class GameService(pulumi.ComponentResource):
             task_role_arn=task_role_arn,
             execution_role_arn=execution_role_arn,
             container_definitions=container_defs,
+            runtime_platform=aws.ecs.TaskDefinitionRuntimePlatformArgs(
+                cpu_architecture=cpu_architecture,
+                operating_system_family="LINUX",
+            ),
             opts=child_opts,
         )
 
