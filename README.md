@@ -28,10 +28,21 @@ cd docker-containers/xonotic && make download && make clean && cd ../..
 docker compose build xonotic
 ```
 
-For QSS-M, set `DATA_URL` to a zip containing `id1/pak0.pak` and `id1/pak1.pak` (commercial Quake data, not bundled):
+For QSS-M, `DATA_URL` is required — Quake pak files are commercial and not bundled. Set it to one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`):
 
 ```sh
-DATA_URL=https://example.com/quake-assets.zip=/opt/ docker compose up qssm
+# zip containing id1/pak0.pak and id1/pak1.pak, extracted to /opt/
+DATA_URL="https://example.com/quake-assets.zip=/opt/" docker compose up qssm
+
+# zip for pak files + a separate custom server.cfg
+DATA_URL="https://example.com/quake-assets.zip=/opt/;https://example.com/server.cfg=/opt/id1/server.cfg" docker compose up qssm
+```
+
+For Xonotic, `DATA_URL` is optional — the image ships with a default `server.cfg`. Set it only if you want to supply a custom config:
+
+```sh
+# override server.cfg only
+DATA_URL="https://example.com/server.cfg=/opt/data/server.cfg" docker compose up xonotic
 ```
 
 Local sidecar status:
