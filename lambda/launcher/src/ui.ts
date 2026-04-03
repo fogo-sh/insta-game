@@ -1,4 +1,4 @@
-const GAMES = ["xonotic", "qssm", "q2repro"];
+const GAMES = ["xonotic", "qssm", "q2repro", "bzflag"];
 
 export function renderUi(): string {
   return `<!DOCTYPE html>
