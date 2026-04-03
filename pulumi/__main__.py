@@ -13,6 +13,9 @@ api_token = config.require_secret("apiToken")
 discord_public_key = config.require_secret("discordPublicKey")
 discord_bot_token = config.require_secret("discordBotToken")
 discord_app_id = config.get("discordAppId") or ""
+budget_alert_email = config.require("budgetAlertEmail")
+monthly_budget_limit_usd = config.get_float("monthlyBudgetLimitUsd") or 50
+enable_custom_domain = config.get_bool("enableCustomDomain") or False
 cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get("defaultDataUrl")
 xonotic_data_url = config.get("xonoticDataUrl") or default_data_url
@@ -443,6 +446,40 @@ launcher = aws.lambda_.Function(
     ),
 )
 
+# ---- Budget guardrail ----
+
+monthly_budget = aws.budgets.Budget(
+    "monthly-budget",
+    name=global_name("monthly-budget"),
+    budget_type="COST",
+    limit_amount=f"{monthly_budget_limit_usd:.2f}",
+    limit_unit="USD",
+    time_unit="MONTHLY",
+    notifications=[
+        {
+            "comparison_operator": "GREATER_THAN",
+            "threshold": 50,
+            "threshold_type": "PERCENTAGE",
+            "notification_type": "ACTUAL",
+            "subscriber_email_addresses": [budget_alert_email],
+        },
+        {
+            "comparison_operator": "GREATER_THAN",
+            "threshold": 80,
+            "threshold_type": "PERCENTAGE",
+            "notification_type": "ACTUAL",
+            "subscriber_email_addresses": [budget_alert_email],
+        },
+        {
+            "comparison_operator": "GREATER_THAN",
+            "threshold": 100,
+            "threshold_type": "PERCENTAGE",
+            "notification_type": "FORECASTED",
+            "subscriber_email_addresses": [budget_alert_email],
+        },
+    ],
+)
+
 launcher_url = aws.lambda_.FunctionUrl(
     "launcher-url",
     function_name=launcher.name,
@@ -469,7 +506,9 @@ aws.lambda_.Permission(
 #
 # ACM certificate must live in us-east-1 (CloudFront requirement).
 # DNS validation: add the CNAME record ACM provides to Cloudflare DNS.
-# After the cert is issued, add a single CNAME in Cloudflare:
+# First deploy with enableCustomDomain=false, add the ACM validation CNAME, wait
+# for the certificate to become ISSUED, then set enableCustomDomain=true and
+# deploy again. After the cert is issued, add a single CNAME in Cloudflare:
 #   games  CNAME  <cloudfront_domain>  (proxy OFF / grey cloud)
 
 acm_provider = aws.Provider("acm-us-east-1", region="us-east-1")
@@ -493,7 +532,7 @@ cloudfront_domain = launcher_url.function_url.apply(
 
 distribution = aws.cloudfront.Distribution(
     "games-distribution",
-    aliases=["games.fogo.sh"],
+    aliases=["games.fogo.sh"] if enable_custom_domain else [],
     enabled=True,
     http_version="http2and3",
     origins=[
@@ -533,13 +572,15 @@ distribution = aws.cloudfront.Distribution(
         )
     ),
     viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
-        acm_certificate_arn=cert.arn,
-        ssl_support_method="sni-only",
-        minimum_protocol_version="TLSv1.2_2021",
+        acm_certificate_arn=cert.arn if enable_custom_domain else None,
+        cloudfront_default_certificate=None if enable_custom_domain else True,
+        ssl_support_method="sni-only" if enable_custom_domain else None,
+        minimum_protocol_version="TLSv1.2_2021" if enable_custom_domain else None,
     ),
     opts=pulumi.ResourceOptions(provider=acm_provider),
 )
 
 pulumi.export("prod_url", launcher_url.function_url)
 pulumi.export("games_url", distribution.domain_name)
+pulumi.export("budget_name", monthly_budget.name)
 pulumi.export("cert_validation_cname", cert.domain_validation_options)

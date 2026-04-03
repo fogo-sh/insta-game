@@ -103,6 +103,9 @@ uv run pulumi config set --secret apiToken <token>
 uv run pulumi config set --secret discordPublicKey <public-key>
 uv run pulumi config set --secret discordBotToken <bot-token>
 uv run pulumi config set discordAppId <app-id>
+uv run pulumi config set budgetAlertEmail <email>
+uv run pulumi config set monthlyBudgetLimitUsd 50
+uv run pulumi config set enableCustomDomain false
 ```
 
 `xonoticDataUrl`, `qssmDataUrl`, `q2reproDataUrl`, `bzflagDataUrl`, and `ut99DataUrl` override `defaultDataUrl` for those services.
@@ -127,6 +130,34 @@ export AWS_REGION=ca-central-1
 ```
 
 If you use temporary credentials, also set `AWS_SESSION_TOKEN`.
+
+`monthlyBudgetLimitUsd` creates AWS Budget email alerts at 50%, 80%, and 100%
+forecasted spend.
+
+### Custom domain
+
+CloudFront cannot attach `games.fogo.sh` until the ACM certificate is issued, so
+the first deploy should leave `enableCustomDomain=false`.
+
+```sh
+cd pulumi
+uv run pulumi up --yes
+uv run pulumi stack output cert_validation_cname
+```
+
+Create the exported ACM validation CNAME in your DNS provider, wait for the
+certificate to become `ISSUED`, then enable the alias and deploy again:
+
+```sh
+uv run pulumi config set enableCustomDomain true
+uv run pulumi up --yes
+uv run pulumi stack output games_url
+```
+
+Add a DNS CNAME for `games.fogo.sh` pointing at `games_url` with Cloudflare
+proxying disabled. If `enableCustomDomain` is still `false`, `games.fogo.sh`
+returns a CloudFront `403` because that hostname is not attached to the
+distribution yet.
 
 ### Registering Discord slash commands
 
