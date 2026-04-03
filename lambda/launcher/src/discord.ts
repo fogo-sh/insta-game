@@ -11,7 +11,7 @@ export async function discordHandler(c: Context): Promise<Response> {
   const timestamp = c.req.header("x-signature-timestamp") ?? "";
   const rawBody = await c.req.text();
 
-  const isValid = verifyKey(rawBody, signature, timestamp, DISCORD_PUBLIC_KEY);
+  const isValid = await verifyKey(rawBody, signature, timestamp, DISCORD_PUBLIC_KEY);
   if (!isValid) return c.text("invalid signature", 401);
 
   const interaction = JSON.parse(rawBody) as {
