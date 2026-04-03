@@ -6,6 +6,7 @@ on:
     paths:
       - "docker-containers/qssm/**"
       - "sidecar/**"
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
