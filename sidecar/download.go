@@ -99,18 +99,16 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 		ForceAttemptHTTP2:   false,
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
-	client := &http.Client{
-		Transport: transport,
-		// No overall timeout — let the body read run as long as needed.
-		// Individual phases are covered by the transport timeouts.
-	}
+	client := &http.Client{Transport: transport}
 	backoff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second}
 
 	var lastErr error
 	for i := 0; i <= len(backoff); i++ {
 		if i > 0 {
+			log.Printf("SIDECAR: retrying %s (attempt %d)", url, i+1)
 			time.Sleep(backoff[i-1])
 		}
+		log.Printf("SIDECAR: [fetch] creating request")
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, err
@@ -118,11 +116,14 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 		if userAgent != "" {
 			req.Header.Set("User-Agent", userAgent)
 		}
+		log.Printf("SIDECAR: [fetch] sending request")
 		resp, err := client.Do(req)
 		if err != nil {
+			log.Printf("SIDECAR: [fetch] request error: %v", err)
 			lastErr = err
 			continue
 		}
+		log.Printf("SIDECAR: [fetch] got response: HTTP %d, Content-Length: %d", resp.StatusCode, resp.ContentLength)
 		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
 			resp.Body.Close()
 			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -132,9 +133,14 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 			resp.Body.Close()
 			return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 		}
+		log.Printf("SIDECAR: [fetch] starting body read")
 		data, err := readWithProgress(resp.Body, resp.ContentLength, url)
 		resp.Body.Close()
-		return data, err
+		if err != nil {
+			log.Printf("SIDECAR: [fetch] body read error: %v", err)
+			return nil, err
+		}
+		return data, nil
 	}
 	return nil, lastErr
 }
@@ -147,7 +153,11 @@ type countingReader struct {
 
 func (c *countingReader) Read(p []byte) (int, error) {
 	n, err := c.r.Read(p)
-	c.n.Add(int64(n))
+	newTotal := c.n.Add(int64(n))
+	if newTotal <= int64(len(p)) {
+		// Log only on the very first read to confirm data is flowing
+		log.Printf("SIDECAR: [fetch] first read: %d bytes", n)
+	}
 	return n, err
 }
 
