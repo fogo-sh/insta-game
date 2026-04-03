@@ -5,7 +5,7 @@
 ## Repository Layout
 
 - `pulumi/`: AWS infrastructure in Python, managed with `uv`
-- `lambda/launcher/`: public Lambda handler for start, stop, and status
+- `launcher/`: Hono app — Lambda handler (AWS) and Docker backend (self-hosted)
 - `sidecar/`: Go sidecar binary — HTTP control API and process manager for game containers
 - `docker-containers/xonotic/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
 - `docker-containers/qssm/`: QSS-M Quake 1 server image and local build scripts
@@ -167,7 +167,7 @@ attached to the distribution yet.
 Run once after setting up the Discord application:
 
 ```sh
-cd lambda/launcher
+cd launcher
 ```
 
 Build the Lambda bundle before `pulumi preview` or `pulumi up`:

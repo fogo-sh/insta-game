@@ -398,7 +398,7 @@ launcher = aws.lambda_.Function(
     handler="index.handler",
     timeout=120,
     role=lambda_role.arn,
-    code=pulumi.FileArchive("../lambda/launcher/dist"),
+    code=pulumi.FileArchive("../launcher/dist"),
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables=pulumi.Output.all(
             sidecar_token,
