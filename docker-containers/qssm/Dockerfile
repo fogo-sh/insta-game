@@ -43,6 +43,7 @@ COPY --from=qssm-builder /usr/local/share/qssm.pak /opt/qssm.pak
 WORKDIR /opt
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     libcurl4 \
     libgl1 \
     libgnutls30 \

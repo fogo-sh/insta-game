@@ -24,7 +24,7 @@ RUN make sv-release
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get -y install --no-install-recommends \
-    libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g \
+    ca-certificates libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
