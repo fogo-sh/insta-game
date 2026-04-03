@@ -160,6 +160,8 @@ func queryServer(c cfg) *protocol.ServerInfo {
 	var info *protocol.ServerInfo
 	var err error
 	switch c.Protocol {
+	case "bzflag":
+		info, err = protocol.QueryBZFlag(c.GamePort)
 	case "quake1":
 		info, err = protocol.QueryQuake1(c.GamePort)
 	case "quake2":

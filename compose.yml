@@ -70,3 +70,29 @@ services:
       DATA_URL: "${Q2REPRO_DATA_URL}"
     volumes:
       - ./.cache/q2repro:/opt/baseq2
+
+  bzflag:
+    image: ghcr.io/fogo-sh/insta-game:bzflag
+    build:
+      context: .
+      dockerfile: docker-containers/bzflag/Dockerfile
+      platforms:
+        - linux/arm64
+    ports:
+      - "127.0.0.1:5154:5154/tcp"
+      - "127.0.0.1:5154:5154/udp"
+      - "127.0.0.1:5004:5001/tcp"
+    environment:
+      PROTOCOL: "bzflag"
+      GAME_CMD: "/usr/games/bzfs"
+      GAME_ARGS: "-conf /opt/data/server.cfg -p 5154"
+      GAME_QUIT_CMD: "quit"
+      GAME_QUIT_TIMEOUT: "15"
+      GAME_PORT: "5154"
+      CONFIG_PATH: "/opt/data/server.cfg"
+      TOKEN: "abc123"
+      # DATA_URL is optional for BZFlag; a private random-map config is bundled.
+      # Set it to supply a custom bzfs config file.
+      # DATA_URL: "https://example.com/server.cfg=/opt/data/server.cfg"
+    volumes:
+      - ./.cache/bzflag:/opt/data

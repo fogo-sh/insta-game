@@ -27,6 +27,7 @@ class GameService(pulumi.ComponentResource):
         sidecar_token: pulumi.Input[str],
         data_url: str | None = None,
         game_port: int = 26000,
+        game_port_protocols: list[str] | None = None,
         sidecar_port: int = 5001,
         cpu: int = 256,
         memory: int = 512,
@@ -46,6 +47,8 @@ class GameService(pulumi.ComponentResource):
         region = aws.get_region().region
         service_name = f"{name_prefix}-{game_name}-service"
         task_family = f"{name_prefix}-{game_name}"
+        if game_port_protocols is None:
+            game_port_protocols = ["udp"]
 
         log_group = aws.cloudwatch.LogGroup(
             f"{name}-log-group",
@@ -63,7 +66,10 @@ class GameService(pulumi.ComponentResource):
                         "cpu": cpu,
                         "memory": memory,
                         "portMappings": [
-                            {"containerPort": game_port, "protocol": "udp"},
+                            *[
+                                {"containerPort": game_port, "protocol": protocol_name}
+                                for protocol_name in game_port_protocols
+                            ],
                             {"containerPort": sidecar_port, "protocol": "tcp"},
                         ],
                         "environment": [

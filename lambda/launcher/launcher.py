@@ -28,6 +28,10 @@ GAMES = json.loads(
                     "service_name": "instagame-q2repro-service",
                     "sidecar_port": 5001,
                 },
+                "bzflag": {
+                    "service_name": "instagame-bzflag-service",
+                    "sidecar_port": 5001,
+                },
             }
         ),
     )

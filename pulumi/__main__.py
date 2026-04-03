@@ -13,6 +13,7 @@ default_data_url = config.get("defaultDataUrl")
 xonotic_data_url = config.get("xonoticDataUrl") or default_data_url
 qss_m_data_url = config.get("qssmDataUrl") or default_data_url
 q2repro_data_url = config.get("q2reproDataUrl") or default_data_url
+bzflag_data_url = config.get("bzflagDataUrl") or default_data_url
 region_code = aws.get_region().region
 account_id = aws.get_caller_identity().account_id
 account_suffix = account_id[-6:]
@@ -92,6 +93,18 @@ security_group = aws.ec2.SecurityGroup(
         aws.ec2.SecurityGroupIngressArgs(
             from_port=27910,
             to_port=27910,
+            protocol="udp",
+            cidr_blocks=["0.0.0.0/0"],
+        ),
+        aws.ec2.SecurityGroupIngressArgs(
+            from_port=5154,
+            to_port=5154,
+            protocol="tcp",
+            cidr_blocks=["0.0.0.0/0"],
+        ),
+        aws.ec2.SecurityGroupIngressArgs(
+            from_port=5154,
+            to_port=5154,
             protocol="udp",
             cidr_blocks=["0.0.0.0/0"],
         ),
@@ -301,6 +314,32 @@ q2repro = GameService(
     config_path="/opt/baseq2/server.cfg",
 )
 
+bzflag = GameService(
+    "bzflag",
+    game_name="bzflag",
+    name_prefix=regional_name("game"),
+    image="ghcr.io/fogo-sh/insta-game:bzflag",
+    cluster_id=cluster.id,
+    cluster_name=cluster.name,
+    subnet_ids=[s.id for s in subnets],
+    security_group_id=security_group.id,
+    task_role_arn=ecs_task_role.arn,
+    execution_role_arn=ecs_execution_role.arn,
+    sidecar_token=sidecar_token,
+    cpu=512,
+    memory=1024,
+    cpu_architecture="ARM64",
+    data_url=bzflag_data_url,
+    game_port=5154,
+    game_port_protocols=["tcp", "udp"],
+    protocol="bzflag",
+    game_cmd="/usr/games/bzfs",
+    game_args="-conf /opt/data/server.cfg -p 5154",
+    game_quit_cmd="quit",
+    game_quit_timeout=15,
+    config_path="/opt/data/server.cfg",
+)
+
 # ---- Lambda ----
 
 launcher = aws.lambda_.Function(
@@ -322,6 +361,7 @@ launcher = aws.lambda_.Function(
             cluster.name,
             qssm.service_name,
             q2repro.service_name,
+            bzflag.service_name,
         ).apply(
             lambda args: {
                 "SIDECAR_TOKEN": args[0],
@@ -338,6 +378,10 @@ launcher = aws.lambda_.Function(
                         },
                         "q2repro": {
                             "service_name": args[4],
+                            "sidecar_port": 5001,
+                        },
+                        "bzflag": {
+                            "service_name": args[5],
                             "sidecar_port": 5001,
                         },
                     }
