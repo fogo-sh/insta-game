@@ -39,3 +39,5 @@ services:
       # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
       # Set QSSM_DATA_URL in .env at the repo root (build.sh will prompt and save it for you).
       DATA_URL: "${QSSM_DATA_URL}"
+    volumes:
+      - ./.cache/qssm:/opt/id1

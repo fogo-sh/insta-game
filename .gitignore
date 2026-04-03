@@ -1,8 +1,7 @@
 docker-containers/xonotic/xonotic.zip
 docker-containers/xonotic/Xonotic*
-docker-containers/xonotic-arm/xonotic.zip
-docker-containers/xonotic-arm/Xonotic*
 
+.cache/
 .idea/
 .codex
 __pycache__/

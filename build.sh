@@ -38,6 +38,7 @@ case "$GAME" in
       echo "==> Using saved QSSM_DATA_URL from .env"
     fi
 
+    mkdir -p .cache/qssm
     echo "==> Building qssm image..."
     docker compose build qssm
     ;;

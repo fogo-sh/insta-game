@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"log"
@@ -22,6 +23,12 @@ func downloadData(dataURL, defaultConfigPath, userAgent string) error {
 	}
 
 	for _, e := range entries {
+		sentinel := sentinelPath(e.path, e.url)
+		if _, err := os.Stat(sentinel); err == nil {
+			log.Printf("SIDECAR: Skipping %s (cached)", e.url)
+			continue
+		}
+
 		log.Printf("SIDECAR: Downloading data from: %s", e.url)
 		content, err := fetchWithRetry(e.url, userAgent)
 		if err != nil {
@@ -43,8 +50,28 @@ func downloadData(dataURL, defaultConfigPath, userAgent string) error {
 				return fmt.Errorf("write %s: %w", e.path, err)
 			}
 		}
+
+		if err := os.WriteFile(sentinel, []byte(e.url), 0644); err != nil {
+			log.Printf("SIDECAR: Warning: failed to write cache sentinel: %v", err)
+		}
 	}
 	return nil
+}
+
+// sentinelPath returns the path of the cache sentinel file for a given
+// destination and URL. The sentinel is named .cache-<sha256-of-url> and lives
+// in the destination directory (or /opt/ if dest is empty).
+func sentinelPath(dest, url string) string {
+	if dest == "" {
+		dest = "/opt/"
+	}
+	// For non-directory destinations (raw file writes), place the sentinel
+	// alongside the file in its parent directory.
+	if !strings.HasSuffix(dest, "/") {
+		dest = filepath.Dir(dest)
+	}
+	sum := sha256.Sum256([]byte(url))
+	return filepath.Join(dest, fmt.Sprintf(".cache-%x", sum[:8]))
 }
 
 type dataEntry struct {
