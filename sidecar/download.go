@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -126,10 +127,22 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 	return nil, lastErr
 }
 
+// countingReader wraps an io.Reader and atomically tracks bytes read.
+type countingReader struct {
+	r io.Reader
+	n atomic.Int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n.Add(int64(n))
+	return n, err
+}
+
 // readWithProgress reads r into memory, logging progress every 5 seconds.
 // total is the expected size from Content-Length (-1 if unknown).
 func readWithProgress(r io.Reader, total int64, label string) ([]byte, error) {
-	var buf bytes.Buffer
+	cr := &countingReader{r: r}
 	done := make(chan struct{})
 
 	go func() {
@@ -140,7 +153,7 @@ func readWithProgress(r io.Reader, total int64, label string) ([]byte, error) {
 			case <-done:
 				return
 			case <-ticker.C:
-				n := int64(buf.Len())
+				n := cr.n.Load()
 				if total > 0 {
 					log.Printf("SIDECAR: downloading %s — %.1f / %.1f MB (%.0f%%)",
 						label,
@@ -158,7 +171,8 @@ func readWithProgress(r io.Reader, total int64, label string) ([]byte, error) {
 		}
 	}()
 
-	_, err := io.Copy(&buf, r)
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, cr)
 	close(done)
 	if err != nil {
 		return nil, err
