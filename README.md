@@ -21,11 +21,11 @@ docker compose up qssm      # run QSS-M (requires DATA_URL env var — see compo
 
 The images are ARM64-only. Make sure Docker Desktop has QEMU/multi-platform support enabled, or run on an ARM64 machine.
 
-To rebuild the Xonotic image from source first:
+To build images locally (handles any required pre-build steps automatically):
 
 ```sh
-cd docker-containers/xonotic && make download && make clean && cd ../..
-docker compose build xonotic
+./build.sh xonotic
+./build.sh qssm
 ```
 
 For QSS-M, `DATA_URL` is required — Quake pak files are commercial and not bundled. Set it to one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`):
