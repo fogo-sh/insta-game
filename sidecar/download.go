@@ -121,9 +121,50 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 		if resp.StatusCode != 200 {
 			return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 		}
-		return io.ReadAll(resp.Body)
+		return readWithProgress(resp.Body, resp.ContentLength, url)
 	}
 	return nil, lastErr
+}
+
+// readWithProgress reads r into memory, logging progress every 5 seconds.
+// total is the expected size from Content-Length (-1 if unknown).
+func readWithProgress(r io.Reader, total int64, label string) ([]byte, error) {
+	var buf bytes.Buffer
+	done := make(chan struct{})
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				n := int64(buf.Len())
+				if total > 0 {
+					log.Printf("SIDECAR: downloading %s — %.1f / %.1f MB (%.0f%%)",
+						label,
+						float64(n)/1024/1024,
+						float64(total)/1024/1024,
+						float64(n)/float64(total)*100,
+					)
+				} else {
+					log.Printf("SIDECAR: downloading %s — %.1f MB received",
+						label,
+						float64(n)/1024/1024,
+					)
+				}
+			}
+		}
+	}()
+
+	_, err := io.Copy(&buf, r)
+	close(done)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("SIDECAR: download complete %s — %.1f MB", label, float64(buf.Len())/1024/1024)
+	return buf.Bytes(), nil
 }
 
 func isZip(data []byte) bool {
