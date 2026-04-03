@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -34,25 +33,38 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 		}
 
 		log.Printf("SIDECAR: Downloading data from: %s", e.url)
-		content, err := fetchWithRetry(e.url, userAgent)
+		tmpPath, err := fetchWithRetry(e.url, userAgent)
 		if err != nil {
 			return fmt.Errorf("download %s: %w", e.url, err)
 		}
 
-		if isZip(content) {
+		if zip, err := isZip(tmpPath); err != nil {
+			os.Remove(tmpPath)
+			return fmt.Errorf("check zip %s: %w", e.url, err)
+		} else if zip {
 			dest := e.path
 			if dest == "" {
 				dest = "/opt/"
 			}
 			log.Printf("SIDECAR: Extracting zip to %s", dest)
-			if err := extractZip(content, dest); err != nil {
+			if err := extractZip(tmpPath, dest); err != nil {
+				os.Remove(tmpPath)
 				return fmt.Errorf("extract %s: %w", e.url, err)
 			}
 		} else {
 			log.Printf("SIDECAR: Saving file to %s", e.path)
-			if err := os.WriteFile(e.path, content, 0644); err != nil {
-				return fmt.Errorf("write %s: %w", e.path, err)
+			if err := os.Rename(tmpPath, e.path); err != nil {
+				// Rename can fail across devices; fall back to copy.
+				if err2 := copyFile(tmpPath, e.path); err2 != nil {
+					os.Remove(tmpPath)
+					return fmt.Errorf("write %s: %w", e.path, err2)
+				}
 			}
+			tmpPath = "" // renamed or copied — no removal needed
+		}
+
+		if tmpPath != "" {
+			os.Remove(tmpPath)
 		}
 
 		if err := os.WriteFile(sentinel, []byte(e.url), 0644); err != nil {
@@ -96,7 +108,9 @@ func parseDataURL(raw string) []dataEntry {
 	return out
 }
 
-func fetchWithRetry(url, userAgent string) ([]byte, error) {
+// fetchWithRetry downloads url to a temp file and returns its path.
+// The caller is responsible for removing the file when done.
+func fetchWithRetry(url, userAgent string) (string, error) {
 	// Force HTTP/1.1 — HTTP/2 can deadlock under QEMU ARM emulation.
 	transport := &http.Transport{
 		ForceAttemptHTTP2:   false,
@@ -104,6 +118,11 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 	}
 	client := &http.Client{Transport: transport}
 	backoff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second}
+
+	ua := userAgent
+	if ua == "" {
+		ua = "fogo-sh/insta-game"
+	}
 
 	var lastErr error
 	for i := 0; i <= len(backoff); i++ {
@@ -113,11 +132,7 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 		}
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			return nil, err
-		}
-		ua := userAgent
-		if ua == "" {
-			ua = "fogo-sh/insta-game"
+			return "", err
 		}
 		req.Header.Set("User-Agent", ua)
 		resp, err := client.Do(req)
@@ -132,16 +147,16 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 		}
 		if resp.StatusCode != 200 {
 			resp.Body.Close()
-			return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+			return "", fmt.Errorf("HTTP %d", resp.StatusCode)
 		}
-		data, err := readWithProgress(resp.Body, resp.ContentLength, url)
+		path, err := streamToFile(resp.Body, resp.ContentLength, url)
 		resp.Body.Close()
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		return data, nil
+		return path, nil
 	}
-	return nil, lastErr
+	return "", lastErr
 }
 
 // countingReader wraps an io.Reader and atomically tracks bytes read.
@@ -156,9 +171,16 @@ func (c *countingReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// readWithProgress reads r into memory, logging progress every 5 seconds.
+// streamToFile streams r to a temp file, logging progress every 5 seconds.
 // total is the expected size from Content-Length (-1 if unknown).
-func readWithProgress(r io.Reader, total int64, label string) ([]byte, error) {
+// Returns the path of the temp file; the caller must remove it when done.
+func streamToFile(r io.Reader, total int64, label string) (string, error) {
+	tmp, err := os.CreateTemp("", "sidecar-download-*")
+	if err != nil {
+		return "", fmt.Errorf("create temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+
 	cr := &countingReader{r: r}
 	done := make(chan struct{})
 
@@ -188,26 +210,43 @@ func readWithProgress(r io.Reader, total int64, label string) ([]byte, error) {
 		}
 	}()
 
-	var buf bytes.Buffer
-	_, err := io.Copy(&buf, cr)
+	_, err = io.Copy(tmp, cr)
 	close(done)
+	tmp.Close()
 	if err != nil {
-		return nil, err
+		os.Remove(tmpPath)
+		return "", err
 	}
-	log.Printf("SIDECAR: download complete %s — %.1f MB", label, float64(buf.Len())/1024/1024)
-	return buf.Bytes(), nil
+	log.Printf("SIDECAR: download complete %s — %.1f MB", label, float64(cr.n.Load())/1024/1024)
+	return tmpPath, nil
 }
 
-func isZip(data []byte) bool {
-	return len(data) >= 4 &&
-		data[0] == 'P' && data[1] == 'K' && data[2] == 0x03 && data[3] == 0x04
+// isZip peeks the first 4 bytes of the file to check for a PK zip header.
+func isZip(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	var magic [4]byte
+	n, err := f.Read(magic[:])
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+	if n < 4 {
+		return false, nil
+	}
+	return magic[0] == 'P' && magic[1] == 'K' && magic[2] == 0x03 && magic[3] == 0x04, nil
 }
 
-func extractZip(data []byte, dest string) error {
-	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+// extractZip extracts the zip at zipPath into dest, streaming each entry to disk.
+func extractZip(zipPath, dest string) error {
+	r, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return err
 	}
+	defer r.Close()
+
 	for _, f := range r.File {
 		target := filepath.Join(dest, f.Name)
 		if f.FileInfo().IsDir() {
@@ -235,9 +274,16 @@ func extractZip(data []byte, dest string) error {
 }
 
 func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
+	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, data, 0644)
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
 }
