@@ -134,13 +134,16 @@ If you use temporary credentials, also set `AWS_SESSION_TOKEN`.
 `monthlyBudgetLimitUsd` creates AWS Budget email alerts at 50%, 80%, and 100%
 forecasted spend.
 
+`customDomainHostname` is only required when `enableCustomDomain=true`.
+
 ### Custom domain
 
-CloudFront cannot attach `games.fogo.sh` until the ACM certificate is issued, so
-the first deploy should leave `enableCustomDomain=false`.
+CloudFront cannot attach `customDomainHostname` until the ACM certificate is
+issued, so the first deploy should leave `enableCustomDomain=false`.
 
 ```sh
 cd pulumi
+uv run pulumi config set customDomainHostname <games-hostname>
 uv run pulumi up --yes
 uv run pulumi stack output cert_validation_cname
 ```
@@ -154,10 +157,10 @@ uv run pulumi up --yes
 uv run pulumi stack output games_url
 ```
 
-Add a DNS CNAME for `games.fogo.sh` pointing at `games_url` with Cloudflare
-proxying disabled. If `enableCustomDomain` is still `false`, `games.fogo.sh`
-returns a CloudFront `403` because that hostname is not attached to the
-distribution yet.
+Add a DNS CNAME for `customDomainHostname` pointing at `games_url` with
+Cloudflare proxying disabled. If `enableCustomDomain` is still `false`,
+`customDomainHostname` returns a CloudFront `403` because that hostname is not
+attached to the distribution yet.
 
 ### Registering Discord slash commands
 

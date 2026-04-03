@@ -16,6 +16,11 @@ discord_app_id = config.get("discordAppId") or ""
 budget_alert_email = config.require("budgetAlertEmail")
 monthly_budget_limit_usd = config.get_float("monthlyBudgetLimitUsd") or 50
 enable_custom_domain = config.get_bool("enableCustomDomain") or False
+custom_domain_hostname = (
+    config.require("customDomainHostname")
+    if enable_custom_domain
+    else config.get("customDomainHostname")
+)
 cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get("defaultDataUrl")
 xonotic_data_url = config.get("xonoticDataUrl") or default_data_url
@@ -502,22 +507,26 @@ aws.lambda_.Permission(
     invoked_via_function_url=True,
 )
 
-# ---- Custom domain (games.fogo.sh) ----
+# ---- Custom domain ----
 #
 # ACM certificate must live in us-east-1 (CloudFront requirement).
 # DNS validation: add the CNAME record ACM provides to Cloudflare DNS.
 # First deploy with enableCustomDomain=false, add the ACM validation CNAME, wait
 # for the certificate to become ISSUED, then set enableCustomDomain=true and
 # deploy again. After the cert is issued, add a single CNAME in Cloudflare:
-#   games  CNAME  <cloudfront_domain>  (proxy OFF / grey cloud)
+#   <hostname>  CNAME  <cloudfront_domain>  (proxy OFF / grey cloud)
 
 acm_provider = aws.Provider("acm-us-east-1", region="us-east-1")
 
-cert = aws.acm.Certificate(
-    "games-cert",
-    domain_name="games.fogo.sh",
-    validation_method="DNS",
-    opts=pulumi.ResourceOptions(provider=acm_provider),
+cert = (
+    aws.acm.Certificate(
+        "games-cert",
+        domain_name=custom_domain_hostname,
+        validation_method="DNS",
+        opts=pulumi.ResourceOptions(provider=acm_provider),
+    )
+    if custom_domain_hostname
+    else None
 )
 
 # AWS managed cache policies (stable IDs, safe to hardcode)
@@ -532,7 +541,7 @@ cloudfront_domain = launcher_url.function_url.apply(
 
 distribution = aws.cloudfront.Distribution(
     "games-distribution",
-    aliases=["games.fogo.sh"] if enable_custom_domain else [],
+    aliases=[custom_domain_hostname] if enable_custom_domain and custom_domain_hostname else [],
     enabled=True,
     http_version="http2and3",
     origins=[
@@ -572,7 +581,7 @@ distribution = aws.cloudfront.Distribution(
         )
     ),
     viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
-        acm_certificate_arn=cert.arn if enable_custom_domain else None,
+        acm_certificate_arn=cert.arn if enable_custom_domain and cert else None,
         cloudfront_default_certificate=None if enable_custom_domain else True,
         ssl_support_method="sni-only" if enable_custom_domain else None,
         minimum_protocol_version="TLSv1.2_2021" if enable_custom_domain else None,
@@ -582,5 +591,6 @@ distribution = aws.cloudfront.Distribution(
 
 pulumi.export("prod_url", launcher_url.function_url)
 pulumi.export("games_url", distribution.domain_name)
+pulumi.export("games_hostname", custom_domain_hostname)
 pulumi.export("budget_name", monthly_budget.name)
-pulumi.export("cert_validation_cname", cert.domain_validation_options)
+pulumi.export("cert_validation_cname", cert.domain_validation_options if cert else None)
