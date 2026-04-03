@@ -58,7 +58,7 @@ Delete the old file and create the new one at the new path:
 rm .github/workflows/publish-xonotic-arm.yml
 ```
 
-Write `.github/workflows/publish-xonotic.yml` with the following content:
+Write `.github/workflows/publish-xonotic.yml` with the following content (using `xonotic-arm` paths for now — Task 3 will update these to `xonotic` once the directory is renamed):
 
 ```yaml
 name: Create and publish the Xonotic Docker image
@@ -186,18 +186,23 @@ git commit -m "ci: rename ARM workflows, use :xonotic/:qssm tags, add path filte
 
 ---
 
-### Task 3: Delete the x86_64 Xonotic Docker directory
+### Task 3: Replace x86_64 Xonotic directory with renamed ARM directory
+
+Delete the old x86_64 `docker-containers/xonotic/` and rename `docker-containers/xonotic-arm/` to `docker-containers/xonotic/`. Update the CI workflow and any internal Makefile references to use the new path.
 
 **Files:**
 - Delete: `docker-containers/xonotic/` (entire directory)
+- Rename: `docker-containers/xonotic-arm/` → `docker-containers/xonotic/`
+- Update: `.github/workflows/publish-xonotic.yml` (context path and `cd` path)
 
-- [ ] **Step 1: Delete the directory**
+- [ ] **Step 1: Delete the x86_64 directory and rename the ARM directory**
 
 ```bash
 rm -rf docker-containers/xonotic/
+mv docker-containers/xonotic-arm docker-containers/xonotic
 ```
 
-- [ ] **Step 2: Verify only the ARM and qssm directories remain**
+- [ ] **Step 2: Verify the final directory layout**
 
 ```bash
 ls docker-containers/
@@ -206,14 +211,75 @@ ls docker-containers/
 Expected:
 ```
 qssm/
-xonotic-arm/
+xonotic/
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Update the CI workflow paths**
+
+In `.github/workflows/publish-xonotic.yml`, update the two references from `xonotic-arm` to `xonotic`:
+
+- `paths` filter: `docker-containers/xonotic-arm/**` → `docker-containers/xonotic/**`
+- `cd` step: `cd ./docker-containers/xonotic-arm` → `cd ./docker-containers/xonotic`
+- `context`: `./docker-containers/xonotic-arm/` → `./docker-containers/xonotic/`
+
+The resulting workflow file:
+
+```yaml
+name: Create and publish the Xonotic Docker image
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docker-containers/xonotic/**"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Download Xonotic and Setup Build Dependencies
+        run: |
+          cd ./docker-containers/xonotic
+          make download && make clean
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v1.12.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2.9.0
+        with:
+          context: ./docker-containers/xonotic/
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:xonotic
+```
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add -A docker-containers/xonotic/
-git commit -m "chore: remove x86_64 Xonotic Docker directory"
+git add -A docker-containers/ .github/workflows/publish-xonotic.yml
+git commit -m "chore: replace x86_64 xonotic dir with renamed xonotic-arm dir"
 ```
 
 ---
