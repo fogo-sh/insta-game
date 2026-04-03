@@ -6,13 +6,12 @@
 
 - `pulumi/`: AWS infrastructure in Python, managed with `uv`
 - `lambda/launcher/`: public Lambda handler for start, stop, and status
-- `docker-containers/xonotic/`: Xonotic server image (x86_64), sidecar service, and local build scripts
-- `docker-containers/xonotic-arm/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
+- `docker-containers/xonotic/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
 - `docker-containers/qssm/`: QSS-M Quake server image, sidecar service, and local build scripts
 
 ## Local Workflow
 
-From `docker-containers/xonotic/` or `docker-containers/xonotic-arm/`:
+From `docker-containers/xonotic/`:
 
 ```sh
 make download
@@ -28,10 +27,10 @@ make all   # download + clean + build
 make ruff  # format + lint pulumi/, lambda/, and sidecar-service/
 ```
 
-For the ARM image, build with:
+The Xonotic image is ARM64-only and built from source. To build locally for ARM64:
 
 ```sh
-docker buildx build --platform linux/arm64 -t xonotic-arm:latest .
+docker buildx build --platform linux/arm64 -t xonotic:latest .
 ```
 
 From `docker-containers/qssm/`:
@@ -107,9 +106,7 @@ Examples:
 
 ```sh
 curl "<prod_url>?game=xonotic&operation=start"
-curl "<prod_url>?game=xonotic-arm&operation=start"
 curl "<prod_url>?game=qssm&operation=start"
-curl "<prod_url>?game=qssm-arm&operation=start"
 curl "<prod_url>?game=xonotic"
 curl "<prod_url>?game=xonotic&operation=stop"
 ```
