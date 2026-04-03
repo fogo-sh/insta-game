@@ -1,8 +1,10 @@
-name: Create and publish the QSS-M ARM Docker image
+name: Create and publish the Xonotic Docker image
 
 on:
   push:
     branches: ["main"]
+    paths:
+      - "docker-containers/xonotic-arm/**"
 
 env:
   REGISTRY: ghcr.io
@@ -18,6 +20,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+
+      - name: Download Xonotic and Setup Build Dependencies
+        run: |
+          cd ./docker-containers/xonotic-arm
+          make download && make clean
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -35,7 +42,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v2.9.0
         with:
-          context: ./docker-containers/qssm/
+          context: ./docker-containers/xonotic-arm/
           platforms: linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:qssm-arm
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:xonotic
