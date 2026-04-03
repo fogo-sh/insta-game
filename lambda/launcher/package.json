@@ -1,0 +1,22 @@
+{
+  "name": "insta-game-launcher",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/*",
+    "build:watch": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/* --watch"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.0.0",
+    "@aws-sdk/client-ecs": "^3.0.0",
+    "discord-interactions": "^3.4.0",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.0",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.20.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}
