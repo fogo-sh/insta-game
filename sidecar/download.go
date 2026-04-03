@@ -15,12 +15,12 @@ import (
 	"time"
 )
 
-func downloadData(dataURL, defaultConfigPath, userAgent string) error {
+func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) error {
 	entries := parseDataURL(dataURL)
 
 	if len(entries) == 0 {
 		log.Printf("SIDECAR: No DATA_URL set, using bundled default config: %s", defaultConfigPath)
-		return copyFile(defaultConfigPath, "/opt/data/server.cfg")
+		return copyFile(defaultConfigPath, configPath)
 	}
 
 	for _, e := range entries {
@@ -56,7 +56,15 @@ func downloadData(dataURL, defaultConfigPath, userAgent string) error {
 			log.Printf("SIDECAR: Warning: failed to write cache sentinel: %v", err)
 		}
 	}
-	return nil
+
+	if _, err := os.Stat(configPath); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	log.Printf("SIDECAR: No server.cfg found in downloaded data, using %s", defaultConfigPath)
+	return copyFile(defaultConfigPath, configPath)
 }
 
 // sentinelPath returns the path of the cache sentinel file for a given

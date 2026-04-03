@@ -5,7 +5,7 @@ GAME=$1
 
 if [ -z "$GAME" ]; then
   echo "Usage: $0 <game>"
-  echo "  Games: xonotic, qssm"
+  echo "  Games: xonotic, qssm, q2repro"
   exit 1
 fi
 
@@ -42,9 +42,30 @@ case "$GAME" in
     echo "==> Building qssm image..."
     docker compose build qssm
     ;;
+  q2repro)
+    if [ -f .env ]; then
+      . ./.env
+    fi
+
+    if [ -z "$Q2REPRO_DATA_URL" ]; then
+      printf "Q2REPRO_DATA_URL (semicolon-separated url=path entries): "
+      read -r Q2REPRO_DATA_URL
+      if [ -z "$Q2REPRO_DATA_URL" ]; then
+        echo "Q2REPRO_DATA_URL is required to run q2repro."
+        exit 1
+      fi
+      echo "Q2REPRO_DATA_URL=$Q2REPRO_DATA_URL" >> .env
+      echo "==> Saved Q2REPRO_DATA_URL to .env"
+    else
+      echo "==> Using saved Q2REPRO_DATA_URL from .env"
+    fi
+
+    echo "==> Building q2repro image..."
+    docker compose build q2repro
+    ;;
   *)
     echo "Unknown game: $GAME"
-    echo "  Games: xonotic, qssm"
+    echo "  Games: xonotic, qssm, q2repro"
     exit 1
     ;;
 esac

@@ -36,6 +36,7 @@ class GameService(pulumi.ComponentResource):
         game_args: str = "",
         game_quit_cmd: str = "quit",
         game_quit_timeout: int = 15,
+        config_path: str = "/opt/data/server.cfg",
         cpu_architecture: str = "X86_64",
         opts: pulumi.ResourceOptions = None,
     ):
@@ -76,6 +77,7 @@ class GameService(pulumi.ComponentResource):
                             {"name": "GAME_ARGS", "value": game_args},
                             {"name": "GAME_QUIT_CMD", "value": game_quit_cmd},
                             {"name": "GAME_QUIT_TIMEOUT", "value": str(game_quit_timeout)},
+                            {"name": "CONFIG_PATH", "value": config_path},
                             *([{"name": "DATA_URL", "value": data_url}] if data_url else []),
                         ],
                         "logConfiguration": {

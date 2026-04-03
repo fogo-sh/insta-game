@@ -32,6 +32,7 @@ type cfg struct {
 	GamePort        int
 	DataURL         string
 	DefaultConfig   string
+	ConfigPath      string
 	UserAgent       string
 	Token           string
 	IdleTimeout     time.Duration
@@ -61,6 +62,7 @@ func loadConfig() cfg {
 		GamePort:        gamePort,
 		DataURL:         envOr("DATA_URL", ""),
 		DefaultConfig:   envOr("DEFAULT_CONFIG_PATH", "/opt/default-server.cfg"),
+		ConfigPath:      envOr("CONFIG_PATH", "/opt/data/server.cfg"),
 		UserAgent:       envOr("DOWNLOAD_USER_AGENT", ""),
 		Token:           envOr("TOKEN", "abc123"),
 		IdleTimeout:     time.Duration(idleTimeout) * time.Second,
@@ -160,6 +162,8 @@ func queryServer(c cfg) *protocol.ServerInfo {
 	switch c.Protocol {
 	case "quake1":
 		info, err = protocol.QueryQuake1(c.GamePort)
+	case "quake2":
+		info, err = protocol.QueryQuake2(c.GamePort)
 	default:
 		info, err = protocol.QueryXonotic(c.GamePort)
 	}
@@ -296,7 +300,7 @@ func stopHandler(c cfg) http.HandlerFunc {
 func main() {
 	c := loadConfig()
 
-	if err := downloadData(c.DataURL, c.DefaultConfig, c.UserAgent); err != nil {
+	if err := downloadData(c.DataURL, c.DefaultConfig, c.ConfigPath, c.UserAgent); err != nil {
 		log.Fatalf("SIDECAR: data download failed: %v", err)
 	}
 

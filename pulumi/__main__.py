@@ -12,6 +12,7 @@ cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get("defaultDataUrl")
 xonotic_data_url = config.get("xonoticDataUrl") or default_data_url
 qss_m_data_url = config.get("qssmDataUrl") or default_data_url
+q2repro_data_url = config.get("q2reproDataUrl") or default_data_url
 region_code = aws.get_region().region
 account_id = aws.get_caller_identity().account_id
 account_suffix = account_id[-6:]
@@ -263,6 +264,31 @@ qssm = GameService(
     game_args="-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg",
     game_quit_cmd="quit",
     game_quit_timeout=15,
+    config_path="/opt/id1/server.cfg",
+)
+
+q2repro = GameService(
+    "q2repro",
+    game_name="q2repro",
+    name_prefix=regional_name("game"),
+    image="ghcr.io/fogo-sh/insta-game:q2repro",
+    cluster_id=cluster.id,
+    cluster_name=cluster.name,
+    subnet_ids=[s.id for s in subnets],
+    security_group_id=security_group.id,
+    task_role_arn=ecs_task_role.arn,
+    execution_role_arn=ecs_execution_role.arn,
+    sidecar_token=sidecar_token,
+    cpu=512,
+    memory=1024,
+    cpu_architecture="ARM64",
+    data_url=q2repro_data_url,
+    protocol="quake2",
+    game_cmd="./q2proded",
+    game_args="+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 26000 +set maxclients 12 +exec server.cfg",
+    game_quit_cmd="quit",
+    game_quit_timeout=15,
+    config_path="/opt/baseq2/server.cfg",
 )
 
 # ---- Lambda ----
@@ -285,6 +311,7 @@ launcher = aws.lambda_.Function(
             xonotic.service_name,
             cluster.name,
             qssm.service_name,
+            q2repro.service_name,
         ).apply(
             lambda args: {
                 "SIDECAR_TOKEN": args[0],
@@ -297,6 +324,10 @@ launcher = aws.lambda_.Function(
                         },
                         "qssm": {
                             "service_name": args[3],
+                            "sidecar_port": 5001,
+                        },
+                        "q2repro": {
+                            "service_name": args[4],
                             "sidecar_port": 5001,
                         },
                     }

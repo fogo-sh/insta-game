@@ -43,3 +43,26 @@ services:
       DATA_URL: "${QSSM_DATA_URL}"
     volumes:
       - ./.cache/qssm:/opt/id1
+
+  q2repro:
+    image: ghcr.io/fogo-sh/insta-game:q2repro
+    build:
+      context: .
+      dockerfile: docker-containers/q2repro/Dockerfile
+      platforms:
+        - linux/arm64
+    ports:
+      - "127.0.0.1:26002:26000/udp"
+      - "127.0.0.1:5003:5001/tcp"
+    environment:
+      PROTOCOL: "quake2"
+      GAME_CMD: "./q2proded"
+      GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 26000 +set maxclients 12 +exec server.cfg"
+      GAME_QUIT_CMD: "quit"
+      GAME_QUIT_TIMEOUT: "15"
+      CONFIG_PATH: "/opt/baseq2/server.cfg"
+      TOKEN: "abc123"
+      # DATA_URL is required for q2repro — Quake II pak files are commercial and not bundled.
+      # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
+      # Set Q2REPRO_DATA_URL in .env at the repo root (build.sh will prompt and save it for you).
+      DATA_URL: "${Q2REPRO_DATA_URL}"
