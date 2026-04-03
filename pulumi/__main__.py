@@ -235,6 +235,11 @@ xonotic = GameService(
     memory=1024,
     cpu_architecture="ARM64",
     data_url=xonotic_data_url,
+    protocol="xonotic",
+    game_cmd="./xonotic-linux-arm64-dedicated",
+    game_args="",
+    game_quit_cmd="exit",
+    game_quit_timeout=30,
 )
 
 qssm = GameService(
@@ -253,6 +258,11 @@ qssm = GameService(
     memory=1024,
     cpu_architecture="ARM64",
     data_url=qss_m_data_url,
+    protocol="quake1",
+    game_cmd="./qssm",
+    game_args="-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg",
+    game_quit_cmd="quit",
+    game_quit_timeout=15,
 )
 
 # ---- Lambda ----
