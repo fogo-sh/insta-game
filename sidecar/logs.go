@@ -33,6 +33,9 @@ func NewRingLog(capacity int) *RingLog {
 // complete line to the ring. An incomplete trailing fragment is held until
 // the next Write completes it.
 func (r *RingLog) Write(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	text := r.partial + string(p)
 	parts := strings.Split(text, "\n")
 
@@ -41,12 +44,8 @@ func (r *RingLog) Write(p []byte) (int, error) {
 	r.partial = parts[len(parts)-1]
 	complete := parts[:len(parts)-1]
 
-	if len(complete) > 0 {
-		r.mu.Lock()
-		for _, line := range complete {
-			r.appendLocked(line)
-		}
-		r.mu.Unlock()
+	for _, line := range complete {
+		r.appendLocked(line)
 	}
 
 	return len(p), nil
@@ -97,11 +96,14 @@ func (r *RingLog) Subscribe() (<-chan string, func()) {
 	r.subs[id] = ch
 	r.mu.Unlock()
 
+	var once sync.Once
 	cancel := func() {
-		r.mu.Lock()
-		delete(r.subs, id)
-		r.mu.Unlock()
-		close(ch)
+		once.Do(func() {
+			r.mu.Lock()
+			delete(r.subs, id)
+			r.mu.Unlock()
+			close(ch)
+		})
 	}
 	return ch, cancel
 }

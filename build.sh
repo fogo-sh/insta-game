@@ -5,7 +5,7 @@ GAME=$1
 
 if [ -z "$GAME" ]; then
   echo "Usage: $0 <game>"
-  echo "  Games: xonotic, qssm, q2repro"
+  echo "  Games: xonotic, qssm, q2repro, bzflag, ut99"
   exit 1
 fi
 
@@ -64,9 +64,19 @@ case "$GAME" in
     echo "==> Building q2repro image..."
     docker compose build q2repro
     ;;
+  bzflag)
+    mkdir -p .cache/bzflag
+    echo "==> Building bzflag image..."
+    docker compose build bzflag
+    ;;
+  ut99)
+    mkdir -p .cache/ut99
+    echo "==> Building ut99 image..."
+    docker compose build ut99
+    ;;
   *)
     echo "Unknown game: $GAME"
-    echo "  Games: xonotic, qssm, q2repro"
+    echo "  Games: xonotic, qssm, q2repro, bzflag, ut99"
     exit 1
     ;;
 esac

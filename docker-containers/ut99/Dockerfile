@@ -1,0 +1,50 @@
+FROM --platform=$BUILDPLATFORM golang:1.22-bookworm AS sidecar-builder
+ARG TARGETARCH
+WORKDIR /build
+COPY sidecar/ ./
+RUN GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o /sidecar .
+
+FROM debian:bookworm-slim AS ut99-builder
+
+ARG OLDUNREAL_INSTALLER_URL=https://raw.githubusercontent.com/OldUnreal/FullGameInstallers/master/Linux/install-ut99.sh
+ARG UT99_INSTALL_DIR=/opt/ut99
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    jq \
+    p7zip-full \
+    tar \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -L "${OLDUNREAL_INSTALLER_URL}" -o /tmp/install-ut99.sh \
+    && chmod +x /tmp/install-ut99.sh \
+    && printf 'y\n' | /tmp/install-ut99.sh \
+        --destination "${UT99_INSTALL_DIR}" \
+        --ui-mode none \
+        --application-entry skip \
+        --desktop-shortcut skip \
+    && rm -f /tmp/install-ut99.sh \
+    && rm -rf "${UT99_INSTALL_DIR}/Installer"
+
+FROM debian:bookworm-slim
+
+WORKDIR /opt
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /opt/data
+
+COPY --from=ut99-builder /opt/ut99/ /opt/
+COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
+COPY docker-containers/ut99/UnrealTournament.ini /opt/default-server.cfg
+COPY --chmod=755 docker-containers/ut99/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chmod=755 docker-containers/ut99/start-ut99.sh /usr/local/bin/start-ut99.sh
+
+EXPOSE 7777/udp
+EXPOSE 7778/udp
+EXPOSE 5001/tcp
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

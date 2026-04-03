@@ -11,6 +11,7 @@ const GAME_CHOICES = [
   { name: "QSS-M (Quake 1)", value: "qssm" },
   { name: "q2repro (Quake 2)", value: "q2repro" },
   { name: "BZFlag", value: "bzflag" },
+  { name: "UT99 GOTY", value: "ut99" },
 ];
 
 const commands = [

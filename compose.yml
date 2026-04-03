@@ -96,3 +96,29 @@ services:
       # DATA_URL: "https://example.com/server.cfg=/opt/data/server.cfg"
     volumes:
       - ./.cache/bzflag:/opt/data
+
+  ut99:
+    image: ghcr.io/fogo-sh/insta-game:ut99
+    build:
+      context: .
+      dockerfile: docker-containers/ut99/Dockerfile
+      platforms:
+        - linux/amd64
+    ports:
+      - "127.0.0.1:7777:7777/udp"
+      - "127.0.0.1:7778:7778/udp"
+      - "127.0.0.1:5005:5001/tcp"
+    environment:
+      PROTOCOL: "ut99"
+      GAME_CMD: "/usr/local/bin/start-ut99.sh"
+      GAME_ARGS: "/opt/System64/ucc-bin-amd64 server DM-Deck16][?game=Botpack.DeathMatchPlus ini=/opt/data/UnrealTournament.ini -nohomedir"
+      GAME_QUIT_CMD: "exit"
+      GAME_QUIT_TIMEOUT: "15"
+      GAME_PORT: "7777"
+      CONFIG_PATH: "/opt/data/UnrealTournament.ini"
+      TOKEN: "abc123"
+      # DATA_URL is optional for UT99 GOTY; the image bundles a default dedicated server config.
+      # Set it to supply a custom UnrealTournament.ini, e.g.:
+      # DATA_URL: "https://example.com/UnrealTournament.ini=/opt/data/UnrealTournament.ini"
+    volumes:
+      - ./.cache/ut99:/opt/data

@@ -265,6 +265,14 @@ func extractZip(zipPath, dest string) error {
 		}
 		_, err = io.Copy(out, rc)
 		rc.Close()
+		mode := f.Mode()
+		if mode == 0 {
+			mode = 0644
+		}
+		if chmodErr := out.Chmod(mode); chmodErr != nil {
+			out.Close()
+			return chmodErr
+		}
 		out.Close()
 		if err != nil {
 			return err

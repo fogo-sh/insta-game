@@ -11,6 +11,7 @@
 - `docker-containers/qssm/`: QSS-M Quake 1 server image and local build scripts
 - `docker-containers/q2repro/`: q2repro Quake 2 server image and local build scripts
 - `docker-containers/bzflag/`: BZFlag server image and local build scripts
+- `docker-containers/ut99/`: Unreal Tournament GOTY server image and local build scripts
 
 ## Local Workflow
 
@@ -21,9 +22,13 @@ docker compose up xonotic   # run Xonotic
 docker compose up qssm      # run QSS-M / Quake 1 (requires DATA_URL env var — see compose.yml)
 docker compose up q2repro   # run q2repro / Quake 2 (requires DATA_URL env var — see compose.yml)
 docker compose up bzflag    # run BZFlag
+docker compose up ut99      # run UT99 GOTY
 ```
 
-The images are ARM64-only. Make sure Docker Desktop has QEMU/multi-platform support enabled, or run on an ARM64 machine.
+The Xonotic, QSS-M, q2repro, and BZFlag images are ARM64. The UT99 GOTY image is
+`linux/amd64` because the dedicated server binary is x86. Make sure Docker
+Desktop has QEMU/multi-platform support enabled when your host architecture
+does not match the image.
 
 To build images locally (handles any required pre-build steps automatically):
 
@@ -31,13 +36,8 @@ To build images locally (handles any required pre-build steps automatically):
 ./build.sh xonotic
 ./build.sh qssm
 ./build.sh q2repro
-```
-
-For BZFlag, build from its image directory:
-
-```sh
-cd docker-containers/bzflag
-make build
+./build.sh bzflag
+./build.sh ut99
 ```
 
 For QSS-M and q2repro, `DATA_URL` is required — Quake pak files are commercial and not bundled. In local Compose, set `QSSM_DATA_URL` or `Q2REPRO_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
@@ -60,6 +60,14 @@ DATA_URL="https://example.com/server.cfg=/opt/data/server.cfg" docker compose up
 
 # override BZFlag server.cfg only
 DATA_URL="https://example.com/server.cfg=/opt/data/server.cfg" docker compose up bzflag
+```
+
+For UT99 GOTY, the Docker build downloads and installs the game with OldUnreal's
+Linux installer. `DATA_URL` is optional and only needed to override
+`/opt/data/UnrealTournament.ini`:
+
+```sh
+DATA_URL="https://example.com/UnrealTournament.ini=/opt/data/UnrealTournament.ini" docker compose up ut99
 ```
 
 Local sidecar status:
@@ -89,6 +97,7 @@ uv run pulumi config set xonoticDataUrl <xonotic-data-url>
 uv run pulumi config set qssmDataUrl <quake1-data-url>
 uv run pulumi config set q2reproDataUrl <quake2-data-url>
 uv run pulumi config set bzflagDataUrl <bzflag-config-url>
+uv run pulumi config set ut99DataUrl <ut99-config-url>
 uv run pulumi config set --secret webUiPassphrase <passphrase>
 uv run pulumi config set --secret apiToken <token>
 uv run pulumi config set --secret discordPublicKey <public-key>
@@ -96,7 +105,7 @@ uv run pulumi config set --secret discordBotToken <bot-token>
 uv run pulumi config set discordAppId <app-id>
 ```
 
-`xonoticDataUrl`, `qssmDataUrl`, `q2reproDataUrl`, and `bzflagDataUrl` override `defaultDataUrl` for those services.
+`xonoticDataUrl`, `qssmDataUrl`, `q2reproDataUrl`, `bzflagDataUrl`, and `ut99DataUrl` override `defaultDataUrl` for those services.
 Each value is passed to the container as `DATA_URL` and accepts one or more
 `url=path` pairs separated by `;`. Each entry is downloaded at container
 startup, zip files are extracted to the given path, and raw files are written
@@ -157,6 +166,7 @@ curl "<prod_url>?game=xonotic&operation=start"
 curl "<prod_url>?game=qssm&operation=start"
 curl "<prod_url>?game=q2repro&operation=start"
 curl "<prod_url>?game=bzflag&operation=start"
+curl "<prod_url>?game=ut99&operation=start"
 curl "<prod_url>?game=xonotic"
 curl "<prod_url>?game=xonotic&operation=stop"
 ```

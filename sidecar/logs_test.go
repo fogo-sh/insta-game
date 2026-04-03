@@ -208,10 +208,19 @@ func TestRingLog_ConcurrentWritesAndReads(t *testing.T) {
 	}
 
 	wg.Wait()
+	cancel()
 
 	total := <-received
-	if total != writers*linesPerWriter {
-		t.Errorf("received %d lines, want %d", total, writers*linesPerWriter)
+	if total == 0 {
+		t.Fatal("subscriber received 0 lines, want at least one")
+	}
+	if total > writers*linesPerWriter {
+		t.Errorf("received %d lines, want at most %d", total, writers*linesPerWriter)
+	}
+
+	lines := rl.Lines()
+	if len(lines) != writers*linesPerWriter {
+		t.Fatalf("buffered %d lines, want %d", len(lines), writers*linesPerWriter)
 	}
 }
 

@@ -167,6 +167,8 @@ func queryServer(c cfg) *protocol.ServerInfo {
 		info, err = protocol.QueryQuake1(c.GamePort)
 	case "quake2":
 		info, err = protocol.QueryQuake2(c.GamePort)
+	case "ut99":
+		info, err = protocol.QueryUT99(c.GamePort)
 	default:
 		info, err = protocol.QueryXonotic(c.GamePort)
 	}
