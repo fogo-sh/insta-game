@@ -75,7 +75,11 @@ export function renderUi(): string {
     async function refresh(game) {
       const el = document.getElementById("status-" + game);
       try {
-        const res = await fetch("/api?game=" + game, { headers: { "X-API-Token": passphrase } });
+        const res = await fetch("/", {
+          method: "POST",
+          headers: { "X-Passphrase": passphrase, "Content-Type": "application/json" },
+          body: JSON.stringify({ game, operation: "status" }),
+        });
         if (res.status === 401) { logout(); return; }
         const data = await res.json();
         el.className = "status " + data.status;
