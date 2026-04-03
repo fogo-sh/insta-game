@@ -6,8 +6,9 @@
 
 - `pulumi/`: AWS infrastructure in Python, managed with `uv`
 - `lambda/launcher/`: public Lambda handler for start, stop, and status
+- `sidecar/`: Go sidecar binary — HTTP control API and process manager for game containers
 - `docker-containers/xonotic/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
-- `docker-containers/qssm/`: QSS-M Quake server image, sidecar service, and local build scripts
+- `docker-containers/qssm/`: QSS-M Quake server image and local build scripts
 
 ## Local Workflow
 
