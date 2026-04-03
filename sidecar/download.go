@@ -94,7 +94,16 @@ func parseDataURL(raw string) []dataEntry {
 }
 
 func fetchWithRetry(url, userAgent string) ([]byte, error) {
-	client := &http.Client{Timeout: 120 * time.Second}
+	// Force HTTP/1.1 — HTTP/2 can deadlock under QEMU ARM emulation.
+	transport := &http.Transport{
+		ForceAttemptHTTP2:   false,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	client := &http.Client{
+		Transport: transport,
+		// No overall timeout — let the body read run as long as needed.
+		// Individual phases are covered by the transport timeouts.
+	}
 	backoff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second}
 
 	var lastErr error
@@ -114,15 +123,18 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 			lastErr = err
 			continue
 		}
-		defer resp.Body.Close()
 		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			resp.Body.Close()
 			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
 			continue
 		}
 		if resp.StatusCode != 200 {
+			resp.Body.Close()
 			return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 		}
-		return readWithProgress(resp.Body, resp.ContentLength, url)
+		data, err := readWithProgress(resp.Body, resp.ContentLength, url)
+		resp.Body.Close()
+		return data, err
 	}
 	return nil, lastErr
 }
