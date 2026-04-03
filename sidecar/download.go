@@ -1,0 +1,144 @@
+package main
+
+import (
+	"archive/zip"
+	"bytes"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+func downloadData(dataURL, defaultConfigPath, userAgent string) error {
+	entries := parseDataURL(dataURL)
+
+	if len(entries) == 0 {
+		log.Printf("SIDECAR: No DATA_URL set, using bundled default config: %s", defaultConfigPath)
+		return copyFile(defaultConfigPath, "/opt/data/server.cfg")
+	}
+
+	for _, e := range entries {
+		log.Printf("SIDECAR: Downloading data from: %s", e.url)
+		content, err := fetchWithRetry(e.url, userAgent)
+		if err != nil {
+			return fmt.Errorf("download %s: %w", e.url, err)
+		}
+
+		if isZip(content) {
+			dest := e.path
+			if dest == "" {
+				dest = "/opt/"
+			}
+			log.Printf("SIDECAR: Extracting zip to %s", dest)
+			if err := extractZip(content, dest); err != nil {
+				return fmt.Errorf("extract %s: %w", e.url, err)
+			}
+		} else {
+			log.Printf("SIDECAR: Saving file to %s", e.path)
+			if err := os.WriteFile(e.path, content, 0644); err != nil {
+				return fmt.Errorf("write %s: %w", e.path, err)
+			}
+		}
+	}
+	return nil
+}
+
+type dataEntry struct {
+	url  string
+	path string
+}
+
+func parseDataURL(raw string) []dataEntry {
+	var out []dataEntry
+	for _, part := range strings.Split(raw, ";") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		url, path, _ := strings.Cut(part, "=")
+		out = append(out, dataEntry{url: strings.TrimSpace(url), path: strings.TrimSpace(path)})
+	}
+	return out
+}
+
+func fetchWithRetry(url, userAgent string) ([]byte, error) {
+	client := &http.Client{Timeout: 120 * time.Second}
+	backoff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second}
+
+	var lastErr error
+	for i := 0; i <= len(backoff); i++ {
+		if i > 0 {
+			time.Sleep(backoff[i-1])
+		}
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		if userAgent != "" {
+			req.Header.Set("User-Agent", userAgent)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+			continue
+		}
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
+		return io.ReadAll(resp.Body)
+	}
+	return nil, lastErr
+}
+
+func isZip(data []byte) bool {
+	return len(data) >= 4 &&
+		data[0] == 'P' && data[1] == 'K' && data[2] == 0x03 && data[3] == 0x04
+}
+
+func extractZip(data []byte, dest string) error {
+	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return err
+	}
+	for _, f := range r.File {
+		target := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(target, 0755)
+			continue
+		}
+		os.MkdirAll(filepath.Dir(target), 0755)
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		out, err := os.Create(target)
+		if err != nil {
+			rc.Close()
+			return err
+		}
+		_, err = io.Copy(out, rc)
+		rc.Close()
+		out.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0644)
+}
