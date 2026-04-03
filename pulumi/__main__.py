@@ -220,27 +220,10 @@ aws.iam.RolePolicyAttachment(
 cluster = aws.ecs.Cluster("game-cluster", name=regional_name("cluster"))
 
 xonotic = GameService(
-    "xonotic",
-    game_name="xonotic",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:main",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=512,
-    memory=1024,
-    data_url=xonotic_data_url,
-)
-
-xonotic_arm = GameService(
     "xonotic-arm",
     game_name="xonotic-arm",
     name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:xonotic-arm",
+    image="ghcr.io/fogo-sh/insta-game:xonotic",
     cluster_id=cluster.id,
     cluster_name=cluster.name,
     subnet_ids=[s.id for s in subnets],
@@ -255,27 +238,10 @@ xonotic_arm = GameService(
 )
 
 qssm = GameService(
-    "qssm",
-    game_name="qssm",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:qssm",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=512,
-    memory=1024,
-    data_url=qss_m_data_url,
-)
-
-qssm_arm = GameService(
     "qssm-arm",
     game_name="qssm-arm",
     name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:qssm-arm",
+    image="ghcr.io/fogo-sh/insta-game:qssm",
     cluster_id=cluster.id,
     cluster_name=cluster.name,
     subnet_ids=[s.id for s in subnets],
@@ -308,9 +274,7 @@ launcher = aws.lambda_.Function(
             sidecar_token,
             xonotic.service_name,
             cluster.name,
-            xonotic_arm.service_name,
             qssm.service_name,
-            qssm_arm.service_name,
         ).apply(
             lambda args: {
                 "SIDECAR_TOKEN": args[0],
@@ -321,16 +285,8 @@ launcher = aws.lambda_.Function(
                             "service_name": args[1],
                             "sidecar_port": 5001,
                         },
-                        "xonotic-arm": {
-                            "service_name": args[3],
-                            "sidecar_port": 5001,
-                        },
                         "qssm": {
-                            "service_name": args[4],
-                            "sidecar_port": 5001,
-                        },
-                        "qssm-arm": {
-                            "service_name": args[5],
+                            "service_name": args[3],
                             "sidecar_port": 5001,
                         },
                     }
