@@ -28,8 +28,8 @@ services:
       platforms:
         - linux/arm64
     ports:
-      - "127.0.0.1:26000:26000/udp"
-      - "127.0.0.1:5001:5001/tcp"
+      - "127.0.0.1:26001:26000/udp"
+      - "127.0.0.1:5002:5001/tcp"
     environment:
       PROTOCOL: "quake1"
       GAME_CMD: "./qssm"
