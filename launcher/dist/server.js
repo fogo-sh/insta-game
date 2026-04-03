@@ -103479,6 +103479,10 @@ var initScript = `
     panel.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
     panel.style.display = "";
     htmx.process(panel);
+    // Kick off initial status fetch now that headers are set
+    panel.querySelectorAll("[data-status-poll]").forEach(function(el) {
+      htmx.trigger(el, "poll");
+    });
   }
 
   window.authenticate = function() {
@@ -103499,6 +103503,7 @@ var initScript = `
     var inner = document.getElementById("log-sse-" + game);
     // Only initialise the SSE connection once
     if (!inner.getAttribute("sse-connect")) {
+      inner.setAttribute("hx-ext", "sse");
       inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
       htmx.process(inner);
       // Auto-scroll on new content
@@ -103527,8 +103532,9 @@ var GameCard = ({ game }) => /* @__PURE__ */ jsxDEV("div", { class: "game", id: 
     {
       class: "status",
       id: `status-${game}`,
+      "data-status-poll": "true",
       "hx-get": `/?game=${game}&operation=status`,
-      "hx-trigger": "load, every 10s",
+      "hx-trigger": "poll, every 10s",
       "hx-target": `#status-${game}`,
       children: "loading..."
     }
@@ -103590,7 +103596,7 @@ function renderUi(games) {
           ] }),
           /* @__PURE__ */ jsxDEV("button", { class: "dialog-close", onclick: `document.getElementById('log-dialog-${g5}').close()`, children: "\u2715" })
         ] }),
-        /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${g5}`, "hx-ext": "sse", children: /* @__PURE__ */ jsxDEV(
+        /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${g5}`, children: /* @__PURE__ */ jsxDEV(
           "div",
           {
             id: `log-lines-${g5}`,

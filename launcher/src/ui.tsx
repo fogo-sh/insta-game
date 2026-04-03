@@ -42,6 +42,10 @@ const initScript = `
     panel.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
     panel.style.display = "";
     htmx.process(panel);
+    // Kick off initial status fetch now that headers are set
+    panel.querySelectorAll("[data-status-poll]").forEach(function(el) {
+      htmx.trigger(el, "poll");
+    });
   }
 
   window.authenticate = function() {
@@ -62,6 +66,7 @@ const initScript = `
     var inner = document.getElementById("log-sse-" + game);
     // Only initialise the SSE connection once
     if (!inner.getAttribute("sse-connect")) {
+      inner.setAttribute("hx-ext", "sse");
       inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
       htmx.process(inner);
       // Auto-scroll on new content
@@ -91,10 +96,11 @@ interface GameCardProps {
 const GameCard: FC<GameCardProps> = ({ game }) => (
   <div class="game" id={`game-${game}`}>
     <h2>{game}</h2>
-    {/* Status fragment — htmx will swap this via GET /?game=...&operation=status */}
+    {/* Status fragment — htmx polls every 10s; initial fetch triggered from showPanel() */}
     <div class="status" id={`status-${game}`}
+      data-status-poll="true"
       hx-get={`/?game=${game}&operation=status`}
-      hx-trigger="load, every 10s"
+      hx-trigger="poll, every 10s"
       hx-target={`#status-${game}`}
     >
       loading...
@@ -153,7 +159,7 @@ export function renderUi(games: string[]): string {
               <span>{g} — logs</span>
               <button class="dialog-close" onclick={`document.getElementById('log-dialog-${g}').close()`}>✕</button>
             </div>
-            <div id={`log-sse-${g}`} hx-ext="sse">
+            <div id={`log-sse-${g}`}>
               <div
                 id={`log-lines-${g}`}
                 class="log-panel"
