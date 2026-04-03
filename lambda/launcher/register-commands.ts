@@ -10,6 +10,7 @@ const GAME_CHOICES = [
   { name: "Xonotic", value: "xonotic" },
   { name: "QSS-M (Quake 1)", value: "qssm" },
   { name: "q2repro (Quake 2)", value: "q2repro" },
+  { name: "BZFlag", value: "bzflag" },
 ];
 
 const commands = [
