@@ -8,7 +8,8 @@
 - `lambda/launcher/`: public Lambda handler for start, stop, and status
 - `sidecar/`: Go sidecar binary — HTTP control API and process manager for game containers
 - `docker-containers/xonotic/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
-- `docker-containers/qssm/`: QSS-M Quake server image and local build scripts
+- `docker-containers/qssm/`: QSS-M Quake 1 server image and local build scripts
+- `docker-containers/q2repro/`: q2repro Quake 2 server image and local build scripts
 
 ## Local Workflow
 
@@ -16,7 +17,8 @@ From the repo root:
 
 ```sh
 docker compose up xonotic   # run Xonotic
-docker compose up qssm      # run QSS-M (requires DATA_URL env var — see compose.yml)
+docker compose up qssm      # run QSS-M / Quake 1 (requires DATA_URL env var — see compose.yml)
+docker compose up q2repro   # run q2repro / Quake 2 (requires DATA_URL env var — see compose.yml)
 ```
 
 The images are ARM64-only. Make sure Docker Desktop has QEMU/multi-platform support enabled, or run on an ARM64 machine.
@@ -26,17 +28,20 @@ To build images locally (handles any required pre-build steps automatically):
 ```sh
 ./build.sh xonotic
 ./build.sh qssm
+./build.sh q2repro
 ```
 
-For QSS-M, `DATA_URL` is required — Quake pak files are commercial and not bundled. Set it to one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`):
+For QSS-M and q2repro, `DATA_URL` is required — Quake pak files are commercial and not bundled. Set it to one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
 
 ```sh
-# zip containing id1/pak0.pak and id1/pak1.pak, extracted to /opt/
+# Quake 1 — zip containing id1/pak0.pak and id1/pak1.pak
 DATA_URL="https://example.com/quake-assets.zip=/opt/" docker compose up qssm
 
-# zip for pak files + a separate custom server.cfg
-DATA_URL="https://example.com/quake-assets.zip=/opt/;https://example.com/server.cfg=/opt/id1/server.cfg" docker compose up qssm
+# Quake 2 — zip containing baseq2/pak0.pak etc.
+DATA_URL="https://example.com/quake2-assets.zip" docker compose up q2repro
 ```
+
+Downloaded data is cached in `.cache/<game>/` and reused on subsequent runs — the sidecar skips the download if it already has a sentinel file from a previous successful fetch. `build.sh` will prompt for and save the URL to `.env` automatically.
 
 For Xonotic, `DATA_URL` is optional — the image ships with a default `server.cfg`. Set it only if you want to supply a custom config:
 
@@ -67,10 +72,11 @@ Set required config:
 uv run pulumi config set --secret sidecarToken <token>
 uv run pulumi config set defaultDataUrl <data-url>
 uv run pulumi config set xonoticDataUrl <xonotic-data-url>
-uv run pulumi config set qssmDataUrl <quake-data-url>
+uv run pulumi config set qssmDataUrl <quake1-data-url>
+uv run pulumi config set q2reproDataUrl <quake2-data-url>
 ```
 
-`xonoticDataUrl` and `qssmDataUrl` override `defaultDataUrl` for those services.
+`xonoticDataUrl`, `qssmDataUrl`, and `q2reproDataUrl` override `defaultDataUrl` for those services.
 Each value is passed to the container as `DATA_URL` and accepts one or more
 `url=path` pairs separated by `;`. Each entry is downloaded at container
 startup, zip files are extracted to the given path, and raw files are written
@@ -106,6 +112,7 @@ Examples:
 ```sh
 curl "<prod_url>?game=xonotic&operation=start"
 curl "<prod_url>?game=qssm&operation=start"
+curl "<prod_url>?game=q2repro&operation=start"
 curl "<prod_url>?game=xonotic"
 curl "<prod_url>?game=xonotic&operation=stop"
 ```
