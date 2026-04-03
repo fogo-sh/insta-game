@@ -3002,7 +3002,7 @@ var streamSSE = (c, cb, onError) => {
   return c.newResponse(stream2.responseReadable);
 };
 
-// src/games.ts
+// src/backends/ecs.ts
 var import_client_ecs = require("@aws-sdk/client-ecs");
 var import_client_ec2 = require("@aws-sdk/client-ec2");
 var REGION = process.env.AWS_REGION ?? "ca-central-1";
@@ -3012,15 +3012,53 @@ var MAX_POLLS = 10;
 var POLL_INTERVAL_MS = 5e3;
 var ecs = new import_client_ecs.ECSClient({ region: REGION });
 var ec2 = new import_client_ec2.EC2Client({ region: REGION });
-function getGames() {
-  return JSON.parse(process.env.GAMES ?? "{}");
-}
+var EcsBackend = class {
+  getGames() {
+    return JSON.parse(process.env.GAMES ?? "{}");
+  }
+  async getGameState(config) {
+    const c = config;
+    try {
+      const listRes = await ecs.send(new import_client_ecs.ListTasksCommand({ cluster: CLUSTER, serviceName: c.serviceName }));
+      const taskArn = listRes.taskArns?.[0];
+      if (!taskArn) return { status: "offline", players: 0, ready: false };
+      const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
+      const task = descRes.tasks?.[0];
+      const eniId = task?.attachments?.[0]?.details?.find((d) => d.name === "networkInterfaceId")?.value;
+      if (!eniId) return { status: "starting", players: 0, ready: false };
+      const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
+      const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
+      if (!publicIp) return { status: "starting", players: 0, ready: false };
+      const sidecar = await getSidecarStatus(publicIp, c.sidecarPort);
+      if (!sidecar) return { status: "starting", publicIp, players: 0, ready: false };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      const players = Number(sidecar.players ?? 0);
+      return { status: running && ready ? "online" : "starting", publicIp, players, ready };
+    } catch {
+      return { status: "offline", players: 0, ready: false };
+    }
+  }
+  async stopGame(config) {
+    const c = config;
+    await setDesiredCount(c.serviceName, 0);
+    return waitForState(this, config, "offline");
+  }
+  async startGame(config, configUrl) {
+    const c = config;
+    await this.stopGame(config);
+    await setDesiredCount(c.serviceName, 1);
+    let state = await waitForState(this, config, "online");
+    if (configUrl && state.status === "online" && state.publicIp) {
+      await restartWithConfig(state.publicIp, c.sidecarPort, configUrl);
+      state = await waitForState(this, config, "online");
+      state.configUrl = configUrl;
+    }
+    return state;
+  }
+};
 async function setDesiredCount(serviceName, count) {
-  await ecs.send(new import_client_ecs.UpdateServiceCommand({
-    cluster: CLUSTER,
-    service: serviceName,
-    desiredCount: count
-  }));
+  await ecs.send(new import_client_ecs.UpdateServiceCommand({ cluster: CLUSTER, service: serviceName, desiredCount: count }));
 }
 async function getSidecarStatus(ip, port) {
   try {
@@ -3031,67 +3069,45 @@ async function getSidecarStatus(ip, port) {
     return null;
   }
 }
-async function getGameState(config) {
-  try {
-    const listRes = await ecs.send(new import_client_ecs.ListTasksCommand({ cluster: CLUSTER, serviceName: config.serviceName }));
-    const taskArn = listRes.taskArns?.[0];
-    if (!taskArn) return { status: "offline", players: 0, ready: false };
-    const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
-    const task = descRes.tasks?.[0];
-    const eniId = task?.attachments?.[0]?.details?.find((d) => d.name === "networkInterfaceId")?.value;
-    if (!eniId) return { status: "starting", players: 0, ready: false };
-    const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
-    const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
-    if (!publicIp) return { status: "starting", players: 0, ready: false };
-    const sidecar = await getSidecarStatus(publicIp, config.sidecarPort);
-    if (!sidecar) return { status: "starting", publicIp, players: 0, ready: false };
-    const running = Boolean(sidecar.running);
-    const ready = Boolean(sidecar.ready);
-    const players = Number(sidecar.players ?? 0);
-    return {
-      status: running && ready ? "online" : "starting",
-      publicIp,
-      players,
-      ready
-    };
-  } catch {
-    return { status: "offline", players: 0, ready: false };
-  }
-}
-async function waitForState(config, desired) {
-  let state = await getGameState(config);
+async function waitForState(backend3, config, desired) {
+  let state = await backend3.getGameState(config);
   for (let i = 0; i < MAX_POLLS; i++) {
     if (state.status === desired) return state;
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-    state = await getGameState(config);
+    state = await backend3.getGameState(config);
   }
   return state;
-}
-async function stopGame(config) {
-  await setDesiredCount(config.serviceName, 0);
-  return waitForState(config, "offline");
 }
 async function restartWithConfig(ip, port, configUrl) {
   await fetch(`http://${ip}:${port}/restart`, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${SIDECAR_TOKEN}`,
-      "Content-Type": "application/json"
-    },
+    headers: { "Authorization": `Bearer ${SIDECAR_TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ config_url: configUrl }),
     signal: AbortSignal.timeout(1e4)
   });
 }
-async function startGame(config, configUrl) {
-  await stopGame(config);
-  await setDesiredCount(config.serviceName, 1);
-  let state = await waitForState(config, "online");
-  if (configUrl && state.status === "online" && state.publicIp) {
-    await restartWithConfig(state.publicIp, config.sidecarPort, configUrl);
-    state = await waitForState(config, "online");
-    state.configUrl = configUrl;
+
+// src/backends/docker.ts
+var DockerBackend = class {
+  getGames() {
+    return JSON.parse(process.env.GAMES ?? "{}");
   }
-  return state;
+  async getGameState(_config) {
+    return { status: "offline", players: 0, ready: false };
+  }
+  async startGame(_config) {
+    return { status: "offline", players: 0, ready: false };
+  }
+  async stopGame(_config) {
+    return { status: "offline", players: 0, ready: false };
+  }
+};
+
+// src/backends/index.ts
+function createBackend() {
+  const backend3 = process.env.BACKEND ?? "ecs";
+  if (backend3 === "docker") return new DockerBackend();
+  return new EcsBackend();
 }
 
 // src/discord.ts
@@ -3099,6 +3115,7 @@ var import_discord_interactions = __toESM(require_dist());
 var DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY ?? "";
 var DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN ?? "";
 var DISCORD_APP_ID = process.env.DISCORD_APP_ID ?? "";
+var backend = createBackend();
 async function discordHandler(c) {
   const signature = c.req.header("x-signature-ed25519") ?? "";
   const timestamp = c.req.header("x-signature-timestamp") ?? "";
@@ -3112,7 +3129,7 @@ async function discordHandler(c) {
   if (interaction.type === import_discord_interactions.InteractionType.APPLICATION_COMMAND) {
     const name = interaction.data?.name ?? "";
     const gameName = interaction.data?.options?.find((o) => o.name === "game")?.value ?? "";
-    const games = getGames();
+    const games = backend.getGames();
     const config = games[gameName];
     if (!config) {
       return c.json({
@@ -3121,14 +3138,14 @@ async function discordHandler(c) {
       });
     }
     if (name === "status") {
-      const state = await getGameState(config);
+      const state = await backend.getGameState(config);
       return c.json({
         type: import_discord_interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state) }
       });
     }
     if (name === "stop") {
-      const state = await stopGame(config);
+      const state = await backend.stopGame(config);
       return c.json({
         type: import_discord_interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state) }
@@ -3146,7 +3163,7 @@ async function discordHandler(c) {
   return c.text("unhandled interaction type", 400);
 }
 async function sendFollowup(interactionToken, gameName, config) {
-  const state = await startGame(config);
+  const state = await backend.startGame(config);
   const content = formatState(gameName, state);
   await fetch(
     `https://discord.com/api/v10/webhooks/${DISCORD_APP_ID}/${interactionToken}/messages/@original`,
@@ -3871,6 +3888,7 @@ function renderUi(games) {
 var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
 var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
+var backend2 = createBackend();
 var app = new Hono2();
 function statusFragment(state) {
   const ip = state.publicIp ? ` \u2014 ${state.publicIp}` : "";
@@ -3883,16 +3901,16 @@ app.get("/", async (c) => {
   if (game && operation) {
     const passphrase = c.req.header("x-passphrase") ?? "";
     if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
-    const games2 = getGames();
+    const games2 = backend2.getGames();
     const config = games2[game];
     if (!config) return c.html(`<span class="status">unknown game: ${game}</span>`, 400);
     let state;
-    if (operation === "start") state = await startGame(config);
-    else if (operation === "stop") state = await stopGame(config);
-    else state = await getGameState(config);
+    if (operation === "start") state = await backend2.startGame(config);
+    else if (operation === "stop") state = await backend2.stopGame(config);
+    else state = await backend2.getGameState(config);
     return c.html(statusFragment(state));
   }
-  const games = getGames();
+  const games = backend2.getGames();
   return c.html(renderUi(Object.keys(games)));
 });
 app.post("/", async (c) => {
@@ -3915,16 +3933,16 @@ app.post("/", async (c) => {
     gameKey = body.game;
     operation = body.operation;
   }
-  const games = getGames();
+  const games = backend2.getGames();
   const config = games[gameKey];
   if (!config) {
     if (isHtmx) return c.html(`<span class="status">unknown game: ${gameKey}</span>`, 400);
     return c.json({ error: `unknown game: ${gameKey}` }, 400);
   }
   let state;
-  if (operation === "start") state = await startGame(config);
-  else if (operation === "stop") state = await stopGame(config);
-  else state = await getGameState(config);
+  if (operation === "start") state = await backend2.startGame(config);
+  else if (operation === "stop") state = await backend2.stopGame(config);
+  else state = await backend2.getGameState(config);
   if (isHtmx) return c.html(statusFragment(state));
   return c.json(state);
 });
@@ -3932,10 +3950,10 @@ app.get("/logs", async (c) => {
   const token = c.req.query("token") ?? "";
   if (token !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
   const game = c.req.query("game") ?? "";
-  const games = getGames();
+  const games = backend2.getGames();
   const config = games[game];
   if (!config) return c.text(`unknown game: ${game}`, 400);
-  const state = await getGameState(config);
+  const state = await backend2.getGameState(config);
   if (state.status === "offline" || !state.publicIp) {
     return c.text("game offline", 503);
   }
@@ -3980,12 +3998,12 @@ app.get("/api", async (c) => {
   if (token !== API_TOKEN) return c.json({ error: "unauthorized" }, 401);
   const game = c.req.query("game") ?? "";
   const operation = c.req.query("operation");
-  const games = getGames();
+  const games = backend2.getGames();
   const config = games[game];
   if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
-  if (operation === "start") return c.json(await startGame(config));
-  if (operation === "stop") return c.json(await stopGame(config));
-  return c.json(await getGameState(config));
+  if (operation === "start") return c.json(await backend2.startGame(config));
+  if (operation === "stop") return c.json(await backend2.stopGame(config));
+  return c.json(await backend2.getGameState(config));
 });
 app.post("/discord", discordHandler);
 var handler = handle(app);

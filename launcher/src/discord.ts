@@ -1,10 +1,12 @@
 import { verifyKey, InteractionType, InteractionResponseType } from "discord-interactions";
 import type { Context } from "hono";
-import { getGames, getGameState, startGame, stopGame } from "./games.js";
+import { createBackend } from "./backends/index.js";
 
 const DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY ?? "";
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN ?? "";
 const DISCORD_APP_ID = process.env.DISCORD_APP_ID ?? "";
+
+const backend = createBackend();
 
 export async function discordHandler(c: Context): Promise<Response> {
   const signature = c.req.header("x-signature-ed25519") ?? "";
@@ -30,7 +32,7 @@ export async function discordHandler(c: Context): Promise<Response> {
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     const name = interaction.data?.name ?? "";
     const gameName = interaction.data?.options?.find(o => o.name === "game")?.value ?? "";
-    const games = getGames();
+    const games = backend.getGames();
     const config = games[gameName];
 
     if (!config) {
@@ -41,7 +43,7 @@ export async function discordHandler(c: Context): Promise<Response> {
     }
 
     if (name === "status") {
-      const state = await getGameState(config);
+      const state = await backend.getGameState(config);
       return c.json({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state) },
@@ -49,7 +51,7 @@ export async function discordHandler(c: Context): Promise<Response> {
     }
 
     if (name === "stop") {
-      const state = await stopGame(config);
+      const state = await backend.stopGame(config);
       return c.json({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state) },
@@ -74,9 +76,9 @@ export async function discordHandler(c: Context): Promise<Response> {
 async function sendFollowup(
   interactionToken: string,
   gameName: string,
-  config: Parameters<typeof startGame>[0]
+  config: Parameters<typeof backend.startGame>[0]
 ): Promise<void> {
-  const state = await startGame(config);
+  const state = await backend.startGame(config);
   const content = formatState(gameName, state);
 
   await fetch(

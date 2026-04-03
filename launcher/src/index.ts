@@ -1,13 +1,15 @@
 import { Hono } from "hono";
 import { handle } from "hono/aws-lambda";
 import { streamSSE } from "hono/streaming";
-import { getGames, getGameState, startGame, stopGame } from "./games.js";
+import { createBackend } from "./backends/index.js";
 import { discordHandler } from "./discord.js";
 import { renderUi } from "./ui.js";
 
 const WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 const API_TOKEN = process.env.API_TOKEN ?? "";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
+
+const backend = createBackend();
 
 const app = new Hono();
 
@@ -28,20 +30,20 @@ app.get("/", async c => {
     const passphrase = c.req.header("x-passphrase") ?? "";
     if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
 
-    const games = getGames();
+    const games = backend.getGames();
     const config = games[game];
     if (!config) return c.html(`<span class="status">unknown game: ${game}</span>`, 400);
 
     let state;
-    if (operation === "start") state = await startGame(config);
-    else if (operation === "stop") state = await stopGame(config);
-    else state = await getGameState(config);
+    if (operation === "start") state = await backend.startGame(config);
+    else if (operation === "stop") state = await backend.stopGame(config);
+    else state = await backend.getGameState(config);
 
     return c.html(statusFragment(state));
   }
 
   // Full-page UI (no query params)
-  const games = getGames();
+  const games = backend.getGames();
   return c.html(renderUi(Object.keys(games)));
 });
 
@@ -72,7 +74,7 @@ app.post("/", async c => {
     operation = body.operation;
   }
 
-  const games = getGames();
+  const games = backend.getGames();
   const config = games[gameKey];
   if (!config) {
     if (isHtmx) return c.html(`<span class="status">unknown game: ${gameKey}</span>`, 400);
@@ -80,9 +82,9 @@ app.post("/", async c => {
   }
 
   let state;
-  if (operation === "start") state = await startGame(config);
-  else if (operation === "stop") state = await stopGame(config);
-  else state = await getGameState(config);
+  if (operation === "start") state = await backend.startGame(config);
+  else if (operation === "stop") state = await backend.stopGame(config);
+  else state = await backend.getGameState(config);
 
   if (isHtmx) return c.html(statusFragment(state));
   return c.json(state);
@@ -94,11 +96,11 @@ app.get("/logs", async c => {
   if (token !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
 
   const game = c.req.query("game") ?? "";
-  const games = getGames();
+  const games = backend.getGames();
   const config = games[game];
   if (!config) return c.text(`unknown game: ${game}`, 400);
 
-  const state = await getGameState(config);
+  const state = await backend.getGameState(config);
   if (state.status === "offline" || !state.publicIp) {
     return c.text("game offline", 503);
   }
@@ -152,13 +154,13 @@ app.get("/api", async c => {
 
   const game = c.req.query("game") ?? "";
   const operation = c.req.query("operation");
-  const games = getGames();
+  const games = backend.getGames();
   const config = games[game];
   if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
 
-  if (operation === "start") return c.json(await startGame(config));
-  if (operation === "stop") return c.json(await stopGame(config));
-  return c.json(await getGameState(config));
+  if (operation === "start") return c.json(await backend.startGame(config));
+  if (operation === "stop") return c.json(await backend.stopGame(config));
+  return c.json(await backend.getGameState(config));
 });
 
 // Discord webhook
