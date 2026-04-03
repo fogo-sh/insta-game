@@ -108,22 +108,20 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 			log.Printf("SIDECAR: retrying %s (attempt %d)", url, i+1)
 			time.Sleep(backoff[i-1])
 		}
-		log.Printf("SIDECAR: [fetch] creating request")
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, err
 		}
-		if userAgent != "" {
-			req.Header.Set("User-Agent", userAgent)
+		ua := userAgent
+		if ua == "" {
+			ua = "fogo-sh/insta-game"
 		}
-		log.Printf("SIDECAR: [fetch] sending request")
+		req.Header.Set("User-Agent", ua)
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Printf("SIDECAR: [fetch] request error: %v", err)
 			lastErr = err
 			continue
 		}
-		log.Printf("SIDECAR: [fetch] got response: HTTP %d, Content-Length: %d", resp.StatusCode, resp.ContentLength)
 		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
 			resp.Body.Close()
 			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -133,11 +131,9 @@ func fetchWithRetry(url, userAgent string) ([]byte, error) {
 			resp.Body.Close()
 			return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 		}
-		log.Printf("SIDECAR: [fetch] starting body read")
 		data, err := readWithProgress(resp.Body, resp.ContentLength, url)
 		resp.Body.Close()
 		if err != nil {
-			log.Printf("SIDECAR: [fetch] body read error: %v", err)
 			return nil, err
 		}
 		return data, nil
@@ -153,11 +149,7 @@ type countingReader struct {
 
 func (c *countingReader) Read(p []byte) (int, error) {
 	n, err := c.r.Read(p)
-	newTotal := c.n.Add(int64(n))
-	if newTotal <= int64(len(p)) {
-		// Log only on the very first read to confirm data is flowing
-		log.Printf("SIDECAR: [fetch] first read: %d bytes", n)
-	}
+	c.n.Add(int64(n))
 	return n, err
 }
 
