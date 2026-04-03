@@ -31,6 +31,11 @@ class GameService(pulumi.ComponentResource):
         cpu: int = 256,
         memory: int = 512,
         idle_timeout_seconds: int = 600,
+        protocol: str = "xonotic",
+        game_cmd: str = "",
+        game_args: str = "",
+        game_quit_cmd: str = "quit",
+        game_quit_timeout: int = 15,
         cpu_architecture: str = "X86_64",
         opts: pulumi.ResourceOptions = None,
     ):
@@ -66,6 +71,11 @@ class GameService(pulumi.ComponentResource):
                             {"name": "ECS_SERVICE", "value": service_name},
                             {"name": "TOKEN", "value": args[1]},
                             {"name": "IDLE_TIMEOUT_SECONDS", "value": str(idle_timeout_seconds)},
+                            {"name": "PROTOCOL", "value": protocol},
+                            {"name": "GAME_CMD", "value": game_cmd},
+                            {"name": "GAME_ARGS", "value": game_args},
+                            {"name": "GAME_QUIT_CMD", "value": game_quit_cmd},
+                            {"name": "GAME_QUIT_TIMEOUT", "value": str(game_quit_timeout)},
                             *([{"name": "DATA_URL", "value": data_url}] if data_url else []),
                         ],
                         "logConfiguration": {
