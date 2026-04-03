@@ -6,6 +6,7 @@ on:
     paths:
       - "docker-containers/qssm/**"
       - "sidecar/**"
+      - ".github/workflows/publish-qssm.yml"
   workflow_dispatch:
 
 env:

@@ -6,6 +6,7 @@ on:
     paths:
       - "docker-containers/xonotic/**"
       - "sidecar/**"
+      - ".github/workflows/publish-xonotic.yml"
   workflow_dispatch:
 
 env:

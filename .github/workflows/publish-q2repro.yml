@@ -6,6 +6,7 @@ on:
     paths:
       - "docker-containers/q2repro/**"
       - "sidecar/**"
+      - ".github/workflows/publish-q2repro.yml"
   workflow_dispatch:
 
 env:
