@@ -204,3 +204,27 @@ curl "<prod_url>?game=ut99&operation=start"
 curl "<prod_url>?game=xonotic"
 curl "<prod_url>?game=xonotic&operation=stop"
 ```
+
+## Self-hosted (Docker)
+
+The launcher can run locally against Docker instead of ECS.
+
+1. Build the Docker bundle:
+   ```sh
+   cd launcher
+   npm run build:docker
+   ```
+
+2. Set environment variables in `.env`:
+   ```
+   WEB_UI_PASSPHRASE=your-passphrase
+   API_TOKEN=your-api-token
+   SIDECAR_TOKEN=abc123
+   ```
+
+3. Start everything:
+   ```sh
+   docker compose up launcher
+   ```
+
+The launcher will be available at `http://localhost:3000`. It manages the other game containers via the Docker socket.
