@@ -105,7 +105,7 @@ Run once after setting up the Discord application:
 
 ```sh
 cd lambda/launcher
-DISCORD_APP_ID=<app-id> DISCORD_BOT_TOKEN=<bot-token> npx ts-node register-commands.ts
+DISCORD_APP_ID=<app-id> DISCORD_BOT_TOKEN=<bot-token> npm run register
 ```
 
 This registers `/start`, `/stop`, and `/status` globally. Safe to re-run.

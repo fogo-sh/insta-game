@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/*",
-    "build:watch": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/* --watch"
+    "build:watch": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/* --watch",
+    "register": "tsx register-commands.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.1023.0",
@@ -16,7 +17,7 @@
     "@types/aws-lambda": "^8.10.161",
     "@types/node": "^25.5.2",
     "esbuild": "^0.28.0",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   }
 }
