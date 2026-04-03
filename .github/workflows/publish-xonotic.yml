@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "docker-containers/xonotic/**"
+      - "sidecar/**"
 
 env:
   REGISTRY: ghcr.io
@@ -42,7 +43,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v2.9.0
         with:
-          context: ./docker-containers/xonotic/
+          context: .
+          file: docker-containers/xonotic/Dockerfile
           platforms: linux/arm64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:xonotic

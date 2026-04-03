@@ -1,6 +1,6 @@
 FROM golang:1.22-bookworm AS sidecar-builder
 WORKDIR /build
-COPY sidecar/ .
+COPY sidecar/ ./
 RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
 
 FROM debian:bookworm-slim AS builder
@@ -35,10 +35,10 @@ COPY --from=builder /build/xonotic/darkplaces/darkplaces-dedicated ./xonotic-lin
 COPY --from=builder /usr/local/lib/libd0_blind_id* /usr/local/lib/
 RUN ldconfig
 
-COPY Xonotic-clean/data ./data
+COPY docker-containers/xonotic/Xonotic-clean/data ./data
 RUN mkdir -p /opt/data && touch /opt/data/server.cfg
 
-COPY server.cfg /opt/default-server.cfg
+COPY docker-containers/xonotic/server.cfg /opt/default-server.cfg
 
 EXPOSE 26000/udp
 EXPOSE 5001/tcp

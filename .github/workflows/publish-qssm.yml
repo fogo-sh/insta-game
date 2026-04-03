@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "docker-containers/qssm/**"
+      - "sidecar/**"
 
 env:
   REGISTRY: ghcr.io
@@ -37,7 +38,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v2.9.0
         with:
-          context: ./docker-containers/qssm/
+          context: .
+          file: docker-containers/qssm/Dockerfile
           platforms: linux/arm64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:qssm

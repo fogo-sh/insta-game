@@ -2,7 +2,8 @@ services:
   xonotic:
     image: ghcr.io/fogo-sh/insta-game:xonotic
     build:
-      context: ./docker-containers/xonotic/
+      context: .
+      dockerfile: docker-containers/xonotic/Dockerfile
       platforms:
         - linux/arm64
     ports:
@@ -22,7 +23,8 @@ services:
   qssm:
     image: ghcr.io/fogo-sh/insta-game:qssm
     build:
-      context: ./docker-containers/qssm/
+      context: .
+      dockerfile: docker-containers/qssm/Dockerfile
       platforms:
         - linux/arm64
     ports:

@@ -1,6 +1,6 @@
 FROM golang:1.22-bookworm AS sidecar-builder
 WORKDIR /build
-COPY sidecar/ .
+COPY sidecar/ ./
 RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
 
 FROM debian:bookworm-slim AS qssm-builder
@@ -56,7 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 
-COPY server.cfg /opt/default-server.cfg
+COPY docker-containers/qssm/server.cfg /opt/default-server.cfg
 
 EXPOSE 26000/udp
 EXPOSE 5001/tcp
