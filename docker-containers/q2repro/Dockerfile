@@ -49,7 +49,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libvorbisfile3 \
     zlib1g \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /opt/baseq2 /opt/data
+    && mkdir -p /opt/baseq2 /opt/data \
+    && useradd -r -s /bin/false game \
+    && chown -R game:game /opt
+
+USER game
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 
