@@ -124,19 +124,18 @@ services:
       - ./.cache/ut99:/opt/data
 
   launcher:
-    image: node:22-alpine
-    working_dir: /app
-    command: ["node", "dist/server.js"]
+    build:
+      context: ./launcher
+      dockerfile: Dockerfile
     volumes:
-      - ./launcher/dist:/app/dist:ro
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "127.0.0.1:3000:3000/tcp"
     environment:
       BACKEND: "docker"
       PORT: "3000"
-      WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE}"
-      API_TOKEN: "${API_TOKEN}"
+      WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE:-gaming}"
+      API_TOKEN: "${API_TOKEN:-gaming}"
       SIDECAR_TOKEN: "${SIDECAR_TOKEN:-abc123}"
       GAMES: |
         {
