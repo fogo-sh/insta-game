@@ -63,10 +63,6 @@ case "$GAME" in
     mkdir -p .cache/q2repro
     echo "==> Building q2repro image..."
     docker compose build q2repro
-    echo "==> Seeding cache with game libs from image..."
-    id=$(docker create ghcr.io/fogo-sh/insta-game:q2repro)
-    docker cp "$id:/opt/baseq2/." .cache/q2repro/
-    docker rm "$id"
     ;;
   *)
     echo "Unknown game: $GAME"

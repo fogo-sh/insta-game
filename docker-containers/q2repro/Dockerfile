@@ -36,7 +36,8 @@ RUN meson setup builddir \
 FROM debian:bookworm-slim
 
 COPY --from=q2repro-builder /usr/local/bin/q2proded /opt/q2proded
-COPY --from=q2repro-builder /usr/local/share/baseq2/ /opt/baseq2/
+# Store .so files separately so the cache volume mount on /opt/baseq2 doesn't shadow them
+COPY --from=q2repro-builder /usr/local/share/baseq2/ /opt/baseq2-libs/
 
 WORKDIR /opt
 
@@ -58,8 +59,9 @@ USER game
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 
 COPY docker-containers/q2repro/server.cfg /opt/default-server.cfg
+COPY docker-containers/q2repro/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 EXPOSE 26000/udp
 EXPOSE 5001/tcp
 
-ENTRYPOINT ["/usr/local/bin/sidecar"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
