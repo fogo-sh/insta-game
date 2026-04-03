@@ -12,40 +12,27 @@
 
 ## Local Workflow
 
-From `docker-containers/xonotic/`:
+From the repo root:
 
 ```sh
-make download
-make clean
-make build
-make run
+docker compose up xonotic   # run Xonotic
+docker compose up qssm      # run QSS-M (requires DATA_URL env var — see compose.yml)
 ```
 
-Useful extras:
+The images are ARM64-only. Make sure Docker Desktop has QEMU/multi-platform support enabled, or run on an ARM64 machine.
+
+To rebuild the Xonotic image from source first:
 
 ```sh
-make all   # download + clean + build
-make ruff  # format + lint pulumi/, lambda/, and sidecar-service/
+cd docker-containers/xonotic && make download && make clean && cd ../..
+docker compose build xonotic
 ```
 
-The Xonotic image is ARM64-only and built from source. To build locally for ARM64:
+For QSS-M, set `DATA_URL` to a zip containing `id1/pak0.pak` and `id1/pak1.pak` (commercial Quake data, not bundled):
 
 ```sh
-docker buildx build --platform linux/arm64 -t xonotic:latest .
+DATA_URL=https://example.com/quake-assets.zip=/opt/ docker compose up qssm
 ```
-
-From `docker-containers/qssm/`:
-
-```sh
-docker compose run --rm --build \
-  -e DATA_URL=https://example.com/quake-assets.zip \
-  -p 26000:26000/udp \
-  -p 5001:5001/tcp \
-  qssm
-```
-
-The Quake asset zip should contain `id1/pak0.pak`, `id1/pak1.pak`, and an
-optional `id1/server.cfg`.
 
 Local sidecar status:
 
