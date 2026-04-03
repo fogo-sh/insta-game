@@ -84,9 +84,10 @@ func envOr(key, def string) string {
 // ---- Process ----------------------------------------------------------------
 
 var (
-	proc   *exec.Cmd
-	procIn io.WriteCloser
-	procMu sync.Mutex
+	proc     *exec.Cmd
+	procIn   io.WriteCloser
+	procMu   sync.Mutex
+	gameLogs = NewRingLog(200)
 )
 
 func startGame(c cfg) error {
@@ -102,8 +103,8 @@ func startGame(c cfg) error {
 	if err != nil {
 		return fmt.Errorf("stdin pipe: %w", err)
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = io.MultiWriter(os.Stdout, gameLogs)
+	cmd.Stderr = io.MultiWriter(os.Stderr, gameLogs)
 	if err := cmd.Start(); err != nil {
 		stdin.Close()
 		return fmt.Errorf("start game: %w", err)
@@ -366,6 +367,43 @@ players:  %d%s
 	}
 }
 
+func logsHandler(c cfg) http.HandlerFunc {
+	return authorize(c.Token, func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("X-Accel-Buffering", "no")
+
+		// Flush existing buffered lines first.
+		for _, line := range gameLogs.Lines() {
+			fmt.Fprintf(w, "data: %s\n\n", line)
+		}
+		flusher.Flush()
+
+		// Subscribe to new lines.
+		ch, cancel := gameLogs.Subscribe()
+		defer cancel()
+
+		for {
+			select {
+			case line, ok := <-ch:
+				if !ok {
+					return
+				}
+				fmt.Fprintf(w, "data: %s\n\n", line)
+				flusher.Flush()
+			case <-r.Context().Done():
+				return
+			}
+		}
+	})
+}
+
 // ---- Main -------------------------------------------------------------------
 
 func main() {
@@ -395,6 +433,7 @@ func main() {
 	mux.HandleFunc("/status", statusHandler(c))
 	mux.HandleFunc("/restart", restartHandler(c))
 	mux.HandleFunc("/stop", stopHandler(c))
+	mux.HandleFunc("/logs", logsHandler(c))
 
 	addr := fmt.Sprintf("%s:%d", c.Host, c.Port)
 	log.Printf("SIDECAR: listening on %s", addr)

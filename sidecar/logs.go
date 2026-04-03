@@ -1,0 +1,107 @@
+package main
+
+import (
+	"strings"
+	"sync"
+)
+
+// RingLog is a thread-safe ring buffer that stores the last N log lines and
+// fans them out to SSE subscribers.
+type RingLog struct {
+	mu   sync.Mutex
+	buf  []string // circular buffer of capacity cap
+	cap  int
+	head int // index of the oldest entry (wraps)
+	size int // number of valid entries (<= cap)
+
+	partial string // incomplete line fragment waiting for a newline
+
+	subs map[int]chan string
+	next int // next subscriber ID
+}
+
+// NewRingLog creates a RingLog with the given capacity.
+func NewRingLog(capacity int) *RingLog {
+	return &RingLog{
+		buf:  make([]string, capacity),
+		cap:  capacity,
+		subs: make(map[int]chan string),
+	}
+}
+
+// Write implements io.Writer. It splits p on newlines and appends each
+// complete line to the ring. An incomplete trailing fragment is held until
+// the next Write completes it.
+func (r *RingLog) Write(p []byte) (int, error) {
+	text := r.partial + string(p)
+	parts := strings.Split(text, "\n")
+
+	// The last element is either empty (if text ended with \n) or an incomplete
+	// fragment to be carried over.
+	r.partial = parts[len(parts)-1]
+	complete := parts[:len(parts)-1]
+
+	if len(complete) > 0 {
+		r.mu.Lock()
+		for _, line := range complete {
+			r.appendLocked(line)
+		}
+		r.mu.Unlock()
+	}
+
+	return len(p), nil
+}
+
+// appendLocked inserts a line into the ring and notifies subscribers.
+// Caller must hold r.mu.
+func (r *RingLog) appendLocked(line string) {
+	if r.size < r.cap {
+		r.buf[(r.head+r.size)%r.cap] = line
+		r.size++
+	} else {
+		// Overwrite the oldest slot and advance head.
+		r.buf[r.head] = line
+		r.head = (r.head + 1) % r.cap
+	}
+
+	for _, ch := range r.subs {
+		select {
+		case ch <- line:
+		default:
+			// Slow reader: drop the line rather than block the writer.
+		}
+	}
+}
+
+// Lines returns a snapshot of all buffered lines in order (oldest first).
+func (r *RingLog) Lines() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	out := make([]string, r.size)
+	for i := 0; i < r.size; i++ {
+		out[i] = r.buf[(r.head+i)%r.cap]
+	}
+	return out
+}
+
+// Subscribe returns a channel that receives each new line as it arrives, and
+// a cancel function to unsubscribe. The channel is buffered (64 entries) so
+// that a slow reader does not block the writer.
+func (r *RingLog) Subscribe() (<-chan string, func()) {
+	ch := make(chan string, 64)
+
+	r.mu.Lock()
+	id := r.next
+	r.next++
+	r.subs[id] = ch
+	r.mu.Unlock()
+
+	cancel := func() {
+		r.mu.Lock()
+		delete(r.subs, id)
+		r.mu.Unlock()
+		close(ch)
+	}
+	return ch, cancel
+}
