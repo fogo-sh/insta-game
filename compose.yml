@@ -15,7 +15,9 @@ services:
       GAME_QUIT_CMD: "exit"
       GAME_QUIT_TIMEOUT: "30"
       TOKEN: "abc123"
-      # DATA_URL: "https://example.com/xonotic-data.zip=/opt/"
+      # DATA_URL is optional for Xonotic — a default server.cfg is bundled.
+      # Set it to supply a custom server.cfg, e.g.:
+      # DATA_URL: "https://example.com/server.cfg=/opt/data/server.cfg"
 
   qssm:
     image: qssm:latest
@@ -33,6 +35,6 @@ services:
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
       TOKEN: "abc123"
-      # DATA_URL must be set — Quake pak files are required and not bundled.
-      # Format: url=path, semicolon-separated.
+      # DATA_URL is required for QSS-M — Quake pak files are commercial and not bundled.
+      # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
       # Example: DATA_URL: "https://example.com/quake-assets.zip=/opt/"
