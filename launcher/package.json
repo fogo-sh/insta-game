@@ -5,7 +5,9 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/*",
     "build:watch": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/* --watch",
-    "register": "tsx register-commands.ts"
+    "build:docker": "esbuild src/server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js",
+    "register": "tsx register-commands.ts",
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.1023.0",

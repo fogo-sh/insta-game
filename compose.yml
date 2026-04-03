@@ -122,3 +122,27 @@ services:
       # DATA_URL: "https://example.com/UnrealTournament.ini=/opt/data/UnrealTournament.ini"
     volumes:
       - ./.cache/ut99:/opt/data
+
+  launcher:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "dist/server.js"]
+    volumes:
+      - ./launcher/dist:/app/dist:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "127.0.0.1:3000:3000/tcp"
+    environment:
+      BACKEND: "docker"
+      PORT: "3000"
+      WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE}"
+      API_TOKEN: "${API_TOKEN}"
+      SIDECAR_TOKEN: "${SIDECAR_TOKEN:-abc123}"
+      GAMES: |
+        {
+          "xonotic":  {"containerName": "insta-game-xonotic-1",  "sidecarPort": 5001},
+          "qssm":     {"containerName": "insta-game-qssm-1",     "sidecarPort": 5001},
+          "q2repro":  {"containerName": "insta-game-q2repro-1",  "sidecarPort": 5001},
+          "bzflag":   {"containerName": "insta-game-bzflag-1",   "sidecarPort": 5001},
+          "ut99":     {"containerName": "insta-game-ut99-1",     "sidecarPort": 5001}
+        }
