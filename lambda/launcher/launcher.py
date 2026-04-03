@@ -24,6 +24,10 @@ GAMES = json.loads(
                     "service_name": "instagame-qssm-service",
                     "sidecar_port": 5001,
                 },
+                "q2repro": {
+                    "service_name": "instagame-q2repro-service",
+                    "sidecar_port": 5001,
+                },
             }
         ),
     )
