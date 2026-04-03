@@ -22,7 +22,7 @@ docker compose up xonotic   # run Xonotic
 docker compose up qssm      # run QSS-M / Quake 1 (requires DATA_URL env var — see compose.yml)
 docker compose up q2repro   # run q2repro / Quake 2 (requires DATA_URL env var — see compose.yml)
 docker compose up bzflag    # run BZFlag
-docker compose up ut99      # run UT99 GOTY
+docker compose up ut99      # run UT99 GOTY (requires DATA_URL env var — see compose.yml)
 ```
 
 The Xonotic, QSS-M, q2repro, and BZFlag images are ARM64. The UT99 GOTY image is
@@ -40,7 +40,7 @@ To build images locally (handles any required pre-build steps automatically):
 ./build.sh ut99
 ```
 
-For QSS-M and q2repro, `DATA_URL` is required — Quake pak files are commercial and not bundled. In local Compose, set `QSSM_DATA_URL` or `Q2REPRO_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
+For QSS-M, q2repro, and UT99, `DATA_URL` is required because commercial game assets are not bundled. In local Compose, set `QSSM_DATA_URL`, `Q2REPRO_DATA_URL`, or `UT99_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
 
 ```sh
 # Quake 1 — zip containing id1/pak0.pak and id1/pak1.pak
@@ -48,6 +48,10 @@ QSSM_DATA_URL="https://example.com/quake-assets.zip=/opt/" docker compose up qss
 
 # Quake 2 — zip containing baseq2/pak0.pak etc.
 Q2REPRO_DATA_URL="https://example.com/quake2-assets.zip" docker compose up q2repro
+
+# UT99 — zip containing System64/ucc-bin-amd64, Maps/, Textures/, Music/, Sounds/,
+# and optionally data/UnrealTournament.ini
+UT99_DATA_URL="https://example.com/ut99.zip" docker compose up ut99
 ```
 
 Downloaded data is cached in `.cache/<game>/` and reused on subsequent runs — the sidecar skips the download if it already has a sentinel file from a previous successful fetch.
@@ -62,12 +66,13 @@ DATA_URL="https://example.com/server.cfg=/opt/data/server.cfg" docker compose up
 DATA_URL="https://example.com/server.cfg=/opt/data/server.cfg" docker compose up bzflag
 ```
 
-For UT99 GOTY, the Docker build downloads and installs the game with OldUnreal's
-Linux installer. `DATA_URL` is optional and only needed to override
-`/opt/data/UnrealTournament.ini`:
+For UT99 GOTY, provide a zip at runtime through `UT99_DATA_URL`. The archive
+must extract into `/opt` and include `System64/ucc-bin-amd64` plus the game
+content directories (`Maps/`, `Textures/`, `Music/`, `Sounds/`). Optionally
+include `data/UnrealTournament.ini` to override the bundled default config:
 
 ```sh
-DATA_URL="https://example.com/UnrealTournament.ini=/opt/data/UnrealTournament.ini" docker compose up ut99
+UT99_DATA_URL="https://example.com/ut99.zip" docker compose up ut99
 ```
 
 Local sidecar status:
@@ -97,7 +102,7 @@ uv run pulumi config set xonoticDataUrl <xonotic-data-url>
 uv run pulumi config set qssmDataUrl <quake1-data-url>
 uv run pulumi config set q2reproDataUrl <quake2-data-url>
 uv run pulumi config set bzflagDataUrl <bzflag-config-url>
-uv run pulumi config set ut99DataUrl <ut99-config-url>
+uv run pulumi config set ut99DataUrl <ut99-zip-url>
 uv run pulumi config set --secret webUiPassphrase <passphrase>
 uv run pulumi config set --secret apiToken <token>
 uv run pulumi config set --secret discordPublicKey <public-key>

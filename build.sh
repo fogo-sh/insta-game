@@ -70,6 +70,23 @@ case "$GAME" in
     docker compose build bzflag
     ;;
   ut99)
+    if [ -f .env ]; then
+      . ./.env
+    fi
+
+    if [ -z "$UT99_DATA_URL" ]; then
+      printf "UT99_DATA_URL (zip URL that extracts into /opt): "
+      read -r UT99_DATA_URL
+      if [ -z "$UT99_DATA_URL" ]; then
+        echo "UT99_DATA_URL is required to run ut99."
+        exit 1
+      fi
+      echo "UT99_DATA_URL=$UT99_DATA_URL" >> .env
+      echo "==> Saved UT99_DATA_URL to .env"
+    else
+      echo "==> Using saved UT99_DATA_URL from .env"
+    fi
+
     mkdir -p .cache/ut99
     echo "==> Building ut99 image..."
     docker compose build ut99

@@ -117,9 +117,10 @@ services:
       GAME_PORT: "7777"
       CONFIG_PATH: "/opt/data/UnrealTournament.ini"
       TOKEN: "abc123"
-      # DATA_URL is optional for UT99 GOTY; the image bundles a default dedicated server config.
-      # Set it to supply a custom UnrealTournament.ini, e.g.:
-      # DATA_URL: "https://example.com/UnrealTournament.ini=/opt/data/UnrealTournament.ini"
+      # DATA_URL is required for UT99 GOTY — game assets and binaries are not bundled.
+      # Set UT99_DATA_URL in .env to a zip that extracts into /opt and optionally includes
+      # data/UnrealTournament.ini.
+      DATA_URL: "${UT99_DATA_URL}"
     volumes:
       - ./.cache/ut99:/opt/data
 

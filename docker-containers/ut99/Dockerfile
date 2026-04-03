@@ -4,38 +4,6 @@ WORKDIR /build
 COPY sidecar/ ./
 RUN GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o /sidecar .
 
-FROM debian:bookworm-slim AS ut99-builder
-
-ARG OLDUNREAL_INSTALLER_URL=https://raw.githubusercontent.com/OldUnreal/FullGameInstallers/master/Linux/install-ut99.sh
-ARG UT99_INSTALL_DIR=/opt/ut99
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    jq \
-    lbzip2 \
-    libsdl2-2.0-0 \
-    p7zip-full \
-    tar \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN curl -L "${OLDUNREAL_INSTALLER_URL}" -o /tmp/install-ut99.sh \
-    && chmod +x /tmp/install-ut99.sh \
-    && case "$(uname -m)" in \
-        aarch64) ut_system_dir="${UT99_INSTALL_DIR}/SystemARM64" ;; \
-        x86_64|amd64) ut_system_dir="${UT99_INSTALL_DIR}/System64" ;; \
-        *) ut_system_dir="${UT99_INSTALL_DIR}/System" ;; \
-    esac \
-    && mkdir -p "${ut_system_dir}" \
-    && cd "${ut_system_dir}" \
-    && printf 'y\n' | /tmp/install-ut99.sh \
-        --destination "${UT99_INSTALL_DIR}" \
-        --ui-mode none \
-        --application-entry skip \
-        --desktop-shortcut skip \
-    && rm -f /tmp/install-ut99.sh \
-    && rm -rf "${UT99_INSTALL_DIR}/Installer"
-
 FROM debian:bookworm-slim
 
 WORKDIR /opt
@@ -47,7 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/data
 
-COPY --from=ut99-builder /opt/ut99/ /opt/
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 COPY docker-containers/ut99/UnrealTournament.ini /opt/default-server.cfg
 COPY --chmod=755 docker-containers/ut99/entrypoint.sh /usr/local/bin/entrypoint.sh
