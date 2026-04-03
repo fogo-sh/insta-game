@@ -53,8 +53,8 @@ services:
       platforms:
         - linux/arm64
     ports:
-      - "127.0.0.1:26002:26000/udp"
-      - "127.0.0.1:5003:5001/tcp"
+      - "127.0.0.1:26000:26000/udp"
+      - "127.0.0.1:5001:5001/tcp"
     environment:
       PROTOCOL: "quake2"
       GAME_CMD: "./q2proded"
@@ -67,3 +67,5 @@ services:
       # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
       # Set Q2REPRO_DATA_URL in .env at the repo root (build.sh will prompt and save it for you).
       DATA_URL: "${Q2REPRO_DATA_URL}"
+    volumes:
+      - ./.cache/q2repro:/opt/baseq2
