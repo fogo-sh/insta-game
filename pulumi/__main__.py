@@ -374,14 +374,14 @@ ut99 = GameService(
     sidecar_token=sidecar_token,
     cpu=512,
     memory=1024,
-    cpu_architecture="X86_64",
+    cpu_architecture="ARM64",
     data_url=ut99_data_url,
     game_port=7777,
     extra_port_mappings=[{"containerPort": 7778, "protocol": "udp"}],
     protocol="ut99",
     game_cmd="/usr/local/bin/start-ut99.sh",
     game_args=(
-        "/opt/System64/ucc-bin-amd64 server DM-Deck16][?game=Botpack.DeathMatchPlus"
+        "/opt/SystemARM64/ucc-bin-arm64 server DM-Deck16][?game=Botpack.DeathMatchPlus"
         " ini=/opt/data/UnrealTournament.ini -nohomedir"
     ),
     game_quit_cmd="exit",

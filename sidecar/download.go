@@ -78,7 +78,11 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 		return err
 	}
 
-	log.Printf("SIDECAR: No server.cfg found in downloaded data, using %s", defaultConfigPath)
+	log.Printf(
+		"SIDECAR: No %s found in downloaded data, using %s",
+		filepath.Base(configPath),
+		defaultConfigPath,
+	)
 	return copyFile(defaultConfigPath, configPath)
 }
 

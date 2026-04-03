@@ -25,8 +25,7 @@ docker compose up bzflag    # run BZFlag
 docker compose up ut99      # run UT99 GOTY (requires DATA_URL env var — see compose.yml)
 ```
 
-The Xonotic, QSS-M, q2repro, and BZFlag images are ARM64. The UT99 GOTY image is
-`linux/amd64` because the dedicated server binary is x86. Make sure Docker
+All game images, including UT99 GOTY, are `linux/arm64`. Make sure Docker
 Desktop has QEMU/multi-platform support enabled when your host architecture
 does not match the image.
 
@@ -49,7 +48,7 @@ QSSM_DATA_URL="https://example.com/quake-assets.zip=/opt/" docker compose up qss
 # Quake 2 — zip containing baseq2/pak0.pak etc.
 Q2REPRO_DATA_URL="https://example.com/quake2-assets.zip" docker compose up q2repro
 
-# UT99 — zip containing System64/ucc-bin-amd64, Maps/, Textures/, Music/, Sounds/,
+# UT99 — zip containing SystemARM64/ucc-bin-arm64, Maps/, Textures/, Music/, Sounds/,
 # and optionally data/UnrealTournament.ini
 UT99_DATA_URL="https://example.com/ut99.zip" docker compose up ut99
 ```
@@ -67,7 +66,7 @@ DATA_URL="https://example.com/server.cfg=/opt/data/server.cfg" docker compose up
 ```
 
 For UT99 GOTY, provide a zip at runtime through `UT99_DATA_URL`. The archive
-must extract into `/opt` and include `System64/ucc-bin-amd64` plus the game
+must extract into `/opt` and include `SystemARM64/ucc-bin-arm64` plus the game
 content directories (`Maps/`, `Textures/`, `Music/`, `Sounds/`). Optionally
 include `data/UnrealTournament.ini` to override the bundled default config:
 

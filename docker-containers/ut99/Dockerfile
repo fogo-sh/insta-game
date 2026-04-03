@@ -15,8 +15,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/data
 
+ENV DEFAULT_CONFIG_PATH=/usr/local/share/ut99/UnrealTournament.ini
+
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
-COPY docker-containers/ut99/UnrealTournament.ini /opt/default-server.cfg
+COPY docker-containers/ut99/UnrealTournament.ini /usr/local/share/ut99/UnrealTournament.ini
 COPY --chmod=755 docker-containers/ut99/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chmod=755 docker-containers/ut99/start-ut99.sh /usr/local/bin/start-ut99.sh
 

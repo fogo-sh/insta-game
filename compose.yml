@@ -103,7 +103,7 @@ services:
       context: .
       dockerfile: docker-containers/ut99/Dockerfile
       platforms:
-        - linux/amd64
+        - linux/arm64
     ports:
       - "127.0.0.1:7777:7777/udp"
       - "127.0.0.1:7778:7778/udp"
@@ -111,7 +111,7 @@ services:
     environment:
       PROTOCOL: "ut99"
       GAME_CMD: "/usr/local/bin/start-ut99.sh"
-      GAME_ARGS: "/opt/System64/ucc-bin-amd64 server DM-Deck16][?game=Botpack.DeathMatchPlus ini=/opt/data/UnrealTournament.ini -nohomedir"
+      GAME_ARGS: "/opt/SystemARM64/ucc-bin-arm64 server DM-Deck16][?game=Botpack.DeathMatchPlus ini=/opt/data/UnrealTournament.ini -nohomedir"
       GAME_QUIT_CMD: "exit"
       GAME_QUIT_TIMEOUT: "15"
       GAME_PORT: "7777"

@@ -20,8 +20,8 @@ runtime through `DATA_URL` as a zip file that extracts into `/opt`, with this
 layout:
 
 ```text
-System64/
-  ucc-bin-amd64
+SystemARM64/
+  ucc-bin-arm64
 Maps/
   DM-Deck16][.unr
 Textures/
@@ -34,5 +34,5 @@ data/
 If the zip does not include `data/UnrealTournament.ini`, the sidecar copies the
 bundled default config to `/opt/data/UnrealTournament.ini`.
 
-The container is built for `linux/amd64`, and the startup wrapper expects the
-dedicated server executable at `/opt/System64/ucc-bin-amd64`.
+The container is built for `linux/arm64`, and the startup wrapper expects the
+dedicated server executable at `/opt/SystemARM64/ucc-bin-arm64`.
