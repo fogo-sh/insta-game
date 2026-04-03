@@ -102,35 +102,49 @@ func parseDataURL(raw string) []dataEntry {
 }
 
 func fetchWithRetry(url, userAgent string) ([]byte, error) {
-	client := &http.Client{Timeout: 120 * time.Second}
+	// Force HTTP/1.1 — HTTP/2 can deadlock under QEMU ARM emulation.
+	transport := &http.Transport{
+		ForceAttemptHTTP2:   false,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	client := &http.Client{Transport: transport}
 	backoff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second}
 
 	var lastErr error
 	for i := 0; i <= len(backoff); i++ {
 		if i > 0 {
+			log.Printf("SIDECAR: retrying %s (attempt %d)", url, i+1)
 			time.Sleep(backoff[i-1])
 		}
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, err
 		}
-		if userAgent != "" {
-			req.Header.Set("User-Agent", userAgent)
+		ua := userAgent
+		if ua == "" {
+			ua = "fogo-sh/insta-game"
 		}
+		req.Header.Set("User-Agent", ua)
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		defer resp.Body.Close()
 		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			resp.Body.Close()
 			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
 			continue
 		}
 		if resp.StatusCode != 200 {
+			resp.Body.Close()
 			return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 		}
-		return readWithProgress(resp.Body, resp.ContentLength, url)
+		data, err := readWithProgress(resp.Body, resp.ContentLength, url)
+		resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+		return data, nil
 	}
 	return nil, lastErr
 }
