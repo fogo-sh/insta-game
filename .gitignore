@@ -5,7 +5,11 @@ docker-containers/xonotic/Xonotic*
 .idea/
 .codex
 __pycache__/
+node_modules/
 .ruff_cache/
 venv/
 .venv/
 .env
+
+lambda/launcher/node_modules/
+lambda/launcher/dist/
