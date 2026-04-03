@@ -1,14 +1,16 @@
 import { verifyKey, InteractionType, InteractionResponseType } from "discord-interactions";
 import type { Context } from "hono";
-import { createBackend } from "./backends/index.js";
+import type { Backend } from "./backend.js";
 
 const DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY ?? "";
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN ?? "";
 const DISCORD_APP_ID = process.env.DISCORD_APP_ID ?? "";
 
-const backend = createBackend();
+export function makeDiscordHandler(backend: Backend) {
+  return (c: Context) => discordHandler(c, backend);
+}
 
-export async function discordHandler(c: Context): Promise<Response> {
+async function discordHandler(c: Context, backend: Backend): Promise<Response> {
   const signature = c.req.header("x-signature-ed25519") ?? "";
   const timestamp = c.req.header("x-signature-timestamp") ?? "";
   const rawBody = await c.req.text();
@@ -60,7 +62,7 @@ export async function discordHandler(c: Context): Promise<Response> {
 
     if (name === "start") {
       // Defer immediately — start can take up to ~50s
-      void sendFollowup(interaction.token, gameName, config);
+      void sendFollowup(interaction.token, gameName, config, backend);
       return c.json({ type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE });
     }
 
@@ -76,7 +78,8 @@ export async function discordHandler(c: Context): Promise<Response> {
 async function sendFollowup(
   interactionToken: string,
   gameName: string,
-  config: Parameters<typeof backend.startGame>[0]
+  config: Parameters<Backend["startGame"]>[0],
+  backend: Backend,
 ): Promise<void> {
   const state = await backend.startGame(config);
   const content = formatState(gameName, state);

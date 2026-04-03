@@ -401,6 +401,542 @@ __export(index_exports, {
 });
 module.exports = __toCommonJS(index_exports);
 
+// node_modules/hono/dist/utils/encode.js
+var encodeBase64 = (buf) => {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  for (let i = 0, len = bytes.length; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+};
+var decodeBase64 = (str) => {
+  const binary = atob(str);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+  const half = binary.length / 2;
+  for (let i = 0, j = binary.length - 1; i <= half; i++, j--) {
+    bytes[i] = binary.charCodeAt(i);
+    bytes[j] = binary.charCodeAt(j);
+  }
+  return bytes;
+};
+
+// node_modules/hono/dist/adapter/aws-lambda/handler.js
+function sanitizeHeaderValue(value) {
+  const hasNonAscii = /[^\x00-\x7F]/.test(value);
+  if (!hasNonAscii) {
+    return value;
+  }
+  return encodeURIComponent(value);
+}
+var getRequestContext = (event) => {
+  return event.requestContext;
+};
+var handle = (app2, { isContentTypeBinary } = { isContentTypeBinary: void 0 }) => {
+  return async (event, lambdaContext) => {
+    const processor = getProcessor(event);
+    const req = processor.createRequest(event);
+    const requestContext = getRequestContext(event);
+    const res = await app2.fetch(req, {
+      event,
+      requestContext,
+      lambdaContext
+    });
+    return processor.createResult(event, res, { isContentTypeBinary });
+  };
+};
+var EventProcessor = class {
+  getHeaderValue(headers, key) {
+    const value = headers ? Array.isArray(headers[key]) ? headers[key][0] : headers[key] : void 0;
+    return value;
+  }
+  getDomainName(event) {
+    if (event.requestContext && "domainName" in event.requestContext) {
+      return event.requestContext.domainName;
+    }
+    const hostFromHeaders = this.getHeaderValue(event.headers, "host");
+    if (hostFromHeaders) {
+      return hostFromHeaders;
+    }
+    const multiValueHeaders = "multiValueHeaders" in event ? event.multiValueHeaders : {};
+    const hostFromMultiValueHeaders = this.getHeaderValue(multiValueHeaders, "host");
+    return hostFromMultiValueHeaders;
+  }
+  createRequest(event) {
+    const queryString = this.getQueryString(event);
+    const domainName = this.getDomainName(event);
+    const path = this.getPath(event);
+    const urlPath = `https://${domainName}${path}`;
+    const url = queryString ? `${urlPath}?${queryString}` : urlPath;
+    const headers = this.getHeaders(event);
+    const method = this.getMethod(event);
+    const requestInit = {
+      headers,
+      method
+    };
+    if (event.body) {
+      requestInit.body = event.isBase64Encoded ? decodeBase64(event.body) : event.body;
+    }
+    return new Request(url, requestInit);
+  }
+  async createResult(event, res, options) {
+    const contentType = res.headers.get("content-type");
+    const isContentTypeBinary = options.isContentTypeBinary ?? defaultIsContentTypeBinary;
+    let isBase64Encoded = contentType && isContentTypeBinary(contentType) ? true : false;
+    if (!isBase64Encoded) {
+      const contentEncoding = res.headers.get("content-encoding");
+      isBase64Encoded = isContentEncodingBinary(contentEncoding);
+    }
+    const body = isBase64Encoded ? encodeBase64(await res.arrayBuffer()) : await res.text();
+    const result = {
+      body,
+      statusCode: res.status,
+      isBase64Encoded,
+      ..."multiValueHeaders" in event && event.multiValueHeaders ? {
+        multiValueHeaders: {}
+      } : {
+        headers: {}
+      }
+    };
+    this.setCookies(event, res, result);
+    if (result.multiValueHeaders) {
+      res.headers.forEach((value, key) => {
+        result.multiValueHeaders[key] = [value];
+      });
+    } else {
+      res.headers.forEach((value, key) => {
+        result.headers[key] = value;
+      });
+    }
+    return result;
+  }
+  setCookies(_event, res, result) {
+    if (res.headers.has("set-cookie")) {
+      const cookies = res.headers.getSetCookie ? res.headers.getSetCookie() : Array.from(res.headers.entries()).filter(([k]) => k === "set-cookie").map(([, v]) => v);
+      if (Array.isArray(cookies)) {
+        this.setCookiesToResult(result, cookies);
+        res.headers.delete("set-cookie");
+      }
+    }
+  }
+};
+var EventV2Processor = class extends EventProcessor {
+  getPath(event) {
+    return event.rawPath;
+  }
+  getMethod(event) {
+    return event.requestContext.http.method;
+  }
+  getQueryString(event) {
+    return event.rawQueryString;
+  }
+  getCookies(event, headers) {
+    if (Array.isArray(event.cookies)) {
+      headers.set("Cookie", event.cookies.join("; "));
+    }
+  }
+  setCookiesToResult(result, cookies) {
+    result.cookies = cookies;
+  }
+  getHeaders(event) {
+    const headers = new Headers();
+    this.getCookies(event, headers);
+    if (event.headers) {
+      for (const [k, v] of Object.entries(event.headers)) {
+        if (v) {
+          headers.set(k, v);
+        }
+      }
+    }
+    return headers;
+  }
+};
+var v2Processor = new EventV2Processor();
+var EventV1Processor = class extends EventProcessor {
+  getPath(event) {
+    return event.path;
+  }
+  getMethod(event) {
+    return event.httpMethod;
+  }
+  getQueryString(event) {
+    if (event.multiValueQueryStringParameters) {
+      return Object.entries(event.multiValueQueryStringParameters || {}).filter(([, value]) => value).map(
+        ([key, values]) => values.map((value) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&")
+      ).join("&");
+    } else {
+      return Object.entries(event.queryStringParameters || {}).filter(([, value]) => value).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value || "")}`).join("&");
+    }
+  }
+  getCookies(_event, _headers) {
+  }
+  getHeaders(event) {
+    const headers = new Headers();
+    this.getCookies(event, headers);
+    if (event.headers) {
+      for (const [k, v] of Object.entries(event.headers)) {
+        if (v) {
+          headers.set(k, sanitizeHeaderValue(v));
+        }
+      }
+    }
+    if (event.multiValueHeaders) {
+      for (const [k, values] of Object.entries(event.multiValueHeaders)) {
+        if (values) {
+          const foundK = headers.get(k);
+          values.forEach((v) => {
+            const sanitizedValue = sanitizeHeaderValue(v);
+            return (!foundK || !foundK.includes(sanitizedValue)) && headers.append(k, sanitizedValue);
+          });
+        }
+      }
+    }
+    return headers;
+  }
+  setCookiesToResult(result, cookies) {
+    result.multiValueHeaders = {
+      "set-cookie": cookies
+    };
+  }
+};
+var v1Processor = new EventV1Processor();
+var ALBProcessor = class extends EventProcessor {
+  getHeaders(event) {
+    const headers = new Headers();
+    if (event.multiValueHeaders) {
+      for (const [key, values] of Object.entries(event.multiValueHeaders)) {
+        if (values && Array.isArray(values)) {
+          const sanitizedValue = sanitizeHeaderValue(values.join("; "));
+          headers.set(key, sanitizedValue);
+        }
+      }
+    } else {
+      for (const [key, value] of Object.entries(event.headers ?? {})) {
+        if (value) {
+          headers.set(key, sanitizeHeaderValue(value));
+        }
+      }
+    }
+    return headers;
+  }
+  getPath(event) {
+    return event.path;
+  }
+  getMethod(event) {
+    return event.httpMethod;
+  }
+  getQueryString(event) {
+    if (event.multiValueQueryStringParameters) {
+      return Object.entries(event.multiValueQueryStringParameters || {}).filter(([, value]) => value).map(([key, value]) => `${key}=${value.join(`&${key}=`)}`).join("&");
+    } else {
+      return Object.entries(event.queryStringParameters || {}).filter(([, value]) => value).map(([key, value]) => `${key}=${value}`).join("&");
+    }
+  }
+  getCookies(event, headers) {
+    let cookie;
+    if (event.multiValueHeaders) {
+      cookie = event.multiValueHeaders["cookie"]?.join("; ");
+    } else {
+      cookie = event.headers ? event.headers["cookie"] : void 0;
+    }
+    if (cookie) {
+      headers.append("Cookie", cookie);
+    }
+  }
+  setCookiesToResult(result, cookies) {
+    if (result.multiValueHeaders) {
+      result.multiValueHeaders["set-cookie"] = cookies;
+    } else {
+      result.headers["set-cookie"] = cookies.join(", ");
+    }
+  }
+};
+var albProcessor = new ALBProcessor();
+var LatticeV2Processor = class extends EventProcessor {
+  getPath(event) {
+    return event.path;
+  }
+  getMethod(event) {
+    return event.method;
+  }
+  getQueryString() {
+    return "";
+  }
+  getHeaders(event) {
+    const headers = new Headers();
+    if (event.headers) {
+      for (const [k, values] of Object.entries(event.headers)) {
+        if (values) {
+          const foundK = headers.get(k);
+          values.forEach((v) => {
+            const sanitizedValue = sanitizeHeaderValue(v);
+            return (!foundK || !foundK.includes(sanitizedValue)) && headers.append(k, sanitizedValue);
+          });
+        }
+      }
+    }
+    return headers;
+  }
+  getCookies() {
+  }
+  setCookiesToResult(result, cookies) {
+    result.headers = {
+      ...result.headers,
+      "set-cookie": cookies.join(", ")
+    };
+  }
+};
+var latticeV2Processor = new LatticeV2Processor();
+var getProcessor = (event) => {
+  if (isProxyEventALB(event)) {
+    return albProcessor;
+  }
+  if (isProxyEventV2(event)) {
+    return v2Processor;
+  }
+  if (isLatticeEventV2(event)) {
+    return latticeV2Processor;
+  }
+  return v1Processor;
+};
+var isProxyEventALB = (event) => {
+  if (event.requestContext) {
+    return Object.hasOwn(event.requestContext, "elb");
+  }
+  return false;
+};
+var isProxyEventV2 = (event) => {
+  return Object.hasOwn(event, "rawPath");
+};
+var isLatticeEventV2 = (event) => {
+  if (event.requestContext) {
+    return Object.hasOwn(event.requestContext, "serviceArn");
+  }
+  return false;
+};
+var defaultIsContentTypeBinary = (contentType) => {
+  return !/^text\/(?:plain|html|css|javascript|csv)|(?:\/|\+)(?:json|xml)\s*(?:;|$)/.test(
+    contentType
+  );
+};
+var isContentEncodingBinary = (contentEncoding) => {
+  if (contentEncoding === null) {
+    return false;
+  }
+  return /^(gzip|deflate|compress|br)/.test(contentEncoding);
+};
+
+// src/backends/ecs.ts
+var import_client_ecs = require("@aws-sdk/client-ecs");
+var import_client_ec2 = require("@aws-sdk/client-ec2");
+var REGION = process.env.AWS_REGION ?? "ca-central-1";
+var CLUSTER = process.env.ECS_CLUSTER ?? "";
+var SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
+var MAX_POLLS = 10;
+var POLL_INTERVAL_MS = 5e3;
+var ecs = new import_client_ecs.ECSClient({ region: REGION });
+var ec2 = new import_client_ec2.EC2Client({ region: REGION });
+var EcsBackend = class {
+  getGames() {
+    return JSON.parse(process.env.GAMES ?? "{}");
+  }
+  async getGameState(config) {
+    const c = config;
+    try {
+      const listRes = await ecs.send(new import_client_ecs.ListTasksCommand({ cluster: CLUSTER, serviceName: c.serviceName }));
+      const taskArn = listRes.taskArns?.[0];
+      if (!taskArn) return { status: "offline", players: 0, ready: false };
+      const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
+      const task = descRes.tasks?.[0];
+      const eniId = task?.attachments?.[0]?.details?.find((d) => d.name === "networkInterfaceId")?.value;
+      if (!eniId) return { status: "starting", players: 0, ready: false };
+      const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
+      const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
+      if (!publicIp) return { status: "starting", players: 0, ready: false };
+      const sidecar = await getSidecarStatus(publicIp, c.sidecarPort);
+      if (!sidecar) return { status: "starting", publicIp, players: 0, ready: false };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      const players = Number(sidecar.players ?? 0);
+      return { status: running && ready ? "online" : "starting", publicIp, players, ready };
+    } catch {
+      return { status: "offline", players: 0, ready: false };
+    }
+  }
+  async stopGame(config) {
+    const c = config;
+    await setDesiredCount(c.serviceName, 0);
+    return waitForState(this, config, "offline");
+  }
+  async startGame(config, configUrl) {
+    const c = config;
+    await this.stopGame(config);
+    await setDesiredCount(c.serviceName, 1);
+    let state = await waitForState(this, config, "online");
+    if (configUrl && state.status === "online" && state.publicIp) {
+      await restartWithConfig(state.publicIp, c.sidecarPort, configUrl);
+      state = await waitForState(this, config, "online");
+      state.configUrl = configUrl;
+    }
+    return state;
+  }
+};
+async function setDesiredCount(serviceName, count) {
+  await ecs.send(new import_client_ecs.UpdateServiceCommand({ cluster: CLUSTER, service: serviceName, desiredCount: count }));
+}
+async function getSidecarStatus(ip, port) {
+  try {
+    const res = await fetch(`http://${ip}:${port}/status`, { signal: AbortSignal.timeout(5e3) });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+async function waitForState(backend2, config, desired) {
+  let state = await backend2.getGameState(config);
+  for (let i = 0; i < MAX_POLLS; i++) {
+    if (state.status === desired) return state;
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    state = await backend2.getGameState(config);
+  }
+  return state;
+}
+async function restartWithConfig(ip, port, configUrl) {
+  await fetch(`http://${ip}:${port}/restart`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${SIDECAR_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ config_url: configUrl }),
+    signal: AbortSignal.timeout(1e4)
+  });
+}
+
+// src/backends/docker.ts
+var import_http = __toESM(require("http"));
+var SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
+var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
+var MAX_POLLS2 = 20;
+var POLL_INTERVAL_MS2 = 3e3;
+function dockerRequest(method, path, body) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = body ? JSON.stringify(body) : void 0;
+    const req = import_http.default.request({
+      socketPath: SOCKET,
+      path,
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...bodyStr ? { "Content-Length": Buffer.byteLength(bodyStr) } : {}
+      }
+    }, (res) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => {
+        const text = Buffer.concat(chunks).toString();
+        try {
+          resolve(text ? JSON.parse(text) : null);
+        } catch {
+          resolve(text);
+        }
+      });
+    });
+    req.on("error", reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
+}
+async function inspectContainer(name) {
+  try {
+    const data = await dockerRequest("GET", `/containers/${encodeURIComponent(name)}/json`);
+    return data;
+  } catch {
+    return null;
+  }
+}
+function getHostPort(inspect, containerPort) {
+  const ports = inspect.NetworkSettings?.Ports;
+  const key = `${containerPort}/tcp`;
+  const binding = ports?.[key]?.[0];
+  return binding ? parseInt(binding.HostPort, 10) : null;
+}
+async function getSidecarStatus2(port) {
+  try {
+    const res = await fetch(`http://localhost:${port}/status`, { signal: AbortSignal.timeout(5e3) });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+async function waitForState2(backend2, config, desired) {
+  let state = await backend2.getGameState(config);
+  for (let i = 0; i < MAX_POLLS2; i++) {
+    if (state.status === desired) return state;
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS2));
+    state = await backend2.getGameState(config);
+  }
+  return state;
+}
+async function restartWithConfig2(port, configUrl) {
+  await fetch(`http://localhost:${port}/restart`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${SIDECAR_TOKEN2}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ config_url: configUrl }),
+    signal: AbortSignal.timeout(1e4)
+  });
+}
+var DockerBackend = class {
+  getGames() {
+    return JSON.parse(process.env.GAMES ?? "{}");
+  }
+  async getGameState(config) {
+    const c = config;
+    try {
+      const inspect = await inspectContainer(c.containerName);
+      if (!inspect) return { status: "offline", players: 0, ready: false };
+      const state = inspect.State;
+      if (!state?.Running) return { status: "offline", players: 0, ready: false };
+      const hostPort = getHostPort(inspect, c.sidecarPort);
+      if (!hostPort) return { status: "starting", players: 0, ready: false };
+      const sidecar = await getSidecarStatus2(hostPort);
+      if (!sidecar) return { status: "starting", players: 0, ready: false };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      const players = Number(sidecar.players ?? 0);
+      return { status: running && ready ? "online" : "starting", publicIp: "localhost", players, ready };
+    } catch {
+      return { status: "offline", players: 0, ready: false };
+    }
+  }
+  async startGame(config, configUrl) {
+    const c = config;
+    await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/start`);
+    let state = await waitForState2(this, config, "online");
+    if (configUrl && state.status === "online") {
+      const inspect = await inspectContainer(c.containerName);
+      const hostPort = inspect ? getHostPort(inspect, c.sidecarPort) : null;
+      if (hostPort) {
+        await restartWithConfig2(hostPort, configUrl);
+        state = await waitForState2(this, config, "online");
+        state.configUrl = configUrl;
+      }
+    }
+    return state;
+  }
+  async stopGame(config) {
+    const c = config;
+    await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/stop?t=15`);
+    return waitForState2(this, config, "offline");
+  }
+};
+
+// src/backends/index.ts
+function createBackend() {
+  const backend2 = process.env.BACKEND ?? "ecs";
+  if (backend2 === "docker") return new DockerBackend();
+  return new EcsBackend();
+}
+
 // node_modules/hono/dist/compose.js
 var compose = (middleware, onError, onNotFound) => {
   return (context, next) => {
@@ -2528,331 +3064,6 @@ var Hono2 = class extends Hono {
   }
 };
 
-// node_modules/hono/dist/utils/encode.js
-var encodeBase64 = (buf) => {
-  let binary = "";
-  const bytes = new Uint8Array(buf);
-  for (let i = 0, len = bytes.length; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-};
-var decodeBase64 = (str) => {
-  const binary = atob(str);
-  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
-  const half = binary.length / 2;
-  for (let i = 0, j = binary.length - 1; i <= half; i++, j--) {
-    bytes[i] = binary.charCodeAt(i);
-    bytes[j] = binary.charCodeAt(j);
-  }
-  return bytes;
-};
-
-// node_modules/hono/dist/adapter/aws-lambda/handler.js
-function sanitizeHeaderValue(value) {
-  const hasNonAscii = /[^\x00-\x7F]/.test(value);
-  if (!hasNonAscii) {
-    return value;
-  }
-  return encodeURIComponent(value);
-}
-var getRequestContext = (event) => {
-  return event.requestContext;
-};
-var handle = (app2, { isContentTypeBinary } = { isContentTypeBinary: void 0 }) => {
-  return async (event, lambdaContext) => {
-    const processor = getProcessor(event);
-    const req = processor.createRequest(event);
-    const requestContext = getRequestContext(event);
-    const res = await app2.fetch(req, {
-      event,
-      requestContext,
-      lambdaContext
-    });
-    return processor.createResult(event, res, { isContentTypeBinary });
-  };
-};
-var EventProcessor = class {
-  getHeaderValue(headers, key) {
-    const value = headers ? Array.isArray(headers[key]) ? headers[key][0] : headers[key] : void 0;
-    return value;
-  }
-  getDomainName(event) {
-    if (event.requestContext && "domainName" in event.requestContext) {
-      return event.requestContext.domainName;
-    }
-    const hostFromHeaders = this.getHeaderValue(event.headers, "host");
-    if (hostFromHeaders) {
-      return hostFromHeaders;
-    }
-    const multiValueHeaders = "multiValueHeaders" in event ? event.multiValueHeaders : {};
-    const hostFromMultiValueHeaders = this.getHeaderValue(multiValueHeaders, "host");
-    return hostFromMultiValueHeaders;
-  }
-  createRequest(event) {
-    const queryString = this.getQueryString(event);
-    const domainName = this.getDomainName(event);
-    const path = this.getPath(event);
-    const urlPath = `https://${domainName}${path}`;
-    const url = queryString ? `${urlPath}?${queryString}` : urlPath;
-    const headers = this.getHeaders(event);
-    const method = this.getMethod(event);
-    const requestInit = {
-      headers,
-      method
-    };
-    if (event.body) {
-      requestInit.body = event.isBase64Encoded ? decodeBase64(event.body) : event.body;
-    }
-    return new Request(url, requestInit);
-  }
-  async createResult(event, res, options) {
-    const contentType = res.headers.get("content-type");
-    const isContentTypeBinary = options.isContentTypeBinary ?? defaultIsContentTypeBinary;
-    let isBase64Encoded = contentType && isContentTypeBinary(contentType) ? true : false;
-    if (!isBase64Encoded) {
-      const contentEncoding = res.headers.get("content-encoding");
-      isBase64Encoded = isContentEncodingBinary(contentEncoding);
-    }
-    const body = isBase64Encoded ? encodeBase64(await res.arrayBuffer()) : await res.text();
-    const result = {
-      body,
-      statusCode: res.status,
-      isBase64Encoded,
-      ..."multiValueHeaders" in event && event.multiValueHeaders ? {
-        multiValueHeaders: {}
-      } : {
-        headers: {}
-      }
-    };
-    this.setCookies(event, res, result);
-    if (result.multiValueHeaders) {
-      res.headers.forEach((value, key) => {
-        result.multiValueHeaders[key] = [value];
-      });
-    } else {
-      res.headers.forEach((value, key) => {
-        result.headers[key] = value;
-      });
-    }
-    return result;
-  }
-  setCookies(_event, res, result) {
-    if (res.headers.has("set-cookie")) {
-      const cookies = res.headers.getSetCookie ? res.headers.getSetCookie() : Array.from(res.headers.entries()).filter(([k]) => k === "set-cookie").map(([, v]) => v);
-      if (Array.isArray(cookies)) {
-        this.setCookiesToResult(result, cookies);
-        res.headers.delete("set-cookie");
-      }
-    }
-  }
-};
-var EventV2Processor = class extends EventProcessor {
-  getPath(event) {
-    return event.rawPath;
-  }
-  getMethod(event) {
-    return event.requestContext.http.method;
-  }
-  getQueryString(event) {
-    return event.rawQueryString;
-  }
-  getCookies(event, headers) {
-    if (Array.isArray(event.cookies)) {
-      headers.set("Cookie", event.cookies.join("; "));
-    }
-  }
-  setCookiesToResult(result, cookies) {
-    result.cookies = cookies;
-  }
-  getHeaders(event) {
-    const headers = new Headers();
-    this.getCookies(event, headers);
-    if (event.headers) {
-      for (const [k, v] of Object.entries(event.headers)) {
-        if (v) {
-          headers.set(k, v);
-        }
-      }
-    }
-    return headers;
-  }
-};
-var v2Processor = new EventV2Processor();
-var EventV1Processor = class extends EventProcessor {
-  getPath(event) {
-    return event.path;
-  }
-  getMethod(event) {
-    return event.httpMethod;
-  }
-  getQueryString(event) {
-    if (event.multiValueQueryStringParameters) {
-      return Object.entries(event.multiValueQueryStringParameters || {}).filter(([, value]) => value).map(
-        ([key, values]) => values.map((value) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&")
-      ).join("&");
-    } else {
-      return Object.entries(event.queryStringParameters || {}).filter(([, value]) => value).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value || "")}`).join("&");
-    }
-  }
-  getCookies(_event, _headers) {
-  }
-  getHeaders(event) {
-    const headers = new Headers();
-    this.getCookies(event, headers);
-    if (event.headers) {
-      for (const [k, v] of Object.entries(event.headers)) {
-        if (v) {
-          headers.set(k, sanitizeHeaderValue(v));
-        }
-      }
-    }
-    if (event.multiValueHeaders) {
-      for (const [k, values] of Object.entries(event.multiValueHeaders)) {
-        if (values) {
-          const foundK = headers.get(k);
-          values.forEach((v) => {
-            const sanitizedValue = sanitizeHeaderValue(v);
-            return (!foundK || !foundK.includes(sanitizedValue)) && headers.append(k, sanitizedValue);
-          });
-        }
-      }
-    }
-    return headers;
-  }
-  setCookiesToResult(result, cookies) {
-    result.multiValueHeaders = {
-      "set-cookie": cookies
-    };
-  }
-};
-var v1Processor = new EventV1Processor();
-var ALBProcessor = class extends EventProcessor {
-  getHeaders(event) {
-    const headers = new Headers();
-    if (event.multiValueHeaders) {
-      for (const [key, values] of Object.entries(event.multiValueHeaders)) {
-        if (values && Array.isArray(values)) {
-          const sanitizedValue = sanitizeHeaderValue(values.join("; "));
-          headers.set(key, sanitizedValue);
-        }
-      }
-    } else {
-      for (const [key, value] of Object.entries(event.headers ?? {})) {
-        if (value) {
-          headers.set(key, sanitizeHeaderValue(value));
-        }
-      }
-    }
-    return headers;
-  }
-  getPath(event) {
-    return event.path;
-  }
-  getMethod(event) {
-    return event.httpMethod;
-  }
-  getQueryString(event) {
-    if (event.multiValueQueryStringParameters) {
-      return Object.entries(event.multiValueQueryStringParameters || {}).filter(([, value]) => value).map(([key, value]) => `${key}=${value.join(`&${key}=`)}`).join("&");
-    } else {
-      return Object.entries(event.queryStringParameters || {}).filter(([, value]) => value).map(([key, value]) => `${key}=${value}`).join("&");
-    }
-  }
-  getCookies(event, headers) {
-    let cookie;
-    if (event.multiValueHeaders) {
-      cookie = event.multiValueHeaders["cookie"]?.join("; ");
-    } else {
-      cookie = event.headers ? event.headers["cookie"] : void 0;
-    }
-    if (cookie) {
-      headers.append("Cookie", cookie);
-    }
-  }
-  setCookiesToResult(result, cookies) {
-    if (result.multiValueHeaders) {
-      result.multiValueHeaders["set-cookie"] = cookies;
-    } else {
-      result.headers["set-cookie"] = cookies.join(", ");
-    }
-  }
-};
-var albProcessor = new ALBProcessor();
-var LatticeV2Processor = class extends EventProcessor {
-  getPath(event) {
-    return event.path;
-  }
-  getMethod(event) {
-    return event.method;
-  }
-  getQueryString() {
-    return "";
-  }
-  getHeaders(event) {
-    const headers = new Headers();
-    if (event.headers) {
-      for (const [k, values] of Object.entries(event.headers)) {
-        if (values) {
-          const foundK = headers.get(k);
-          values.forEach((v) => {
-            const sanitizedValue = sanitizeHeaderValue(v);
-            return (!foundK || !foundK.includes(sanitizedValue)) && headers.append(k, sanitizedValue);
-          });
-        }
-      }
-    }
-    return headers;
-  }
-  getCookies() {
-  }
-  setCookiesToResult(result, cookies) {
-    result.headers = {
-      ...result.headers,
-      "set-cookie": cookies.join(", ")
-    };
-  }
-};
-var latticeV2Processor = new LatticeV2Processor();
-var getProcessor = (event) => {
-  if (isProxyEventALB(event)) {
-    return albProcessor;
-  }
-  if (isProxyEventV2(event)) {
-    return v2Processor;
-  }
-  if (isLatticeEventV2(event)) {
-    return latticeV2Processor;
-  }
-  return v1Processor;
-};
-var isProxyEventALB = (event) => {
-  if (event.requestContext) {
-    return Object.hasOwn(event.requestContext, "elb");
-  }
-  return false;
-};
-var isProxyEventV2 = (event) => {
-  return Object.hasOwn(event, "rawPath");
-};
-var isLatticeEventV2 = (event) => {
-  if (event.requestContext) {
-    return Object.hasOwn(event.requestContext, "serviceArn");
-  }
-  return false;
-};
-var defaultIsContentTypeBinary = (contentType) => {
-  return !/^text\/(?:plain|html|css|javascript|csv)|(?:\/|\+)(?:json|xml)\s*(?:;|$)/.test(
-    contentType
-  );
-};
-var isContentEncodingBinary = (contentEncoding) => {
-  if (contentEncoding === null) {
-    return false;
-  }
-  return /^(gzip|deflate|compress|br)/.test(contentEncoding);
-};
-
 // node_modules/hono/dist/utils/stream.js
 var StreamingApi = class {
   writer;
@@ -3002,121 +3213,15 @@ var streamSSE = (c, cb, onError) => {
   return c.newResponse(stream2.responseReadable);
 };
 
-// src/backends/ecs.ts
-var import_client_ecs = require("@aws-sdk/client-ecs");
-var import_client_ec2 = require("@aws-sdk/client-ec2");
-var REGION = process.env.AWS_REGION ?? "ca-central-1";
-var CLUSTER = process.env.ECS_CLUSTER ?? "";
-var SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
-var MAX_POLLS = 10;
-var POLL_INTERVAL_MS = 5e3;
-var ecs = new import_client_ecs.ECSClient({ region: REGION });
-var ec2 = new import_client_ec2.EC2Client({ region: REGION });
-var EcsBackend = class {
-  getGames() {
-    return JSON.parse(process.env.GAMES ?? "{}");
-  }
-  async getGameState(config) {
-    const c = config;
-    try {
-      const listRes = await ecs.send(new import_client_ecs.ListTasksCommand({ cluster: CLUSTER, serviceName: c.serviceName }));
-      const taskArn = listRes.taskArns?.[0];
-      if (!taskArn) return { status: "offline", players: 0, ready: false };
-      const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
-      const task = descRes.tasks?.[0];
-      const eniId = task?.attachments?.[0]?.details?.find((d) => d.name === "networkInterfaceId")?.value;
-      if (!eniId) return { status: "starting", players: 0, ready: false };
-      const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
-      const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
-      if (!publicIp) return { status: "starting", players: 0, ready: false };
-      const sidecar = await getSidecarStatus(publicIp, c.sidecarPort);
-      if (!sidecar) return { status: "starting", publicIp, players: 0, ready: false };
-      const running = Boolean(sidecar.running);
-      const ready = Boolean(sidecar.ready);
-      const players = Number(sidecar.players ?? 0);
-      return { status: running && ready ? "online" : "starting", publicIp, players, ready };
-    } catch {
-      return { status: "offline", players: 0, ready: false };
-    }
-  }
-  async stopGame(config) {
-    const c = config;
-    await setDesiredCount(c.serviceName, 0);
-    return waitForState(this, config, "offline");
-  }
-  async startGame(config, configUrl) {
-    const c = config;
-    await this.stopGame(config);
-    await setDesiredCount(c.serviceName, 1);
-    let state = await waitForState(this, config, "online");
-    if (configUrl && state.status === "online" && state.publicIp) {
-      await restartWithConfig(state.publicIp, c.sidecarPort, configUrl);
-      state = await waitForState(this, config, "online");
-      state.configUrl = configUrl;
-    }
-    return state;
-  }
-};
-async function setDesiredCount(serviceName, count) {
-  await ecs.send(new import_client_ecs.UpdateServiceCommand({ cluster: CLUSTER, service: serviceName, desiredCount: count }));
-}
-async function getSidecarStatus(ip, port) {
-  try {
-    const res = await fetch(`http://${ip}:${port}/status`, { signal: AbortSignal.timeout(5e3) });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-async function waitForState(backend3, config, desired) {
-  let state = await backend3.getGameState(config);
-  for (let i = 0; i < MAX_POLLS; i++) {
-    if (state.status === desired) return state;
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-    state = await backend3.getGameState(config);
-  }
-  return state;
-}
-async function restartWithConfig(ip, port, configUrl) {
-  await fetch(`http://${ip}:${port}/restart`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${SIDECAR_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ config_url: configUrl }),
-    signal: AbortSignal.timeout(1e4)
-  });
-}
-
-// src/backends/docker.ts
-var DockerBackend = class {
-  getGames() {
-    return JSON.parse(process.env.GAMES ?? "{}");
-  }
-  async getGameState(_config) {
-    return { status: "offline", players: 0, ready: false };
-  }
-  async startGame(_config) {
-    return { status: "offline", players: 0, ready: false };
-  }
-  async stopGame(_config) {
-    return { status: "offline", players: 0, ready: false };
-  }
-};
-
-// src/backends/index.ts
-function createBackend() {
-  const backend3 = process.env.BACKEND ?? "ecs";
-  if (backend3 === "docker") return new DockerBackend();
-  return new EcsBackend();
-}
-
 // src/discord.ts
 var import_discord_interactions = __toESM(require_dist());
 var DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY ?? "";
 var DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN ?? "";
 var DISCORD_APP_ID = process.env.DISCORD_APP_ID ?? "";
-var backend = createBackend();
-async function discordHandler(c) {
+function makeDiscordHandler(backend2) {
+  return (c) => discordHandler(c, backend2);
+}
+async function discordHandler(c, backend2) {
   const signature = c.req.header("x-signature-ed25519") ?? "";
   const timestamp = c.req.header("x-signature-timestamp") ?? "";
   const rawBody = await c.req.text();
@@ -3129,7 +3234,7 @@ async function discordHandler(c) {
   if (interaction.type === import_discord_interactions.InteractionType.APPLICATION_COMMAND) {
     const name = interaction.data?.name ?? "";
     const gameName = interaction.data?.options?.find((o) => o.name === "game")?.value ?? "";
-    const games = backend.getGames();
+    const games = backend2.getGames();
     const config = games[gameName];
     if (!config) {
       return c.json({
@@ -3138,21 +3243,21 @@ async function discordHandler(c) {
       });
     }
     if (name === "status") {
-      const state = await backend.getGameState(config);
+      const state = await backend2.getGameState(config);
       return c.json({
         type: import_discord_interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state) }
       });
     }
     if (name === "stop") {
-      const state = await backend.stopGame(config);
+      const state = await backend2.stopGame(config);
       return c.json({
         type: import_discord_interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state) }
       });
     }
     if (name === "start") {
-      void sendFollowup(interaction.token, gameName, config);
+      void sendFollowup(interaction.token, gameName, config, backend2);
       return c.json({ type: import_discord_interactions.InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE });
     }
     return c.json({
@@ -3162,8 +3267,8 @@ async function discordHandler(c) {
   }
   return c.text("unhandled interaction type", 400);
 }
-async function sendFollowup(interactionToken, gameName, config) {
-  const state = await backend.startGame(config);
+async function sendFollowup(interactionToken, gameName, config, backend2) {
+  const state = await backend2.startGame(config);
   const content = formatState(gameName, state);
   await fetch(
     `https://discord.com/api/v10/webhooks/${DISCORD_APP_ID}/${interactionToken}/messages/@original`,
@@ -3884,128 +3989,134 @@ function renderUi(games) {
   return "<!DOCTYPE html>" + page.toString();
 }
 
-// src/index.ts
+// src/app.ts
 var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
-var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
-var backend2 = createBackend();
-var app = new Hono2();
+var SIDECAR_TOKEN3 = process.env.SIDECAR_TOKEN ?? "";
 function statusFragment(state) {
   const ip = state.publicIp ? ` \u2014 ${state.publicIp}` : "";
   const players = state.players ? ` (${state.players} players)` : "";
   return `<span class="status ${state.status}">${state.status}${ip}${players}</span>`;
 }
-app.get("/", async (c) => {
-  const game = c.req.query("game");
-  const operation = c.req.query("operation");
-  if (game && operation) {
+function createApp(backend2) {
+  const app2 = new Hono2();
+  app2.get("/", async (c) => {
+    const game = c.req.query("game");
+    const operation = c.req.query("operation");
+    if (game && operation) {
+      const passphrase = c.req.header("x-passphrase") ?? "";
+      if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
+      const games2 = backend2.getGames();
+      const config = games2[game];
+      if (!config) return c.html(`<span class="status">unknown game: ${game}</span>`, 400);
+      let state;
+      if (operation === "start") state = await backend2.startGame(config);
+      else if (operation === "stop") state = await backend2.stopGame(config);
+      else state = await backend2.getGameState(config);
+      return c.html(statusFragment(state));
+    }
+    const games = backend2.getGames();
+    return c.html(renderUi(Object.keys(games)));
+  });
+  app2.post("/", async (c) => {
     const passphrase = c.req.header("x-passphrase") ?? "";
-    if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
-    const games2 = backend2.getGames();
-    const config = games2[game];
-    if (!config) return c.html(`<span class="status">unknown game: ${game}</span>`, 400);
+    if (passphrase !== WEB_UI_PASSPHRASE) {
+      const isHtmx2 = !!c.req.header("hx-request");
+      if (isHtmx2) return c.html(`<span class="status">unauthorized</span>`, 401);
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const game = c.req.query("game");
+    const opFromQuery = c.req.query("operation");
+    const isHtmx = !!c.req.header("hx-request");
+    let gameKey;
+    let operation;
+    if (game && opFromQuery) {
+      gameKey = game;
+      operation = opFromQuery;
+    } else {
+      const body = await c.req.json();
+      gameKey = body.game;
+      operation = body.operation;
+    }
+    const games = backend2.getGames();
+    const config = games[gameKey];
+    if (!config) {
+      if (isHtmx) return c.html(`<span class="status">unknown game: ${gameKey}</span>`, 400);
+      return c.json({ error: `unknown game: ${gameKey}` }, 400);
+    }
     let state;
     if (operation === "start") state = await backend2.startGame(config);
     else if (operation === "stop") state = await backend2.stopGame(config);
     else state = await backend2.getGameState(config);
-    return c.html(statusFragment(state));
-  }
-  const games = backend2.getGames();
-  return c.html(renderUi(Object.keys(games)));
-});
-app.post("/", async (c) => {
-  const passphrase = c.req.header("x-passphrase") ?? "";
-  if (passphrase !== WEB_UI_PASSPHRASE) {
-    const isHtmx2 = !!c.req.header("hx-request");
-    if (isHtmx2) return c.html(`<span class="status">unauthorized</span>`, 401);
-    return c.json({ error: "unauthorized" }, 401);
-  }
-  const game = c.req.query("game");
-  const opFromQuery = c.req.query("operation");
-  const isHtmx = !!c.req.header("hx-request");
-  let gameKey;
-  let operation;
-  if (game && opFromQuery) {
-    gameKey = game;
-    operation = opFromQuery;
-  } else {
-    const body = await c.req.json();
-    gameKey = body.game;
-    operation = body.operation;
-  }
-  const games = backend2.getGames();
-  const config = games[gameKey];
-  if (!config) {
-    if (isHtmx) return c.html(`<span class="status">unknown game: ${gameKey}</span>`, 400);
-    return c.json({ error: `unknown game: ${gameKey}` }, 400);
-  }
-  let state;
-  if (operation === "start") state = await backend2.startGame(config);
-  else if (operation === "stop") state = await backend2.stopGame(config);
-  else state = await backend2.getGameState(config);
-  if (isHtmx) return c.html(statusFragment(state));
-  return c.json(state);
-});
-app.get("/logs", async (c) => {
-  const token = c.req.query("token") ?? "";
-  if (token !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
-  const game = c.req.query("game") ?? "";
-  const games = backend2.getGames();
-  const config = games[game];
-  if (!config) return c.text(`unknown game: ${game}`, 400);
-  const state = await backend2.getGameState(config);
-  if (state.status === "offline" || !state.publicIp) {
-    return c.text("game offline", 503);
-  }
-  const sidecarUrl = `http://${state.publicIp}:${config.sidecarPort}/logs`;
-  return streamSSE(c, async (stream2) => {
-    let res;
-    try {
-      res = await fetch(sidecarUrl, {
-        headers: { Authorization: `Bearer ${SIDECAR_TOKEN2}` },
-        signal: c.req.raw.signal
-      });
-    } catch {
-      await stream2.close();
-      return;
+    if (isHtmx) return c.html(statusFragment(state));
+    return c.json(state);
+  });
+  app2.get("/logs", async (c) => {
+    const token = c.req.query("token") ?? "";
+    if (token !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
+    const game = c.req.query("game") ?? "";
+    const games = backend2.getGames();
+    const config = games[game];
+    if (!config) return c.text(`unknown game: ${game}`, 400);
+    const state = await backend2.getGameState(config);
+    if (state.status === "offline" || !state.publicIp) {
+      return c.text("game offline", 503);
     }
-    if (!res.ok || !res.body) {
-      await stream2.close();
-      return;
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            await stream2.writeSSE({ data: line.slice(6), event: "log" });
+    const sidecarUrl = `http://${state.publicIp}:${config.sidecarPort}/logs`;
+    return streamSSE(c, async (stream2) => {
+      let res;
+      try {
+        res = await fetch(sidecarUrl, {
+          headers: { Authorization: `Bearer ${SIDECAR_TOKEN3}` },
+          signal: c.req.raw.signal
+        });
+      } catch {
+        await stream2.close();
+        return;
+      }
+      if (!res.ok || !res.body) {
+        await stream2.close();
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              await stream2.writeSSE({ data: line.slice(6), event: "log" });
+            }
           }
         }
+      } catch {
       }
-    } catch {
-    }
+    });
   });
-});
-app.get("/api", async (c) => {
-  const token = c.req.header("x-api-token") ?? "";
-  if (token !== API_TOKEN) return c.json({ error: "unauthorized" }, 401);
-  const game = c.req.query("game") ?? "";
-  const operation = c.req.query("operation");
-  const games = backend2.getGames();
-  const config = games[game];
-  if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
-  if (operation === "start") return c.json(await backend2.startGame(config));
-  if (operation === "stop") return c.json(await backend2.stopGame(config));
-  return c.json(await backend2.getGameState(config));
-});
-app.post("/discord", discordHandler);
+  app2.get("/api", async (c) => {
+    const token = c.req.header("x-api-token") ?? "";
+    if (token !== API_TOKEN) return c.json({ error: "unauthorized" }, 401);
+    const game = c.req.query("game") ?? "";
+    const operation = c.req.query("operation");
+    const games = backend2.getGames();
+    const config = games[game];
+    if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
+    if (operation === "start") return c.json(await backend2.startGame(config));
+    if (operation === "stop") return c.json(await backend2.stopGame(config));
+    return c.json(await backend2.getGameState(config));
+  });
+  app2.post("/discord", makeDiscordHandler(backend2));
+  return app2;
+}
+
+// src/index.ts
+var backend = createBackend();
+var app = createApp(backend);
 var handler = handle(app);
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
