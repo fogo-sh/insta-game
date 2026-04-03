@@ -16,6 +16,9 @@ import (
 )
 
 func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) error {
+	// Sentinels live in the same directory as the game config, which is
+	// always on a volume mount and therefore persists across restarts.
+	sentinelDir := filepath.Dir(configPath)
 	entries := parseDataURL(dataURL)
 
 	if len(entries) == 0 {
@@ -24,7 +27,7 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 	}
 
 	for _, e := range entries {
-		sentinel := sentinelPath(e.path, e.url)
+		sentinel := sentinelPath(sentinelDir, e.url)
 		if _, err := os.Stat(sentinel); err == nil {
 			log.Printf("SIDECAR: Skipping %s (cached)", e.url)
 			continue
@@ -67,20 +70,12 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 	return copyFile(defaultConfigPath, configPath)
 }
 
-// sentinelPath returns the path of the cache sentinel file for a given
-// destination and URL. The sentinel is named .cache-<sha256-of-url> and lives
-// in the destination directory (or /opt/ if dest is empty).
-func sentinelPath(dest, url string) string {
-	if dest == "" {
-		dest = "/opt/"
-	}
-	// For non-directory destinations (raw file writes), place the sentinel
-	// alongside the file in its parent directory.
-	if !strings.HasSuffix(dest, "/") {
-		dest = filepath.Dir(dest)
-	}
+// sentinelPath returns the path of the cache sentinel file for a given URL.
+// Sentinels are written to sentinelDir, which should be a volume-mounted
+// directory that persists across container restarts.
+func sentinelPath(sentinelDir, url string) string {
 	sum := sha256.Sum256([]byte(url))
-	return filepath.Join(dest, fmt.Sprintf(".cache-%x", sum[:8]))
+	return filepath.Join(sentinelDir, fmt.Sprintf(".cache-%x", sum[:8]))
 }
 
 type dataEntry struct {
