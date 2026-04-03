@@ -19,8 +19,14 @@ const css = `
   .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
   .actions button { padding: .4rem .8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
   .actions button:hover { background: #444; }
-  .log-panel { margin-top: .75rem; height: 200px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.5rem; border: 1px solid #333; }
-  .log-line { white-space: pre-wrap; word-break: break-all; }
+  dialog { background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); display: flex; flex-direction: column; }
+  dialog::backdrop { background: rgba(0,0,0,0.7); }
+  .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: 1px solid #333; font-size: .85rem; }
+  .dialog-header span { color: #aaa; }
+  .dialog-close { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1.2rem; font-family: monospace; padding: 0 .25rem; }
+  .dialog-close:hover { color: #eee; }
+  .log-panel { flex: 1; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; }
+  .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
 `;
 
 // Small inline script — runs once on page load
@@ -47,13 +53,16 @@ const initScript = `
   };
 
   window.toggleLogs = function(game) {
-    var wrapper = document.getElementById("log-wrapper-" + game);
-    if (wrapper.style.display === "none") {
-      var pp = sessionStorage.getItem(SESSION_KEY) || "";
-      // Set sse-connect with token query param (EventSource doesn't support headers)
-      var inner = document.getElementById("log-sse-" + game);
+    var dialog = document.getElementById("log-dialog-" + game);
+    if (dialog.open) {
+      dialog.close();
+      return;
+    }
+    var pp = sessionStorage.getItem(SESSION_KEY) || "";
+    var inner = document.getElementById("log-sse-" + game);
+    // Only initialise the SSE connection once
+    if (!inner.getAttribute("sse-connect")) {
       inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
-      wrapper.style.display = "";
       htmx.process(inner);
       // Auto-scroll on new content
       var lines = document.getElementById("log-lines-" + game);
@@ -61,9 +70,8 @@ const initScript = `
         lines.scrollTop = lines.scrollHeight;
       });
       observer.observe(lines, { childList: true });
-    } else {
-      wrapper.style.display = "none";
     }
+    dialog.showModal();
   };
 
   window.logout = function() {
@@ -102,24 +110,6 @@ const GameCard: FC<GameCardProps> = ({ game }) => (
       >stop</button>
       <button onclick={`toggleLogs('${game}')`}>logs</button>
     </div>
-    {/* Log panel — hidden by default, activated by toggleLogs */}
-    <div id={`log-wrapper-${game}`} style="display:none">
-      {/*
-        hx-ext="sse" and sse-connect are set dynamically by toggleLogs()
-        so that the token (passphrase) from sessionStorage is injected at runtime.
-      */}
-      <div
-        id={`log-sse-${game}`}
-        hx-ext="sse"
-      >
-        <div
-          id={`log-lines-${game}`}
-          class="log-panel"
-          sse-swap="log"
-          hx-swap="beforeend"
-        />
-      </div>
-    </div>
   </div>
 );
 
@@ -155,6 +145,24 @@ export function renderUi(games: string[]): string {
           <br />
           <button onclick="logout()" style="margin-top:1rem;padding:.3rem .7rem;background:#222;color:#888;border:1px solid #444;cursor:pointer;font-family:monospace;font-size:0.8rem;">logout</button>
         </div>
+
+        {/* Log dialogs — one per game, opened by toggleLogs() */}
+        {games.map(g => (
+          <dialog id={`log-dialog-${g}`} key={g}>
+            <div class="dialog-header">
+              <span>{g} — logs</span>
+              <button class="dialog-close" onclick={`document.getElementById('log-dialog-${g}').close()`}>✕</button>
+            </div>
+            <div id={`log-sse-${g}`} hx-ext="sse">
+              <div
+                id={`log-lines-${g}`}
+                class="log-panel"
+                sse-swap="log"
+                hx-swap="beforeend"
+              />
+            </div>
+          </dialog>
+        ))}
 
         <script src="https://unpkg.com/htmx.org@2/dist/htmx.min.js" />
         <script src="https://unpkg.com/htmx-ext-sse@2/sse.js" />
