@@ -31,7 +31,7 @@ RUN meson setup builddir \
     && meson compile -C builddir \
     && install -m 0755 "$(find builddir -type f \( -name q2reproded -o -name q2proded -o -name q2pro \) -perm /111 | head -n 1)" /usr/local/bin/q2proded \
     && mkdir -p /usr/local/share/baseq2 \
-    && find builddir -type f -name 'game*.so' -exec install -m 0644 {} /usr/local/share/baseq2/ \;
+    && find builddir -type f -name 'game*.so' -exec install -m 0755 {} /usr/local/share/baseq2/ \;
 
 FROM debian:bookworm-slim
 
