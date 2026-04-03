@@ -18,10 +18,14 @@ RUN make sv-release
 
 FROM debian:bookworm-slim
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
 RUN apt-get update && apt-get -y install --no-install-recommends \
     libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g \
+    ca-certificates curl \
+    && curl -fsSL \
+       "https://github.com/fogo-sh/insta-game/releases/download/sidecar-latest/sidecar" \
+       -o /usr/local/bin/sidecar \
+    && chmod +x /usr/local/bin/sidecar \
+    && apt-get purge -y curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt
@@ -34,12 +38,8 @@ COPY Xonotic-clean/data ./data
 RUN mkdir -p /opt/data && touch /opt/data/server.cfg
 
 COPY server.cfg /opt/default-server.cfg
-COPY sidecar-service/pyproject.toml .
-COPY sidecar-service/sidecar-service.py .
-RUN uv sync --no-install-project --python 3.12.3
 
 EXPOSE 26000/udp
 EXPOSE 5001/tcp
 
-ENTRYPOINT ["/opt/.venv/bin/python"]
-CMD ["-u", "sidecar-service.py"]
+ENTRYPOINT ["/usr/local/bin/sidecar"]
