@@ -72,6 +72,7 @@ class GameService(pulumi.ComponentResource):
                             {"name": "ECS_SERVICE", "value": service_name},
                             {"name": "TOKEN", "value": args[1]},
                             {"name": "IDLE_TIMEOUT_SECONDS", "value": str(idle_timeout_seconds)},
+                            {"name": "GAME_PORT", "value": str(game_port)},
                             {"name": "PROTOCOL", "value": protocol},
                             {"name": "GAME_CMD", "value": game_cmd},
                             {"name": "GAME_ARGS", "value": game_args},

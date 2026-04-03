@@ -89,6 +89,12 @@ security_group = aws.ec2.SecurityGroup(
             protocol="udp",
             cidr_blocks=["0.0.0.0/0"],
         ),
+        aws.ec2.SecurityGroupIngressArgs(
+            from_port=27910,
+            to_port=27910,
+            protocol="udp",
+            cidr_blocks=["0.0.0.0/0"],
+        ),
     ],
     egress=[
         aws.ec2.SecurityGroupEgressArgs(
@@ -285,7 +291,11 @@ q2repro = GameService(
     data_url=q2repro_data_url,
     protocol="quake2",
     game_cmd="./q2proded",
-    game_args="+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 26000 +set maxclients 12 +exec server.cfg",
+    game_args=(
+        "+set dedicated 1 +set basedir /opt +set game baseq2"
+        " +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 12 +exec server.cfg"
+    ),
+    game_port=27910,
     game_quit_cmd="quit",
     game_quit_timeout=15,
     config_path="/opt/baseq2/server.cfg",

@@ -53,14 +53,15 @@ services:
       platforms:
         - linux/arm64
     ports:
-      - "127.0.0.1:26000:26000/udp"
-      - "127.0.0.1:5001:5001/tcp"
+      - "127.0.0.1:27910:27910/udp"
+      - "127.0.0.1:5003:5001/tcp"
     environment:
       PROTOCOL: "quake2"
       GAME_CMD: "./q2proded"
-      GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 26000 +set maxclients 12 +exec server.cfg"
+      GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 12 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
+      GAME_PORT: "27910"
       CONFIG_PATH: "/opt/baseq2/server.cfg"
       TOKEN: "abc123"
       # DATA_URL is required for q2repro — Quake II pak files are commercial and not bundled.
