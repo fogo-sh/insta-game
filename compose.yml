@@ -58,7 +58,7 @@ services:
     environment:
       PROTOCOL: "quake2"
       GAME_CMD: "./q2proded"
-      GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 12 +exec server.cfg"
+      GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
       GAME_PORT: "27910"

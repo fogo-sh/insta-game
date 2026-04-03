@@ -13,12 +13,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     jq \
+    lbzip2 \
+    libsdl2-2.0-0 \
     p7zip-full \
     tar \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -L "${OLDUNREAL_INSTALLER_URL}" -o /tmp/install-ut99.sh \
     && chmod +x /tmp/install-ut99.sh \
+    && case "$(uname -m)" in \
+        aarch64) ut_system_dir="${UT99_INSTALL_DIR}/SystemARM64" ;; \
+        x86_64|amd64) ut_system_dir="${UT99_INSTALL_DIR}/System64" ;; \
+        *) ut_system_dir="${UT99_INSTALL_DIR}/System" ;; \
+    esac \
+    && mkdir -p "${ut_system_dir}" \
+    && cd "${ut_system_dir}" \
     && printf 'y\n' | /tmp/install-ut99.sh \
         --destination "${UT99_INSTALL_DIR}" \
         --ui-mode none \
@@ -34,6 +43,7 @@ WORKDIR /opt
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libstdc++6 \
+    libsdl2-2.0-0 \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/data
 

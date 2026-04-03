@@ -326,7 +326,7 @@ q2repro = GameService(
     game_cmd="./q2proded",
     game_args=(
         "+set dedicated 1 +set basedir /opt +set game baseq2"
-        " +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 12 +exec server.cfg"
+        " +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg"
     ),
     game_port=27910,
     game_quit_cmd="quit",
