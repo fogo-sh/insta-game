@@ -4,6 +4,7 @@ docker-containers/xonotic/Xonotic*
 .cache/
 .idea/
 .codex
+.pulumi
 __pycache__/
 node_modules/
 .ruff_cache/
