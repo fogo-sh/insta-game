@@ -132,7 +132,7 @@ def start_or_restart_game() -> Response:
     global process
 
     def fresh():
-        return subprocess.Popen(["./xonotic-linux64-dedicated"], stdin=PIPE)
+        return subprocess.Popen(["./xonotic-linux-arm64-dedicated"], stdin=PIPE)
 
     if process is None:
         log("No process, starting initial process")
@@ -160,13 +160,13 @@ def exit_game():
     try:
         process.stdin.write(str.encode("exit\n"))
         process.stdin.flush()
-        process.wait(15)
+        process.wait(30)
     except BrokenPipeError:
         log("Game process stdin already closed during shutdown")
     except subprocess.TimeoutExpired:
         log("Game process did not exit cleanly, terminating")
         process.terminate()
-        process.wait(5)
+        process.wait(15)
     finally:
         process = None
 

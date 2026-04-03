@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-docker compose build xonotic
+docker buildx build --platform linux/arm64 -t xonotic-arm:latest .

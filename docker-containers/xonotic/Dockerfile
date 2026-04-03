@@ -1,13 +1,36 @@
+FROM debian:bookworm-slim AS builder
+
+RUN apt-get update && apt-get -y install --no-install-recommends \
+    ca-certificates gcc git make \
+    zlib1g-dev libjpeg-dev libpng-dev libcurl4-openssl-dev \
+    automake autoconf libtool libgmp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://gitlab.com/xonotic/xonotic.git /build/xonotic
+WORKDIR /build/xonotic
+RUN ./all update -l best -r darkplaces d0_blind_id
+
+WORKDIR /build/xonotic/d0_blind_id
+RUN ./autogen.sh && ./configure && make && make install && ldconfig
+
+WORKDIR /build/xonotic/darkplaces
+RUN make sv-release
+
 FROM debian:bookworm-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+RUN apt-get update && apt-get -y install --no-install-recommends \
+    libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /opt
 
-RUN apt-get update
+COPY --from=builder /build/xonotic/darkplaces/darkplaces-dedicated ./xonotic-linux-arm64-dedicated
+COPY --from=builder /usr/local/lib/libd0_blind_id* /usr/local/lib/
+RUN ldconfig
 
-COPY Xonotic-clean .
-
+COPY Xonotic-clean/data ./data
 RUN mkdir -p /opt/data && touch /opt/data/server.cfg
 
 COPY server.cfg /opt/default-server.cfg
