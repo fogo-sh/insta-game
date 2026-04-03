@@ -59,7 +59,7 @@ USER game
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 
 COPY docker-containers/q2repro/server.cfg /opt/default-server.cfg
-COPY docker-containers/q2repro/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chmod=755 docker-containers/q2repro/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 EXPOSE 26000/udp
 EXPOSE 5001/tcp
