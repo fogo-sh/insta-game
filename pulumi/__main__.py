@@ -424,4 +424,81 @@ aws.lambda_.Permission(
     invoked_via_function_url=True,
 )
 
+# ---- Custom domain (games.fogo.sh) ----
+#
+# ACM certificate must live in us-east-1 (CloudFront requirement).
+# DNS validation: add the CNAME record ACM provides to Cloudflare DNS.
+# After the cert is issued, add a single CNAME in Cloudflare:
+#   games  CNAME  <cloudfront_domain>  (proxy OFF / grey cloud)
+
+acm_provider = aws.Provider("acm-us-east-1", region="us-east-1")
+
+cert = aws.acm.Certificate(
+    "games-cert",
+    domain_name="games.fogo.sh",
+    validation_method="DNS",
+    opts=pulumi.ResourceOptions(provider=acm_provider),
+)
+
+# AWS managed cache policies (stable IDs, safe to hardcode)
+# CachingDisabled: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+# AllViewerExceptHostHeader: b689b0a8-53d0-40ab-baf2-68738e2966ac
+#   (forwards all headers/cookies/query strings except Host, which CloudFront
+#    rewrites to the Lambda URL origin — required for Lambda Function URLs)
+
+cloudfront_domain = launcher_url.function_url.apply(
+    lambda url: url.removeprefix("https://").rstrip("/")
+)
+
+distribution = aws.cloudfront.Distribution(
+    "games-distribution",
+    aliases=["games.fogo.sh"],
+    enabled=True,
+    http_version="http2and3",
+    origins=[
+        aws.cloudfront.DistributionOriginArgs(
+            origin_id="launcher",
+            domain_name=cloudfront_domain,
+            custom_origin_config=aws.cloudfront.DistributionOriginCustomOriginConfigArgs(
+                http_port=80,
+                https_port=443,
+                origin_protocol_policy="https-only",
+                origin_ssl_protocols=["TLSv1.2"],
+                # 60s is the CloudFront max without a limit-increase request;
+                # long enough for Lambda's 120s timeout and SSE connections.
+                origin_read_timeout=60,
+                origin_keepalive_timeout=60,
+            ),
+        )
+    ],
+    default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
+        target_origin_id="launcher",
+        viewer_protocol_policy="redirect-to-https",
+        allowed_methods=["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"],
+        cached_methods=["GET", "HEAD"],
+        # CachingDisabled — nothing is cached; every request goes to Lambda.
+        cache_policy_id="4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+        # AllViewerExceptHostHeader — forwards all headers/cookies/query strings.
+        # CloudFront must rewrite the Host header to the Lambda URL origin domain,
+        # otherwise Lambda Function URLs reject the request.
+        origin_request_policy_id="b689b0a8-53d0-40ab-baf2-68738e2966ac",
+        # Compression must be off — CloudFront buffers the full response before
+        # compressing, which breaks SSE streaming.
+        compress=False,
+    ),
+    restrictions=aws.cloudfront.DistributionRestrictionsArgs(
+        geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
+            restriction_type="none",
+        )
+    ),
+    viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
+        acm_certificate_arn=cert.arn,
+        ssl_support_method="sni-only",
+        minimum_protocol_version="TLSv1.2_2021",
+    ),
+    opts=pulumi.ResourceOptions(provider=acm_provider),
+)
+
 pulumi.export("prod_url", launcher_url.function_url)
+pulumi.export("games_url", distribution.domain_name)
+pulumi.export("cert_validation_cname", cert.domain_validation_options)
