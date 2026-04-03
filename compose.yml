@@ -1,6 +1,6 @@
 services:
   xonotic:
-    image: xonotic:latest
+    image: ghcr.io/fogo-sh/insta-game:xonotic
     build:
       context: ./docker-containers/xonotic/
       platforms:
@@ -20,7 +20,7 @@ services:
       # DATA_URL: "https://example.com/server.cfg=/opt/data/server.cfg"
 
   qssm:
-    image: qssm:latest
+    image: ghcr.io/fogo-sh/insta-game:qssm
     build:
       context: ./docker-containers/qssm/
       platforms:
