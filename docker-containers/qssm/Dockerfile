@@ -1,3 +1,8 @@
+FROM golang:1.22-bookworm AS sidecar-builder
+WORKDIR /build
+COPY sidecar/ .
+RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
+
 FROM debian:bookworm-slim AS qssm-builder
 
 ARG QSSM_VERSION=1.6.5
@@ -46,15 +51,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsdl2-2.0-0 \
     libvorbisfile3 \
     zlib1g \
-    ca-certificates \
-    curl \
-    && curl -fsSL \
-       "https://github.com/fogo-sh/insta-game/releases/download/sidecar-latest/sidecar" \
-       -o /usr/local/bin/sidecar \
-    && chmod +x /usr/local/bin/sidecar \
-    && apt-get purge -y curl \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/id1 /opt/data
+
+COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 
 COPY server.cfg /opt/default-server.cfg
 

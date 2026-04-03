@@ -1,3 +1,8 @@
+FROM golang:1.22-bookworm AS sidecar-builder
+WORKDIR /build
+COPY sidecar/ .
+RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
+
 FROM debian:bookworm-slim AS builder
 
 RUN apt-get update && apt-get -y install --no-install-recommends \
@@ -20,13 +25,9 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get -y install --no-install-recommends \
     libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g \
-    ca-certificates curl \
-    && curl -fsSL \
-       "https://github.com/fogo-sh/insta-game/releases/download/sidecar-latest/sidecar" \
-       -o /usr/local/bin/sidecar \
-    && chmod +x /usr/local/bin/sidecar \
-    && apt-get purge -y curl \
     && rm -rf /var/lib/apt/lists/*
+
+COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 
 WORKDIR /opt
 

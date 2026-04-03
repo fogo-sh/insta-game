@@ -1,5 +1,4 @@
 .ruff_cache/
-sidecar-service/.venv/
 vkquake/
 vkquake-*.zip
 vkquake-*.tar.gz
