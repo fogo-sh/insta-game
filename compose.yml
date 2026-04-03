@@ -36,6 +36,7 @@ services:
       GAME_ARGS: "-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
+      CONFIG_PATH: "/opt/id1/server.cfg"
       TOKEN: "abc123"
       # DATA_URL is required for QSS-M — Quake pak files are commercial and not bundled.
       # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
