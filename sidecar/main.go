@@ -291,6 +291,75 @@ func stopHandler(c cfg) http.HandlerFunc {
 	})
 }
 
+func indexHandler(c cfg) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		procMu.Lock()
+		running := proc != nil && proc.ProcessState == nil
+		procMu.Unlock()
+
+		info := queryServer(c)
+
+		ready := info != nil
+		players := 0
+		hostname := ""
+		mapName := ""
+		if info != nil {
+			players = info.Players
+			hostname = info.Hostname
+			mapName = info.Map
+		}
+
+		statusStr := "offline"
+		if running && ready {
+			statusStr = "running"
+		} else if running {
+			statusStr = "starting"
+		}
+
+		extra := ""
+		if hostname != "" {
+			extra += fmt.Sprintf("\nhostname: %s", hostname)
+		}
+		if mapName != "" {
+			extra += fmt.Sprintf("\nmap:      %s", mapName)
+		}
+
+		body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="5">
+  <title>insta-game — %s</title>
+  <style>
+    body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
+    a { color: #7af; }
+    pre { line-height: 1.6; }
+  </style>
+</head>
+<body>
+<pre>
+insta-game — %s
+
+status:   %s
+ready:    %v
+players:  %d%s
+</pre>
+<a href="/status">/status (json)</a>
+</body>
+</html>`,
+			c.Protocol,
+			c.Protocol,
+			statusStr,
+			ready,
+			players,
+			extra,
+		)
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, body)
+	}
+}
+
 // ---- Main -------------------------------------------------------------------
 
 func main() {
@@ -316,6 +385,7 @@ func main() {
 	}()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", indexHandler(c))
 	mux.HandleFunc("/status", statusHandler(c))
 	mux.HandleFunc("/restart", restartHandler(c))
 	mux.HandleFunc("/stop", stopHandler(c))
