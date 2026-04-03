@@ -8,6 +8,11 @@ from game_service import GameService
 
 config = pulumi.Config()
 sidecar_token = config.require_secret("sidecarToken")
+web_ui_passphrase = config.require_secret("webUiPassphrase")
+api_token = config.require_secret("apiToken")
+discord_public_key = config.require_secret("discordPublicKey")
+discord_bot_token = config.require_secret("discordBotToken")
+discord_app_id = config.get("discordAppId") or ""
 cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get("defaultDataUrl")
 xonotic_data_url = config.get("xonoticDataUrl") or default_data_url
@@ -345,15 +350,11 @@ bzflag = GameService(
 launcher = aws.lambda_.Function(
     "launcher",
     name=regional_name("launcher"),
-    runtime="python3.12",
-    handler="launcher.handler",
+    runtime="nodejs22.x",
+    handler="index.handler",
     timeout=120,
     role=lambda_role.arn,
-    code=pulumi.AssetArchive(
-        {
-            "launcher.py": pulumi.FileAsset("../lambda/launcher/launcher.py"),
-        }
-    ),
+    code=pulumi.FileArchive("../lambda/launcher/dist"),
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables=pulumi.Output.all(
             sidecar_token,
@@ -361,28 +362,38 @@ launcher = aws.lambda_.Function(
             cluster.name,
             qssm.service_name,
             q2repro.service_name,
+            web_ui_passphrase,
+            api_token,
+            discord_public_key,
+            discord_bot_token,
+            discord_app_id,
             bzflag.service_name,
         ).apply(
             lambda args: {
                 "SIDECAR_TOKEN": args[0],
                 "ECS_CLUSTER": args[2],
+                "WEB_UI_PASSPHRASE": args[5],
+                "API_TOKEN": args[6],
+                "DISCORD_PUBLIC_KEY": args[7],
+                "DISCORD_BOT_TOKEN": args[8],
+                "DISCORD_APP_ID": args[9],
                 "GAMES": json.dumps(
                     {
                         "xonotic": {
-                            "service_name": args[1],
-                            "sidecar_port": 5001,
+                            "serviceName": args[1],
+                            "sidecarPort": 5001,
                         },
                         "qssm": {
-                            "service_name": args[3],
-                            "sidecar_port": 5001,
+                            "serviceName": args[3],
+                            "sidecarPort": 5001,
                         },
                         "q2repro": {
-                            "service_name": args[4],
-                            "sidecar_port": 5001,
+                            "serviceName": args[4],
+                            "sidecarPort": 5001,
                         },
                         "bzflag": {
-                            "service_name": args[5],
-                            "sidecar_port": 5001,
+                            "serviceName": args[10],
+                            "sidecarPort": 5001,
                         },
                     }
                 ),
