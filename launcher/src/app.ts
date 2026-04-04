@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { Backend } from "./backend.js";
 import { makeDiscordHandler } from "./discord.js";
+import { log } from "./logger.js";
 import { renderUi } from "./ui.js";
 
 const WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
@@ -24,16 +25,27 @@ export function createApp(backend: Backend): Hono {
 
     if (game && operation) {
       const passphrase = c.req.header("x-passphrase") ?? "";
-      if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
+      if (passphrase !== WEB_UI_PASSPHRASE) {
+        log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
+        return c.text("unauthorized", 401);
+      }
 
       const games = backend.getGames();
       const config = games[game];
       if (!config) return c.html(`<span class="status">unknown game: ${game}</span>`, 400);
 
       let state;
-      if (operation === "start") state = await backend.startGame(config);
-      else if (operation === "stop") state = await backend.stopGame(config);
-      else state = await backend.getGameState(config);
+      if (operation === "start") {
+        log.info(`web: start ${game}`);
+        state = await backend.startGame(config);
+        log.info(`web: start ${game} → ${state.status}`);
+      } else if (operation === "stop") {
+        log.info(`web: stop ${game}`);
+        state = await backend.stopGame(config);
+        log.info(`web: stop ${game} → ${state.status}`);
+      } else {
+        state = await backend.getGameState(config);
+      }
 
       return c.html(statusFragment(state));
     }
@@ -46,6 +58,7 @@ export function createApp(backend: Backend): Hono {
   app.post("/", async c => {
     const passphrase = c.req.header("x-passphrase") ?? "";
     if (passphrase !== WEB_UI_PASSPHRASE) {
+      log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
       const isHtmx = !!c.req.header("hx-request");
       if (isHtmx) return c.html(`<span class="status">unauthorized</span>`, 401);
       return c.json({ error: "unauthorized" }, 401);
@@ -75,9 +88,17 @@ export function createApp(backend: Backend): Hono {
     }
 
     let state;
-    if (operation === "start") state = await backend.startGame(config);
-    else if (operation === "stop") state = await backend.stopGame(config);
-    else state = await backend.getGameState(config);
+    if (operation === "start") {
+      log.info(`web: start ${gameKey}`);
+      state = await backend.startGame(config);
+      log.info(`web: start ${gameKey} → ${state.status}`);
+    } else if (operation === "stop") {
+      log.info(`web: stop ${gameKey}`);
+      state = await backend.stopGame(config);
+      log.info(`web: stop ${gameKey} → ${state.status}`);
+    } else {
+      state = await backend.getGameState(config);
+    }
 
     if (isHtmx) return c.html(statusFragment(state));
     return c.json(state);
@@ -101,6 +122,7 @@ export function createApp(backend: Backend): Hono {
     const sidecarUrl = `http://${state.publicIp}:${config.sidecarPort}/logs`;
 
     return streamSSE(c, async stream => {
+      log.info(`logs: stream opened for ${game}`);
       await stream.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
 
       let res: Response;
@@ -110,6 +132,7 @@ export function createApp(backend: Backend): Hono {
           signal: c.req.raw.signal,
         });
       } catch (error) {
+        log.info(`logs: stream closed for ${game} (connection error)`);
         await stream.writeSSE({
           data: `[log proxy error: ${error instanceof Error ? error.message : String(error)}]`,
           event: "log",
@@ -119,6 +142,7 @@ export function createApp(backend: Backend): Hono {
       }
 
       if (!res.ok || !res.body) {
+        log.warn(`logs: sidecar returned ${res.status} for ${game}`);
         await stream.writeSSE({
           data: `[log proxy error: sidecar returned HTTP ${res.status}]`,
           event: "log",
@@ -149,6 +173,7 @@ export function createApp(backend: Backend): Hono {
       } catch {
         // Client disconnected or sidecar closed — clean exit
       }
+      log.info(`logs: stream closed for ${game}`);
     });
   });
 
@@ -163,8 +188,18 @@ export function createApp(backend: Backend): Hono {
     const config = games[game];
     if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
 
-    if (operation === "start") return c.json(await backend.startGame(config));
-    if (operation === "stop") return c.json(await backend.stopGame(config));
+    if (operation === "start") {
+      log.info(`api: start ${game}`);
+      const state = await backend.startGame(config);
+      log.info(`api: start ${game} → ${state.status}`);
+      return c.json(state);
+    }
+    if (operation === "stop") {
+      log.info(`api: stop ${game}`);
+      const state = await backend.stopGame(config);
+      log.info(`api: stop ${game} → ${state.status}`);
+      return c.json(state);
+    }
     return c.json(await backend.getGameState(config));
   });
 

@@ -100432,6 +100432,21 @@ async function restartWithConfig(ip, port, configUrl) {
 
 // src/backends/docker.ts
 var import_http3 = __toESM(require("http"));
+
+// src/logger.ts
+function ts() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+var log = {
+  info: (msg) => console.log(`${ts()} INFO  ${msg}`),
+  warn: (msg) => console.warn(`${ts()} WARN  ${msg}`),
+  error: (msg, err) => {
+    const detail = err instanceof Error ? ` \u2014 ${err.message}` : err != null ? ` \u2014 ${String(err)}` : "";
+    console.error(`${ts()} ERROR ${msg}${detail}`);
+  }
+};
+
+// src/backends/docker.ts
 var SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
 var MAX_POLLS2 = 20;
@@ -100488,12 +100503,15 @@ async function getSidecarStatus2(port) {
   }
 }
 async function waitForState2(backend2, config, desired) {
+  const c5 = config;
   let state2 = await backend2.getGameState(config);
   for (let i5 = 0; i5 < MAX_POLLS2; i5++) {
     if (state2.status === desired) return state2;
+    log.info(`docker: waiting for ${c5.containerName} to be ${desired} (currently ${state2.status}, poll ${i5 + 1}/${MAX_POLLS2})`);
     await new Promise((r5) => setTimeout(r5, POLL_INTERVAL_MS2));
     state2 = await backend2.getGameState(config);
   }
+  if (state2.status !== desired) log.warn(`docker: ${c5.containerName} did not reach ${desired} after ${MAX_POLLS2} polls (stuck at ${state2.status})`);
   return state2;
 }
 async function restartWithConfig2(port, configUrl) {
@@ -100529,6 +100547,7 @@ var DockerBackend = class {
   }
   async startGame(config, configUrl) {
     const c5 = config;
+    log.info(`docker: starting container ${c5.containerName}`);
     await dockerRequest("POST", `/containers/${encodeURIComponent(c5.containerName)}/start`);
     let state2 = await waitForState2(this, config, "online");
     if (configUrl && state2.status === "online") {
@@ -100544,6 +100563,7 @@ var DockerBackend = class {
   }
   async stopGame(config) {
     const c5 = config;
+    log.info(`docker: stopping container ${c5.containerName}`);
     await dockerRequest("POST", `/containers/${encodeURIComponent(c5.containerName)}/stop?t=15`);
     return waitForState2(this, config, "offline");
   }
@@ -102845,7 +102865,10 @@ async function discordHandler(c5, backend2) {
   const timestamp = c5.req.header("x-signature-timestamp") ?? "";
   const rawBody = await c5.req.text();
   const isValid = await (0, import_discord_interactions.verifyKey)(rawBody, signature, timestamp, DISCORD_PUBLIC_KEY);
-  if (!isValid) return c5.text("invalid signature", 401);
+  if (!isValid) {
+    log.warn("discord: invalid signature");
+    return c5.text("invalid signature", 401);
+  }
   const interaction = JSON.parse(rawBody);
   if (interaction.type === import_discord_interactions.InteractionType.PING) {
     return c5.json({ type: import_discord_interactions.InteractionResponseType.PONG });
@@ -102862,6 +102885,7 @@ async function discordHandler(c5, backend2) {
       });
     }
     if (name === "status") {
+      log.info(`discord: /status ${gameName}`);
       const state2 = await backend2.getGameState(config);
       return c5.json({
         type: import_discord_interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -102869,13 +102893,16 @@ async function discordHandler(c5, backend2) {
       });
     }
     if (name === "stop") {
+      log.info(`discord: /stop ${gameName}`);
       const state2 = await backend2.stopGame(config);
+      log.info(`discord: /stop ${gameName} \u2192 ${state2.status}`);
       return c5.json({
         type: import_discord_interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state2) }
       });
     }
     if (name === "start") {
+      log.info(`discord: /start ${gameName}`);
       void sendFollowup(interaction.token, gameName, config, backend2);
       return c5.json({ type: import_discord_interactions.InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE });
     }
@@ -102888,6 +102915,7 @@ async function discordHandler(c5, backend2) {
 }
 async function sendFollowup(interactionToken, gameName, config, backend2) {
   const state2 = await backend2.startGame(config);
+  log.info(`discord: /start ${gameName} \u2192 ${state2.status}`);
   const content = formatState(gameName, state2);
   await fetch(
     `https://discord.com/api/v10/webhooks/${DISCORD_APP_ID}/${interactionToken}/messages/@original`,
@@ -103449,16 +103477,21 @@ var css = `
   #auth { max-width: 400px; }
   #auth input { width: 100%; padding: .5rem; background: #222; color: #eee; border: 1px solid #444; margin-bottom: .5rem; font-family: monospace; }
   #auth button { padding: .5rem 1rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
+  #auth button:disabled { opacity: .6; cursor: wait; }
   .games { display: flex; gap: 1rem; flex-wrap: wrap; }
   .game { background: #1a1a1a; border: 1px solid #333; padding: 1rem; min-width: 200px; }
   .game h2 { margin-bottom: .75rem; font-size: 1rem; }
   .status { margin-bottom: .75rem; font-size: .85rem; color: #aaa; }
   .status.online { color: #4f4; }
   .status.starting { color: #fa4; }
+  .status-indicator { display: none; margin-left: .5rem; color: #8cf; }
+  .status-indicator.htmx-request { display: inline; }
   .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
   .actions button { padding: .4rem .8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
   .actions button:hover { background: #444; }
-  dialog { background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); display: flex; flex-direction: column; }
+  .actions button:disabled { opacity: .6; cursor: wait; }
+  dialog { display: none; background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); }
+  dialog[open] { display: flex; flex-direction: column; }
   dialog::backdrop { background: rgba(0,0,0,0.7); }
   .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: 1px solid #333; font-size: .85rem; }
   .dialog-header span { color: #aaa; }
@@ -103471,6 +103504,7 @@ var initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
   var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
+  var logStreams = {};
 
   function showPanel(pp) {
     var auth = document.getElementById("auth");
@@ -103487,33 +103521,59 @@ var initScript = `
 
   window.authenticate = function() {
     var val = document.getElementById("passphrase").value;
+    var unlockButton = document.getElementById("unlock-button");
     if (!val) return;
+    unlockButton.disabled = true;
+    unlockButton.textContent = "unlocking...";
     sessionStorage.setItem(SESSION_KEY, val);
     passphrase = val;
     showPanel(val);
   };
 
-  window.toggleLogs = function(game) {
+  window.toggleLogs = function(game, button) {
     var dialog = document.getElementById("log-dialog-" + game);
     if (dialog.open) {
       dialog.close();
+      if (button) {
+        button.disabled = false;
+        button.textContent = "logs";
+      }
       return;
     }
+    if (button) {
+      button.disabled = true;
+      button.textContent = "opening...";
+    }
     var pp = sessionStorage.getItem(SESSION_KEY) || "";
-    var inner = document.getElementById("log-sse-" + game);
-    // Only initialise the SSE connection once
-    if (!inner.getAttribute("sse-connect")) {
-      inner.setAttribute("hx-ext", "sse");
-      inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
-      htmx.process(inner);
-      // Auto-scroll on new content
+    if (!logStreams[game]) {
       var lines = document.getElementById("log-lines-" + game);
-      var observer = new MutationObserver(function() {
+      var source = new EventSource("/logs?game=" + game + "&token=" + encodeURIComponent(pp));
+
+      source.addEventListener("log", function(event) {
+        var line = document.createElement("div");
+        line.className = "log-line";
+        line.textContent = event.data;
+        lines.appendChild(line);
         lines.scrollTop = lines.scrollHeight;
       });
-      observer.observe(lines, { childList: true });
+
+      source.onerror = function() {
+        var line = document.createElement("div");
+        line.className = "log-line";
+        line.textContent = "[log stream disconnected]";
+        lines.appendChild(line);
+        lines.scrollTop = lines.scrollHeight;
+        source.close();
+        delete logStreams[game];
+      };
+
+      logStreams[game] = source;
     }
     dialog.showModal();
+    if (button) {
+      button.disabled = false;
+      button.textContent = "logs";
+    }
   };
 
   window.logout = function() {
@@ -103545,6 +103605,8 @@ var GameCard = ({ game }) => /* @__PURE__ */ jsxDEV("div", { class: "game", id: 
       {
         "hx-post": `/?game=${game}&operation=start`,
         "hx-target": `#status-${game}`,
+        "hx-indicator": `#status-indicator-${game}`,
+        "hx-disabled-elt": `#game-${game} .actions button`,
         children: "start"
       }
     ),
@@ -103553,10 +103615,13 @@ var GameCard = ({ game }) => /* @__PURE__ */ jsxDEV("div", { class: "game", id: 
       {
         "hx-post": `/?game=${game}&operation=stop`,
         "hx-target": `#status-${game}`,
+        "hx-indicator": `#status-indicator-${game}`,
+        "hx-disabled-elt": `#game-${game} .actions button`,
         children: "stop"
       }
     ),
-    /* @__PURE__ */ jsxDEV("button", { onclick: `toggleLogs('${game}')`, children: "logs" })
+    /* @__PURE__ */ jsxDEV("button", { onclick: `toggleLogs('${game}', this)`, children: "logs" }),
+    /* @__PURE__ */ jsxDEV("span", { class: "status-indicator", id: `status-indicator-${game}`, children: "requesting..." })
   ] })
 ] });
 function renderUi(games) {
@@ -103581,7 +103646,7 @@ function renderUi(games) {
             style: "letter-spacing: 0.15em;"
           }
         ),
-        /* @__PURE__ */ jsxDEV("button", { onclick: "authenticate()", children: "unlock" })
+        /* @__PURE__ */ jsxDEV("button", { id: "unlock-button", onclick: "authenticate()", children: "unlock" })
       ] }),
       /* @__PURE__ */ jsxDEV("div", { id: "panel", style: "display:none", "hx-headers": "{}", children: [
         /* @__PURE__ */ jsxDEV("div", { class: "games", children: games.map((g5) => /* @__PURE__ */ jsxDEV(GameCard, { game: g5 }, g5)) }),
@@ -103596,18 +103661,9 @@ function renderUi(games) {
           ] }),
           /* @__PURE__ */ jsxDEV("button", { class: "dialog-close", onclick: `document.getElementById('log-dialog-${g5}').close()`, children: "\u2715" })
         ] }),
-        /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${g5}`, children: /* @__PURE__ */ jsxDEV(
-          "div",
-          {
-            id: `log-lines-${g5}`,
-            class: "log-panel",
-            "sse-swap": "log",
-            "hx-swap": "beforeend"
-          }
-        ) })
+        /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${g5}`, class: "log-panel" })
       ] }, g5)),
       /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx.org@2/dist/htmx.min.js" }),
-      /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx-ext-sse@2/sse.js" }),
       /* @__PURE__ */ jsxDEV("script", { dangerouslySetInnerHTML: { __html: initScript } })
     ] })
   ] });
@@ -103630,14 +103686,25 @@ function createApp(backend2) {
     const operation2 = c5.req.query("operation");
     if (game && operation2) {
       const passphrase = c5.req.header("x-passphrase") ?? "";
-      if (passphrase !== WEB_UI_PASSPHRASE) return c5.text("unauthorized", 401);
+      if (passphrase !== WEB_UI_PASSPHRASE) {
+        log.warn(`web: auth failure from ${c5.req.header("x-forwarded-for") ?? "unknown"}`);
+        return c5.text("unauthorized", 401);
+      }
       const games2 = backend2.getGames();
       const config = games2[game];
       if (!config) return c5.html(`<span class="status">unknown game: ${game}</span>`, 400);
       let state2;
-      if (operation2 === "start") state2 = await backend2.startGame(config);
-      else if (operation2 === "stop") state2 = await backend2.stopGame(config);
-      else state2 = await backend2.getGameState(config);
+      if (operation2 === "start") {
+        log.info(`web: start ${game}`);
+        state2 = await backend2.startGame(config);
+        log.info(`web: start ${game} \u2192 ${state2.status}`);
+      } else if (operation2 === "stop") {
+        log.info(`web: stop ${game}`);
+        state2 = await backend2.stopGame(config);
+        log.info(`web: stop ${game} \u2192 ${state2.status}`);
+      } else {
+        state2 = await backend2.getGameState(config);
+      }
       return c5.html(statusFragment(state2));
     }
     const games = backend2.getGames();
@@ -103646,6 +103713,7 @@ function createApp(backend2) {
   app2.post("/", async (c5) => {
     const passphrase = c5.req.header("x-passphrase") ?? "";
     if (passphrase !== WEB_UI_PASSPHRASE) {
+      log.warn(`web: auth failure from ${c5.req.header("x-forwarded-for") ?? "unknown"}`);
       const isHtmx2 = !!c5.req.header("hx-request");
       if (isHtmx2) return c5.html(`<span class="status">unauthorized</span>`, 401);
       return c5.json({ error: "unauthorized" }, 401);
@@ -103670,9 +103738,17 @@ function createApp(backend2) {
       return c5.json({ error: `unknown game: ${gameKey}` }, 400);
     }
     let state2;
-    if (operation2 === "start") state2 = await backend2.startGame(config);
-    else if (operation2 === "stop") state2 = await backend2.stopGame(config);
-    else state2 = await backend2.getGameState(config);
+    if (operation2 === "start") {
+      log.info(`web: start ${gameKey}`);
+      state2 = await backend2.startGame(config);
+      log.info(`web: start ${gameKey} \u2192 ${state2.status}`);
+    } else if (operation2 === "stop") {
+      log.info(`web: stop ${gameKey}`);
+      state2 = await backend2.stopGame(config);
+      log.info(`web: stop ${gameKey} \u2192 ${state2.status}`);
+    } else {
+      state2 = await backend2.getGameState(config);
+    }
     if (isHtmx) return c5.html(statusFragment(state2));
     return c5.json(state2);
   });
@@ -103689,6 +103765,7 @@ function createApp(backend2) {
     }
     const sidecarUrl = `http://${state2.publicIp}:${config.sidecarPort}/logs`;
     return streamSSE(c5, async (stream2) => {
+      log.info(`logs: stream opened for ${game}`);
       let res;
       try {
         res = await fetch(sidecarUrl, {
@@ -103696,10 +103773,12 @@ function createApp(backend2) {
           signal: c5.req.raw.signal
         });
       } catch {
+        log.info(`logs: stream closed for ${game} (connection error)`);
         await stream2.close();
         return;
       }
       if (!res.ok || !res.body) {
+        log.warn(`logs: sidecar returned ${res.status} for ${game}`);
         await stream2.close();
         return;
       }
@@ -103721,6 +103800,7 @@ function createApp(backend2) {
         }
       } catch {
       }
+      log.info(`logs: stream closed for ${game}`);
     });
   });
   app2.get("/api", async (c5) => {
@@ -103731,8 +103811,18 @@ function createApp(backend2) {
     const games = backend2.getGames();
     const config = games[game];
     if (!config) return c5.json({ error: `unknown game: ${game}` }, 400);
-    if (operation2 === "start") return c5.json(await backend2.startGame(config));
-    if (operation2 === "stop") return c5.json(await backend2.stopGame(config));
+    if (operation2 === "start") {
+      log.info(`api: start ${game}`);
+      const state2 = await backend2.startGame(config);
+      log.info(`api: start ${game} \u2192 ${state2.status}`);
+      return c5.json(state2);
+    }
+    if (operation2 === "stop") {
+      log.info(`api: stop ${game}`);
+      const state2 = await backend2.stopGame(config);
+      log.info(`api: stop ${game} \u2192 ${state2.status}`);
+      return c5.json(state2);
+    }
     return c5.json(await backend2.getGameState(config));
   });
   app2.post("/discord", makeDiscordHandler(backend2));
@@ -103741,8 +103831,11 @@ function createApp(backend2) {
 
 // src/server.ts
 var PORT = parseInt(process.env.PORT ?? "3000", 10);
+var BACKEND = process.env.BACKEND ?? "ecs";
 var backend = createBackend();
 var app = createApp(backend);
 serve({ fetch: app.fetch, port: PORT }, (info) => {
-  console.log(`launcher listening on http://localhost:${info.port}`);
+  log.info(`launcher listening on http://localhost:${info.port} (backend: ${BACKEND})`);
+  const games = Object.keys(backend.getGames());
+  log.info(`games: ${games.length > 0 ? games.join(", ") : "(none configured)"}`);
 });

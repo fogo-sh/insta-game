@@ -1,5 +1,6 @@
 import http from "http";
 import type { Backend, GameConfig, GameState } from "../backend.js";
+import { log } from "../logger.js";
 
 const SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
@@ -66,12 +67,15 @@ async function getSidecarStatus(port: number): Promise<Record<string, unknown> |
 }
 
 async function waitForState(backend: DockerBackend, config: GameConfig, desired: "online" | "offline"): Promise<GameState> {
+  const c = config as DockerGameConfig;
   let state = await backend.getGameState(config);
   for (let i = 0; i < MAX_POLLS; i++) {
     if (state.status === desired) return state;
+    log.info(`docker: waiting for ${c.containerName} to be ${desired} (currently ${state.status}, poll ${i + 1}/${MAX_POLLS})`);
     await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
     state = await backend.getGameState(config);
   }
+  if (state.status !== desired) log.warn(`docker: ${c.containerName} did not reach ${desired} after ${MAX_POLLS} polls (stuck at ${state.status})`);
   return state;
 }
 
@@ -116,6 +120,7 @@ export class DockerBackend implements Backend {
 
   async startGame(config: GameConfig, configUrl?: string): Promise<GameState> {
     const c = config as DockerGameConfig;
+    log.info(`docker: starting container ${c.containerName}`);
     await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/start`);
     let state = await waitForState(this, config, "online");
     if (configUrl && state.status === "online") {
@@ -132,6 +137,7 @@ export class DockerBackend implements Backend {
 
   async stopGame(config: GameConfig): Promise<GameState> {
     const c = config as DockerGameConfig;
+    log.info(`docker: stopping container ${c.containerName}`);
     // t=15 gives the container 15s to stop gracefully before SIGKILL
     await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/stop?t=15`);
     return waitForState(this, config, "offline");

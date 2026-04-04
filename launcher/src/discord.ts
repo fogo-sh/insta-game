@@ -1,6 +1,7 @@
 import { verifyKey, InteractionType, InteractionResponseType } from "discord-interactions";
 import type { Context } from "hono";
 import type { Backend } from "./backend.js";
+import { log } from "./logger.js";
 
 const DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY ?? "";
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN ?? "";
@@ -16,7 +17,10 @@ async function discordHandler(c: Context, backend: Backend): Promise<Response> {
   const rawBody = await c.req.text();
 
   const isValid = await verifyKey(rawBody, signature, timestamp, DISCORD_PUBLIC_KEY);
-  if (!isValid) return c.text("invalid signature", 401);
+  if (!isValid) {
+    log.warn("discord: invalid signature");
+    return c.text("invalid signature", 401);
+  }
 
   const interaction = JSON.parse(rawBody) as {
     type: number;
@@ -45,6 +49,7 @@ async function discordHandler(c: Context, backend: Backend): Promise<Response> {
     }
 
     if (name === "status") {
+      log.info(`discord: /status ${gameName}`);
       const state = await backend.getGameState(config);
       return c.json({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -53,7 +58,9 @@ async function discordHandler(c: Context, backend: Backend): Promise<Response> {
     }
 
     if (name === "stop") {
+      log.info(`discord: /stop ${gameName}`);
       const state = await backend.stopGame(config);
+      log.info(`discord: /stop ${gameName} → ${state.status}`);
       return c.json({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state) },
@@ -61,6 +68,7 @@ async function discordHandler(c: Context, backend: Backend): Promise<Response> {
     }
 
     if (name === "start") {
+      log.info(`discord: /start ${gameName}`);
       // Defer immediately — start can take up to ~50s
       void sendFollowup(interaction.token, gameName, config, backend);
       return c.json({ type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE });
@@ -82,6 +90,7 @@ async function sendFollowup(
   backend: Backend,
 ): Promise<void> {
   const state = await backend.startGame(config);
+  log.info(`discord: /start ${gameName} → ${state.status}`);
   const content = formatState(gameName, state);
 
   await fetch(
