@@ -15,6 +15,7 @@ type RingLog struct {
 	size int // number of valid entries (<= cap)
 
 	partial string // incomplete line fragment waiting for a newline
+	pendingCR bool // previous write ended with \r, so skip a leading \n next write
 
 	subs map[int]chan string
 	next int // next subscriber ID
@@ -36,16 +37,32 @@ func (r *RingLog) Write(p []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	text := r.partial + string(p)
-	parts := strings.Split(text, "\n")
+	chunk := string(p)
+	if r.pendingCR {
+		chunk = strings.TrimPrefix(chunk, "\n")
+		r.pendingCR = false
+	}
+	text := r.partial + chunk
 
-	// The last element is either empty (if text ended with \n) or an incomplete
-	// fragment to be carried over.
-	r.partial = parts[len(parts)-1]
-	complete := parts[:len(parts)-1]
+	start := 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '\n':
+			r.appendLocked(text[start:i])
+			start = i + 1
+		case '\r':
+			r.appendLocked(text[start:i])
+			if i+1 < len(text) && text[i+1] == '\n' {
+				i++
+			}
+			start = i + 1
+		}
+	}
 
-	for _, line := range complete {
-		r.appendLocked(line)
+	r.partial = text[start:]
+	if len(text) > 0 && text[len(text)-1] == '\r' {
+		r.pendingCR = true
+		r.partial = ""
 	}
 
 	return len(p), nil

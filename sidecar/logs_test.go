@@ -50,6 +50,39 @@ func TestRingLog_WriteIncompleteLineFlushedOnNextWrite(t *testing.T) {
 	}
 }
 
+func TestRingLog_WriteCarriageReturnDelimitedLines(t *testing.T) {
+	rl := NewRingLog(10)
+	rl.Write([]byte("hello\rworld\r"))
+
+	lines := rl.Lines()
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines, got %d: %v", len(lines), lines)
+	}
+	if lines[0] != "hello" {
+		t.Errorf("lines[0] = %q, want %q", lines[0], "hello")
+	}
+	if lines[1] != "world" {
+		t.Errorf("lines[1] = %q, want %q", lines[1], "world")
+	}
+}
+
+func TestRingLog_WriteSplitCRLFLine(t *testing.T) {
+	rl := NewRingLog(10)
+	rl.Write([]byte("hello\r"))
+	rl.Write([]byte("\nworld\r\n"))
+
+	lines := rl.Lines()
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines, got %d: %v", len(lines), lines)
+	}
+	if lines[0] != "hello" {
+		t.Errorf("lines[0] = %q, want %q", lines[0], "hello")
+	}
+	if lines[1] != "world" {
+		t.Errorf("lines[1] = %q, want %q", lines[1], "world")
+	}
+}
+
 func TestRingLog_WriteReturnsLenOfInput(t *testing.T) {
 	rl := NewRingLog(10)
 	input := []byte("test\n")
