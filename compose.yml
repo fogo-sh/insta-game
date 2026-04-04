@@ -34,7 +34,7 @@ services:
     environment:
       PROTOCOL: "quake1"
       GAME_CMD: "./qssm"
-      GAME_ARGS: "-dedicated 12 -basedir /opt -game omicron -port 26000 +exec server.cfg"
+      GAME_ARGS: "-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
       CONFIG_PATH: "/opt/id1/server.cfg"
