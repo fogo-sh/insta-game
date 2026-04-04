@@ -3843,7 +3843,8 @@ var css = `
   .actions button { padding: .4rem .8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
   .actions button:hover { background: #444; }
   .actions button:disabled { opacity: .6; cursor: wait; }
-  dialog { background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); display: flex; flex-direction: column; }
+  dialog { display: none; background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); }
+  dialog[open] { display: flex; flex-direction: column; }
   dialog::backdrop { background: rgba(0,0,0,0.7); }
   .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: 1px solid #333; font-size: .85rem; }
   .dialog-header span { color: #aaa; }
@@ -3856,6 +3857,7 @@ var initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
   var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
+  var logStreams = {};
 
   function showPanel(pp) {
     var auth = document.getElementById("auth");
@@ -3896,18 +3898,29 @@ var initScript = `
       button.textContent = "opening...";
     }
     var pp = sessionStorage.getItem(SESSION_KEY) || "";
-    var inner = document.getElementById("log-sse-" + game);
-    // Only initialise the SSE connection once
-    if (!inner.getAttribute("sse-connect")) {
-      inner.setAttribute("hx-ext", "sse");
-      inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
-      htmx.process(inner);
-      // Auto-scroll on new content
+    if (!logStreams[game]) {
       var lines = document.getElementById("log-lines-" + game);
-      var observer = new MutationObserver(function() {
+      var source = new EventSource("/logs?game=" + game + "&token=" + encodeURIComponent(pp));
+
+      source.addEventListener("log", function(event) {
+        var line = document.createElement("div");
+        line.className = "log-line";
+        line.textContent = event.data;
+        lines.appendChild(line);
         lines.scrollTop = lines.scrollHeight;
       });
-      observer.observe(lines, { childList: true });
+
+      source.onerror = function() {
+        var line = document.createElement("div");
+        line.className = "log-line";
+        line.textContent = "[log stream disconnected]";
+        lines.appendChild(line);
+        lines.scrollTop = lines.scrollHeight;
+        source.close();
+        delete logStreams[game];
+      };
+
+      logStreams[game] = source;
     }
     dialog.showModal();
     if (button) {
@@ -4001,18 +4014,9 @@ function renderUi(games) {
           ] }),
           /* @__PURE__ */ jsxDEV("button", { class: "dialog-close", onclick: `document.getElementById('log-dialog-${g}').close()`, children: "\u2715" })
         ] }),
-        /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${g}`, children: /* @__PURE__ */ jsxDEV(
-          "div",
-          {
-            id: `log-lines-${g}`,
-            class: "log-panel",
-            "sse-swap": "log",
-            "hx-swap": "beforeend"
-          }
-        ) })
+        /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${g}`, class: "log-panel" })
       ] }, g)),
       /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx.org@2/dist/htmx.min.js" }),
-      /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx-ext-sse@2/sse.js" }),
       /* @__PURE__ */ jsxDEV("script", { dangerouslySetInnerHTML: { __html: initScript } })
     ] })
   ] });
