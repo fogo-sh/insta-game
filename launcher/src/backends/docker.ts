@@ -95,7 +95,7 @@ async function ensureContainer(c: DockerGameConfig): Promise<void> {
   const exposedPorts: Record<string, Record<string, never>> = {};
   for (const [containerPort, binding] of Object.entries(c.ports ?? {})) {
     const key = containerPort.includes("/") ? containerPort : `${containerPort}/tcp`;
-    portBindings[key] = [{ HostIp: binding.hostIp ?? "127.0.0.1", HostPort: binding.hostPort }];
+    portBindings[key] = [{ HostIp: binding.hostIp ?? "0.0.0.0", HostPort: binding.hostPort }];
     exposedPorts[key] = {};
   }
 

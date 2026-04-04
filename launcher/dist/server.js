@@ -100522,7 +100522,7 @@ async function ensureContainer(c5) {
   const exposedPorts = {};
   for (const [containerPort, binding] of Object.entries(c5.ports ?? {})) {
     const key = containerPort.includes("/") ? containerPort : `${containerPort}/tcp`;
-    portBindings[key] = [{ HostIp: binding.hostIp ?? "127.0.0.1", HostPort: binding.hostPort }];
+    portBindings[key] = [{ HostIp: binding.hostIp ?? "0.0.0.0", HostPort: binding.hostPort }];
     exposedPorts[key] = {};
   }
   const sidecarKey = `${c5.sidecarPort}/tcp`;
