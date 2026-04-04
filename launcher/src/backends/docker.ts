@@ -7,8 +7,19 @@ const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
 const MAX_POLLS = 20;
 const POLL_INTERVAL_MS = 3000;
 
+export interface PortBinding {
+  hostIp?: string;
+  hostPort: string;
+  proto?: "tcp" | "udp";   // default "tcp"
+}
+
 export interface DockerGameConfig extends GameConfig {
   containerName: string;
+  image: string;
+  // port bindings: key is containerPort (e.g. "26000/udp"), value is host binding
+  ports?: Record<string, PortBinding>;
+  environment?: Record<string, string>;
+  volumes?: string[];  // host:container[:options]
 }
 
 // Low-level Docker API call over Unix socket — rejects on non-2xx responses
@@ -42,6 +53,73 @@ function dockerRequest(method: string, path: string, body?: unknown): Promise<un
     if (bodyStr) req.write(bodyStr);
     req.end();
   });
+}
+
+// Pull an image — streams progress lines, resolves when done
+function pullImage(image: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      socketPath: SOCKET,
+      path: `/images/create?fromImage=${encodeURIComponent(image)}`,
+      method: "POST",
+    }, res => {
+      // consume the stream (progress JSON lines) so the socket doesn't stall
+      res.on("data", () => {});
+      res.on("end", () => {
+        const status = res.statusCode ?? 0;
+        if (status < 200 || status >= 300) {
+          reject(new Error(`Docker pull ${image} → ${status}`));
+        } else {
+          resolve();
+        }
+      });
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+// Ensure the container exists, creating it (and pulling the image) if needed
+async function ensureContainer(c: DockerGameConfig): Promise<void> {
+  const existing = await inspectContainer(c.containerName);
+  if (existing) return;
+
+  log.info(`docker: image pull ${c.image}`);
+  await pullImage(c.image);
+  log.info(`docker: pulled ${c.image}`);
+
+  // Build HostConfig port bindings: { "26000/udp": [{ HostIp, HostPort }] }
+  const portBindings: Record<string, Array<{ HostIp: string; HostPort: string }>> = {};
+  const exposedPorts: Record<string, Record<string, never>> = {};
+  for (const [containerPort, binding] of Object.entries(c.ports ?? {})) {
+    const key = containerPort.includes("/") ? containerPort : `${containerPort}/tcp`;
+    portBindings[key] = [{ HostIp: binding.hostIp ?? "127.0.0.1", HostPort: binding.hostPort }];
+    exposedPorts[key] = {};
+  }
+
+  // Sidecar port must always be exposed
+  const sidecarKey = `${c.sidecarPort}/tcp`;
+  if (!portBindings[sidecarKey]) {
+    portBindings[sidecarKey] = [{ HostIp: "127.0.0.1", HostPort: String(c.sidecarPort) }];
+    exposedPorts[sidecarKey] = {};
+  }
+
+  const binds = (c.volumes ?? []).map(v => v);
+
+  const env = Object.entries(c.environment ?? {}).map(([k, v]) => `${k}=${v}`);
+
+  log.info(`docker: creating container ${c.containerName}`);
+  await dockerRequest("POST", `/containers/create?name=${encodeURIComponent(c.containerName)}`, {
+    Image: c.image,
+    Env: env,
+    ExposedPorts: exposedPorts,
+    HostConfig: {
+      PortBindings: portBindings,
+      Binds: binds,
+      RestartPolicy: { Name: "no" },
+    },
+  });
+  log.info(`docker: created container ${c.containerName}`);
 }
 
 // Inspect a container — returns Docker inspect object or null if not found
@@ -128,6 +206,7 @@ export class DockerBackend implements Backend {
     const c = config as DockerGameConfig;
     log.info(`docker: starting container ${c.containerName}`);
     try {
+      await ensureContainer(c);
       await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/start`);
     } catch (err) {
       log.error(`docker: failed to start ${c.containerName}`, err);

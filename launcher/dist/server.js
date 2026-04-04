@@ -100488,6 +100488,61 @@ function dockerRequest(method, path, body) {
     req.end();
   });
 }
+function pullImage(image) {
+  return new Promise((resolve, reject) => {
+    const req = import_http3.default.request({
+      socketPath: SOCKET,
+      path: `/images/create?fromImage=${encodeURIComponent(image)}`,
+      method: "POST"
+    }, (res) => {
+      res.on("data", () => {
+      });
+      res.on("end", () => {
+        const status = res.statusCode ?? 0;
+        if (status < 200 || status >= 300) {
+          reject(new Error(`Docker pull ${image} \u2192 ${status}`));
+        } else {
+          resolve();
+        }
+      });
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+async function ensureContainer(c5) {
+  const existing = await inspectContainer(c5.containerName);
+  if (existing) return;
+  log.info(`docker: image pull ${c5.image}`);
+  await pullImage(c5.image);
+  log.info(`docker: pulled ${c5.image}`);
+  const portBindings = {};
+  const exposedPorts = {};
+  for (const [containerPort, binding] of Object.entries(c5.ports ?? {})) {
+    const key = containerPort.includes("/") ? containerPort : `${containerPort}/tcp`;
+    portBindings[key] = [{ HostIp: binding.hostIp ?? "127.0.0.1", HostPort: binding.hostPort }];
+    exposedPorts[key] = {};
+  }
+  const sidecarKey = `${c5.sidecarPort}/tcp`;
+  if (!portBindings[sidecarKey]) {
+    portBindings[sidecarKey] = [{ HostIp: "127.0.0.1", HostPort: String(c5.sidecarPort) }];
+    exposedPorts[sidecarKey] = {};
+  }
+  const binds = (c5.volumes ?? []).map((v5) => v5);
+  const env = Object.entries(c5.environment ?? {}).map(([k5, v5]) => `${k5}=${v5}`);
+  log.info(`docker: creating container ${c5.containerName}`);
+  await dockerRequest("POST", `/containers/create?name=${encodeURIComponent(c5.containerName)}`, {
+    Image: c5.image,
+    Env: env,
+    ExposedPorts: exposedPorts,
+    HostConfig: {
+      PortBindings: portBindings,
+      Binds: binds,
+      RestartPolicy: { Name: "no" }
+    }
+  });
+  log.info(`docker: created container ${c5.containerName}`);
+}
 async function inspectContainer(name) {
   try {
     const data2 = await dockerRequest("GET", `/containers/${encodeURIComponent(name)}/json`);
@@ -100558,6 +100613,7 @@ var DockerBackend = class {
     const c5 = config;
     log.info(`docker: starting container ${c5.containerName}`);
     try {
+      await ensureContainer(c5);
       await dockerRequest("POST", `/containers/${encodeURIComponent(c5.containerName)}/start`);
     } catch (err) {
       log.error(`docker: failed to start ${c5.containerName}`, err);
@@ -103525,6 +103581,15 @@ var initScript = `
   var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
   var logStreams = {};
 
+  function appendLogLine(game, text) {
+    var lines = document.getElementById("log-lines-" + game);
+    var line = document.createElement("div");
+    line.className = "log-line";
+    line.textContent = text;
+    lines.appendChild(line);
+    lines.scrollTop = lines.scrollHeight;
+  }
+
   function showPanel(pp) {
     var auth = document.getElementById("auth");
     var panel = document.getElementById("panel");
@@ -103565,23 +103630,19 @@ var initScript = `
     }
     var pp = sessionStorage.getItem(SESSION_KEY) || "";
     if (!logStreams[game]) {
-      var lines = document.getElementById("log-lines-" + game);
+      appendLogLine(game, "[opening log stream]");
       var source = new EventSource("/logs?game=" + game + "&token=" + encodeURIComponent(pp));
 
+      source.onopen = function() {
+        appendLogLine(game, "[log stream open]");
+      };
+
       source.addEventListener("log", function(event) {
-        var line = document.createElement("div");
-        line.className = "log-line";
-        line.textContent = event.data;
-        lines.appendChild(line);
-        lines.scrollTop = lines.scrollHeight;
+        appendLogLine(game, event.data);
       });
 
       source.onerror = function() {
-        var line = document.createElement("div");
-        line.className = "log-line";
-        line.textContent = "[log stream disconnected]";
-        lines.appendChild(line);
-        lines.scrollTop = lines.scrollHeight;
+        appendLogLine(game, "[log stream disconnected]");
         source.close();
         delete logStreams[game];
       };
@@ -103785,22 +103846,32 @@ function createApp(backend2) {
     const sidecarUrl = `http://${state2.publicIp}:${config.sidecarPort}/logs`;
     return streamSSE(c5, async (stream2) => {
       log.info(`logs: stream opened for ${game}`);
+      await stream2.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
       let res;
       try {
         res = await fetch(sidecarUrl, {
           headers: { Authorization: `Bearer ${SIDECAR_TOKEN3}` },
           signal: c5.req.raw.signal
         });
-      } catch {
+      } catch (error2) {
         log.info(`logs: stream closed for ${game} (connection error)`);
+        await stream2.writeSSE({
+          data: `[log proxy error: ${error2 instanceof Error ? error2.message : String(error2)}]`,
+          event: "log"
+        });
         await stream2.close();
         return;
       }
       if (!res.ok || !res.body) {
         log.warn(`logs: sidecar returned ${res.status} for ${game}`);
+        await stream2.writeSSE({
+          data: `[log proxy error: sidecar returned HTTP ${res.status}]`,
+          event: "log"
+        });
         await stream2.close();
         return;
       }
+      await stream2.writeSSE({ data: `[connected to ${game} logs]`, event: "log" });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
