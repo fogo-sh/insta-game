@@ -4,6 +4,7 @@ import { log } from "../logger.js";
 
 const SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
+const SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 const MAX_POLLS = 20;
 const POLL_INTERVAL_MS = 3000;
 
@@ -142,7 +143,7 @@ function getHostPort(inspect: Record<string, unknown>, containerPort: number): n
 
 async function getSidecarStatus(port: number): Promise<Record<string, unknown> | null> {
   try {
-    const res = await fetch(`http://localhost:${port}/status`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`http://${SIDECAR_HOST}:${port}/status`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
     return res.json() as Promise<Record<string, unknown>>;
   } catch {
@@ -164,7 +165,7 @@ async function waitForState(backend: DockerBackend, config: GameConfig, desired:
 }
 
 async function restartWithConfig(port: number, configUrl: string): Promise<void> {
-  await fetch(`http://localhost:${port}/restart`, {
+  await fetch(`http://${SIDECAR_HOST}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ config_url: configUrl }),
@@ -195,8 +196,7 @@ export class DockerBackend implements Backend {
       const running = Boolean(sidecar.running);
       const ready = Boolean(sidecar.ready);
       const players = Number(sidecar.players ?? 0);
-      // For Docker, publicIp is the host machine's IP — callers use localhost
-      return { status: running && ready ? "online" : "starting", publicIp: "localhost", players, ready };
+      return { status: running && ready ? "online" : "starting", publicIp: SIDECAR_HOST, players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
     }

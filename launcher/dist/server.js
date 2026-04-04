@@ -100449,6 +100449,7 @@ var log = {
 // src/backends/docker.ts
 var SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
+var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 var MAX_POLLS2 = 20;
 var POLL_INTERVAL_MS2 = 3e3;
 function dockerRequest(method, path, body) {
@@ -100559,7 +100560,7 @@ function getHostPort(inspect, containerPort) {
 }
 async function getSidecarStatus2(port) {
   try {
-    const res = await fetch(`http://localhost:${port}/status`, { signal: AbortSignal.timeout(5e3) });
+    const res = await fetch(`http://${SIDECAR_HOST}:${port}/status`, { signal: AbortSignal.timeout(5e3) });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -100579,7 +100580,7 @@ async function waitForState2(backend2, config, desired) {
   return state2;
 }
 async function restartWithConfig2(port, configUrl) {
-  await fetch(`http://localhost:${port}/restart`, {
+  await fetch(`http://${SIDECAR_HOST}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN2}`, "Content-Type": "application/json" },
     body: JSON.stringify({ config_url: configUrl }),
@@ -100604,7 +100605,7 @@ var DockerBackend = class {
       const running = Boolean(sidecar.running);
       const ready = Boolean(sidecar.ready);
       const players = Number(sidecar.players ?? 0);
-      return { status: running && ready ? "online" : "starting", publicIp: "localhost", players, ready };
+      return { status: running && ready ? "online" : "starting", publicIp: SIDECAR_HOST, players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
     }

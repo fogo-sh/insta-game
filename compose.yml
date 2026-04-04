@@ -136,6 +136,8 @@ services:
     build:
       context: ./launcher
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -143,6 +145,7 @@ services:
     environment:
       BACKEND: "docker"
       PORT: "3000"
+      SIDECAR_HOST: "host.docker.internal"
       WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE:-gaming}"
       API_TOKEN: "${API_TOKEN:-gaming}"
       SIDECAR_TOKEN: "${SIDECAR_TOKEN:-abc123}"
