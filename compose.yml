@@ -144,6 +144,7 @@ services:
       - "127.0.0.1:3000:3000/tcp"
     environment:
       BACKEND: "docker"
+      DATA_DIR: "${PWD}"
       PORT: "3000"
       SIDECAR_HOST: "host.docker.internal"
       WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE:-gaming}"

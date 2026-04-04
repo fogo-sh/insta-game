@@ -100450,6 +100450,7 @@ var log = {
 var SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
 var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
+var DATA_DIR = process.env.DATA_DIR ?? "/data";
 var MAX_POLLS2 = 20;
 var POLL_INTERVAL_MS2 = 3e3;
 function dockerRequest(method, path, body) {
@@ -100529,7 +100530,11 @@ async function ensureContainer(c5) {
     portBindings[sidecarKey] = [{ HostIp: "127.0.0.1", HostPort: String(c5.sidecarPort) }];
     exposedPorts[sidecarKey] = {};
   }
-  const binds = (c5.volumes ?? []).map((v5) => v5);
+  const binds = (c5.volumes ?? []).map((v5) => {
+    const [hostPath, ...rest] = v5.split(":");
+    const absHost = hostPath.startsWith("/") ? hostPath : `${DATA_DIR}/${hostPath}`;
+    return [absHost, ...rest].join(":");
+  });
   const env = Object.entries(c5.environment ?? {}).map(([k5, v5]) => `${k5}=${v5}`);
   log.info(`docker: creating container ${c5.containerName}`);
   await dockerRequest("POST", `/containers/create?name=${encodeURIComponent(c5.containerName)}`, {

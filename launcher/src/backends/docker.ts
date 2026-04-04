@@ -5,6 +5,7 @@ import { log } from "../logger.js";
 const SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
 const SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
+const DATA_DIR = process.env.DATA_DIR ?? "/data";
 const MAX_POLLS = 20;
 const POLL_INTERVAL_MS = 3000;
 
@@ -105,7 +106,12 @@ async function ensureContainer(c: DockerGameConfig): Promise<void> {
     exposedPorts[sidecarKey] = {};
   }
 
-  const binds = (c.volumes ?? []).map(v => v);
+  const binds = (c.volumes ?? []).map(v => {
+    // Make relative host paths absolute using DATA_DIR
+    const [hostPath, ...rest] = v.split(":");
+    const absHost = hostPath.startsWith("/") ? hostPath : `${DATA_DIR}/${hostPath}`;
+    return [absHost, ...rest].join(":");
+  });
 
   const env = Object.entries(c.environment ?? {}).map(([k, v]) => `${k}=${v}`);
 
