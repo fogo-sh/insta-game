@@ -100467,10 +100467,19 @@ function dockerRequest(method, path, body) {
       res.on("data", (c5) => chunks.push(c5));
       res.on("end", () => {
         const text = Buffer.concat(chunks).toString();
-        try {
-          resolve(text ? JSON.parse(text) : null);
-        } catch {
-          resolve(text);
+        const parsed = (() => {
+          try {
+            return text ? JSON.parse(text) : null;
+          } catch {
+            return text;
+          }
+        })();
+        const status = res.statusCode ?? 0;
+        if (status < 200 || status >= 300) {
+          const message = parsed?.message ?? text;
+          reject(new Error(`Docker API ${method} ${path} \u2192 ${status}: ${message}`));
+        } else {
+          resolve(parsed);
         }
       });
     });
@@ -100548,7 +100557,12 @@ var DockerBackend = class {
   async startGame(config, configUrl) {
     const c5 = config;
     log.info(`docker: starting container ${c5.containerName}`);
-    await dockerRequest("POST", `/containers/${encodeURIComponent(c5.containerName)}/start`);
+    try {
+      await dockerRequest("POST", `/containers/${encodeURIComponent(c5.containerName)}/start`);
+    } catch (err) {
+      log.error(`docker: failed to start ${c5.containerName}`, err);
+      return { status: "offline", players: 0, ready: false };
+    }
     let state2 = await waitForState2(this, config, "online");
     if (configUrl && state2.status === "online") {
       const inspect = await inspectContainer(c5.containerName);
@@ -100564,7 +100578,12 @@ var DockerBackend = class {
   async stopGame(config) {
     const c5 = config;
     log.info(`docker: stopping container ${c5.containerName}`);
-    await dockerRequest("POST", `/containers/${encodeURIComponent(c5.containerName)}/stop?t=15`);
+    try {
+      await dockerRequest("POST", `/containers/${encodeURIComponent(c5.containerName)}/stop?t=15`);
+    } catch (err) {
+      log.error(`docker: failed to stop ${c5.containerName}`, err);
+      return { status: "offline", players: 0, ready: false };
+    }
     return waitForState2(this, config, "offline");
   }
 };

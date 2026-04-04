@@ -11,7 +11,7 @@ export interface DockerGameConfig extends GameConfig {
   containerName: string;
 }
 
-// Low-level Docker API call over Unix socket
+// Low-level Docker API call over Unix socket — rejects on non-2xx responses
 function dockerRequest(method: string, path: string, body?: unknown): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const bodyStr = body ? JSON.stringify(body) : undefined;
@@ -28,8 +28,14 @@ function dockerRequest(method: string, path: string, body?: unknown): Promise<un
       res.on("data", c => chunks.push(c));
       res.on("end", () => {
         const text = Buffer.concat(chunks).toString();
-        try { resolve(text ? JSON.parse(text) : null); }
-        catch { resolve(text); }
+        const parsed = (() => { try { return text ? JSON.parse(text) : null; } catch { return text; } })();
+        const status = res.statusCode ?? 0;
+        if (status < 200 || status >= 300) {
+          const message = (parsed as Record<string, unknown>)?.message ?? text;
+          reject(new Error(`Docker API ${method} ${path} → ${status}: ${message}`));
+        } else {
+          resolve(parsed);
+        }
       });
     });
     req.on("error", reject);
@@ -121,7 +127,12 @@ export class DockerBackend implements Backend {
   async startGame(config: GameConfig, configUrl?: string): Promise<GameState> {
     const c = config as DockerGameConfig;
     log.info(`docker: starting container ${c.containerName}`);
-    await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/start`);
+    try {
+      await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/start`);
+    } catch (err) {
+      log.error(`docker: failed to start ${c.containerName}`, err);
+      return { status: "offline", players: 0, ready: false };
+    }
     let state = await waitForState(this, config, "online");
     if (configUrl && state.status === "online") {
       const inspect = await inspectContainer(c.containerName);
@@ -138,8 +149,13 @@ export class DockerBackend implements Backend {
   async stopGame(config: GameConfig): Promise<GameState> {
     const c = config as DockerGameConfig;
     log.info(`docker: stopping container ${c.containerName}`);
-    // t=15 gives the container 15s to stop gracefully before SIGKILL
-    await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/stop?t=15`);
+    try {
+      // t=15 gives the container 15s to stop gracefully before SIGKILL
+      await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/stop?t=15`);
+    } catch (err) {
+      log.error(`docker: failed to stop ${c.containerName}`, err);
+      return { status: "offline", players: 0, ready: false };
+    }
     return waitForState(this, config, "offline");
   }
 }
