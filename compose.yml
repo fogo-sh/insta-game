@@ -130,7 +130,7 @@ services:
       # data/UnrealTournament.ini.
       DATA_URL: "${UT99_DATA_URL}"
     volumes:
-      - ./.cache/ut99:/opt/data
+      - ./.cache/ut99:/opt
 
   launcher:
     build:
@@ -251,6 +251,6 @@ services:
               "TOKEN": "${SIDECAR_TOKEN:-abc123}",
               "DATA_URL": "${UT99_DATA_URL:-}"
             },
-            "volumes": [".cache/ut99:/opt/data"]
+            "volumes": [".cache/ut99:/opt"]
           }
         }
