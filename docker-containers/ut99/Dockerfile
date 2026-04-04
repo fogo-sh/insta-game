@@ -24,6 +24,9 @@ COPY --chmod=755 docker-containers/ut99/start-ut99.sh /usr/local/bin/start-ut99.
 
 EXPOSE 7777/udp
 EXPOSE 7778/udp
+EXPOSE 7779/udp
+EXPOSE 7780/udp
+EXPOSE 7781/udp
 EXPOSE 5001/tcp
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

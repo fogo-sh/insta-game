@@ -124,7 +124,7 @@ security_group = aws.ec2.SecurityGroup(
         ),
         aws.ec2.SecurityGroupIngressArgs(
             from_port=7777,
-            to_port=7778,
+            to_port=7781,
             protocol="udp",
             cidr_blocks=["0.0.0.0/0"],
         ),
@@ -377,7 +377,12 @@ ut99 = GameService(
     cpu_architecture="ARM64",
     data_url=ut99_data_url,
     game_port=7777,
-    extra_port_mappings=[{"containerPort": 7778, "protocol": "udp"}],
+    extra_port_mappings=[
+        {"containerPort": 7778, "protocol": "udp"},
+        {"containerPort": 7779, "protocol": "udp"},
+        {"containerPort": 7780, "protocol": "udp"},
+        {"containerPort": 7781, "protocol": "udp"},
+    ],
     protocol="ut99",
     game_cmd="/usr/local/bin/start-ut99.sh",
     game_args=(
