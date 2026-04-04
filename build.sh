@@ -18,6 +18,8 @@ case "$GAME" in
     "$0" q2repro
     "$0" bzflag
     "$0" ut99
+    echo "==> Creating game containers (stopped)..."
+    docker compose up --no-start xonotic qssm q2repro bzflag ut99
     echo "==> All builds complete."
     exit 0
     ;;
