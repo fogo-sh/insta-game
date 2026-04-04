@@ -494,6 +494,7 @@ launcher_url = aws.lambda_.FunctionUrl(
     "launcher-url",
     function_name=launcher.name,
     authorization_type="NONE",
+    invoke_mode="RESPONSE_STREAM",
 )
 
 aws.lambda_.Permission(

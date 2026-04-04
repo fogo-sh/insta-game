@@ -432,18 +432,54 @@ function sanitizeHeaderValue(value) {
 var getRequestContext = (event) => {
   return event.requestContext;
 };
-var handle = (app2, { isContentTypeBinary } = { isContentTypeBinary: void 0 }) => {
-  return async (event, lambdaContext) => {
-    const processor = getProcessor(event);
-    const req = processor.createRequest(event);
-    const requestContext = getRequestContext(event);
-    const res = await app2.fetch(req, {
-      event,
-      requestContext,
-      lambdaContext
-    });
-    return processor.createResult(event, res, { isContentTypeBinary });
-  };
+var streamToNodeStream = async (reader, writer) => {
+  let readResult = await reader.read();
+  while (!readResult.done) {
+    writer.write(readResult.value);
+    readResult = await reader.read();
+  }
+  writer.end();
+};
+var streamHandle = (app2) => {
+  return awslambda.streamifyResponse(
+    async (event, responseStream, context) => {
+      const processor = getProcessor(event);
+      try {
+        const req = processor.createRequest(event);
+        const requestContext = getRequestContext(event);
+        const res = await app2.fetch(req, {
+          event,
+          requestContext,
+          context
+        });
+        const headers = {};
+        const cookies = [];
+        res.headers.forEach((value, name) => {
+          if (name === "set-cookie") {
+            cookies.push(value);
+          } else {
+            headers[name] = value;
+          }
+        });
+        const httpResponseMetadata = {
+          statusCode: res.status,
+          headers,
+          cookies
+        };
+        responseStream = awslambda.HttpResponseStream.from(responseStream, httpResponseMetadata);
+        if (res.body) {
+          await streamToNodeStream(res.body.getReader(), responseStream);
+        } else {
+          responseStream.write("");
+        }
+      } catch (error) {
+        console.error("Error processing request:", error);
+        responseStream.write("Internal Server Error");
+      } finally {
+        responseStream.end();
+      }
+    }
+  );
 };
 var EventProcessor = class {
   getHeaderValue(headers, key) {
@@ -3859,6 +3895,15 @@ var initScript = `
   var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
   var logStreams = {};
 
+  function appendLogLine(game, text) {
+    var lines = document.getElementById("log-lines-" + game);
+    var line = document.createElement("div");
+    line.className = "log-line";
+    line.textContent = text;
+    lines.appendChild(line);
+    lines.scrollTop = lines.scrollHeight;
+  }
+
   function showPanel(pp) {
     var auth = document.getElementById("auth");
     var panel = document.getElementById("panel");
@@ -3899,23 +3944,19 @@ var initScript = `
     }
     var pp = sessionStorage.getItem(SESSION_KEY) || "";
     if (!logStreams[game]) {
-      var lines = document.getElementById("log-lines-" + game);
+      appendLogLine(game, "[opening log stream]");
       var source = new EventSource("/logs?game=" + game + "&token=" + encodeURIComponent(pp));
 
+      source.onopen = function() {
+        appendLogLine(game, "[log stream open]");
+      };
+
       source.addEventListener("log", function(event) {
-        var line = document.createElement("div");
-        line.className = "log-line";
-        line.textContent = event.data;
-        lines.appendChild(line);
-        lines.scrollTop = lines.scrollHeight;
+        appendLogLine(game, event.data);
       });
 
       source.onerror = function() {
-        var line = document.createElement("div");
-        line.className = "log-line";
-        line.textContent = "[log stream disconnected]";
-        lines.appendChild(line);
-        lines.scrollTop = lines.scrollHeight;
+        appendLogLine(game, "[log stream disconnected]");
         source.close();
         delete logStreams[game];
       };
@@ -4098,20 +4139,30 @@ function createApp(backend2) {
     }
     const sidecarUrl = `http://${state.publicIp}:${config.sidecarPort}/logs`;
     return streamSSE(c, async (stream2) => {
+      await stream2.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
       let res;
       try {
         res = await fetch(sidecarUrl, {
           headers: { Authorization: `Bearer ${SIDECAR_TOKEN3}` },
           signal: c.req.raw.signal
         });
-      } catch {
+      } catch (error) {
+        await stream2.writeSSE({
+          data: `[log proxy error: ${error instanceof Error ? error.message : String(error)}]`,
+          event: "log"
+        });
         await stream2.close();
         return;
       }
       if (!res.ok || !res.body) {
+        await stream2.writeSSE({
+          data: `[log proxy error: sidecar returned HTTP ${res.status}]`,
+          event: "log"
+        });
         await stream2.close();
         return;
       }
+      await stream2.writeSSE({ data: `[connected to ${game} logs]`, event: "log" });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -4151,7 +4202,7 @@ function createApp(backend2) {
 // src/index.ts
 var backend = createBackend();
 var app = createApp(backend);
-var handler = handle(app);
+var handler = streamHandle(app);
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   handler

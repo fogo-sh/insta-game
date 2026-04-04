@@ -41,6 +41,15 @@ const initScript = `
   var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
   var logStreams = {};
 
+  function appendLogLine(game, text) {
+    var lines = document.getElementById("log-lines-" + game);
+    var line = document.createElement("div");
+    line.className = "log-line";
+    line.textContent = text;
+    lines.appendChild(line);
+    lines.scrollTop = lines.scrollHeight;
+  }
+
   function showPanel(pp) {
     var auth = document.getElementById("auth");
     var panel = document.getElementById("panel");
@@ -81,23 +90,19 @@ const initScript = `
     }
     var pp = sessionStorage.getItem(SESSION_KEY) || "";
     if (!logStreams[game]) {
-      var lines = document.getElementById("log-lines-" + game);
+      appendLogLine(game, "[opening log stream]");
       var source = new EventSource("/logs?game=" + game + "&token=" + encodeURIComponent(pp));
 
+      source.onopen = function() {
+        appendLogLine(game, "[log stream open]");
+      };
+
       source.addEventListener("log", function(event) {
-        var line = document.createElement("div");
-        line.className = "log-line";
-        line.textContent = event.data;
-        lines.appendChild(line);
-        lines.scrollTop = lines.scrollHeight;
+        appendLogLine(game, event.data);
       });
 
       source.onerror = function() {
-        var line = document.createElement("div");
-        line.className = "log-line";
-        line.textContent = "[log stream disconnected]";
-        lines.appendChild(line);
-        lines.scrollTop = lines.scrollHeight;
+        appendLogLine(game, "[log stream disconnected]");
         source.close();
         delete logStreams[game];
       };

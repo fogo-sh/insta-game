@@ -101,21 +101,33 @@ export function createApp(backend: Backend): Hono {
     const sidecarUrl = `http://${state.publicIp}:${config.sidecarPort}/logs`;
 
     return streamSSE(c, async stream => {
+      await stream.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
+
       let res: Response;
       try {
         res = await fetch(sidecarUrl, {
           headers: { Authorization: `Bearer ${SIDECAR_TOKEN}` },
           signal: c.req.raw.signal,
         });
-      } catch {
+      } catch (error) {
+        await stream.writeSSE({
+          data: `[log proxy error: ${error instanceof Error ? error.message : String(error)}]`,
+          event: "log",
+        });
         await stream.close();
         return;
       }
 
       if (!res.ok || !res.body) {
+        await stream.writeSSE({
+          data: `[log proxy error: sidecar returned HTTP ${res.status}]`,
+          event: "log",
+        });
         await stream.close();
         return;
       }
+
+      await stream.writeSSE({ data: `[connected to ${game} logs]`, event: "log" });
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
