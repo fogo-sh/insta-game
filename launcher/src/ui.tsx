@@ -10,15 +10,19 @@ const css = `
   #auth { max-width: 400px; }
   #auth input { width: 100%; padding: .5rem; background: #222; color: #eee; border: 1px solid #444; margin-bottom: .5rem; font-family: monospace; }
   #auth button { padding: .5rem 1rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
+  #auth button:disabled { opacity: .6; cursor: wait; }
   .games { display: flex; gap: 1rem; flex-wrap: wrap; }
   .game { background: #1a1a1a; border: 1px solid #333; padding: 1rem; min-width: 200px; }
   .game h2 { margin-bottom: .75rem; font-size: 1rem; }
   .status { margin-bottom: .75rem; font-size: .85rem; color: #aaa; }
   .status.online { color: #4f4; }
   .status.starting { color: #fa4; }
+  .status-indicator { display: none; margin-left: .5rem; color: #8cf; }
+  .status-indicator.htmx-request { display: inline; }
   .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
   .actions button { padding: .4rem .8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
   .actions button:hover { background: #444; }
+  .actions button:disabled { opacity: .6; cursor: wait; }
   dialog { background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); display: flex; flex-direction: column; }
   dialog::backdrop { background: rgba(0,0,0,0.7); }
   .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: 1px solid #333; font-size: .85rem; }
@@ -50,17 +54,28 @@ const initScript = `
 
   window.authenticate = function() {
     var val = document.getElementById("passphrase").value;
+    var unlockButton = document.getElementById("unlock-button");
     if (!val) return;
+    unlockButton.disabled = true;
+    unlockButton.textContent = "unlocking...";
     sessionStorage.setItem(SESSION_KEY, val);
     passphrase = val;
     showPanel(val);
   };
 
-  window.toggleLogs = function(game) {
+  window.toggleLogs = function(game, button) {
     var dialog = document.getElementById("log-dialog-" + game);
     if (dialog.open) {
       dialog.close();
+      if (button) {
+        button.disabled = false;
+        button.textContent = "logs";
+      }
       return;
+    }
+    if (button) {
+      button.disabled = true;
+      button.textContent = "opening...";
     }
     var pp = sessionStorage.getItem(SESSION_KEY) || "";
     var inner = document.getElementById("log-sse-" + game);
@@ -77,6 +92,10 @@ const initScript = `
       observer.observe(lines, { childList: true });
     }
     dialog.showModal();
+    if (button) {
+      button.disabled = false;
+      button.textContent = "logs";
+    }
   };
 
   window.logout = function() {
@@ -109,12 +128,17 @@ const GameCard: FC<GameCardProps> = ({ game }) => (
       <button
         hx-post={`/?game=${game}&operation=start`}
         hx-target={`#status-${game}`}
+        hx-indicator={`#status-indicator-${game}`}
+        hx-disabled-elt={`#game-${game} .actions button`}
       >start</button>
       <button
         hx-post={`/?game=${game}&operation=stop`}
         hx-target={`#status-${game}`}
+        hx-indicator={`#status-indicator-${game}`}
+        hx-disabled-elt={`#game-${game} .actions button`}
       >stop</button>
-      <button onclick={`toggleLogs('${game}')`}>logs</button>
+      <button onclick={`toggleLogs('${game}', this)`}>logs</button>
+      <span class="status-indicator" id={`status-indicator-${game}`}>requesting...</span>
     </div>
   </div>
 );
@@ -141,7 +165,7 @@ export function renderUi(games: string[]): string {
             spellcheck={false}
             style="letter-spacing: 0.15em;"
           />
-          <button onclick="authenticate()">unlock</button>
+          <button id="unlock-button" onclick="authenticate()">unlock</button>
         </div>
 
         <div id="panel" style="display:none" hx-headers="{}">
