@@ -33,6 +33,7 @@ type cfg struct {
 	DataURL         string
 	DefaultConfig   string
 	ConfigPath      string
+	RconPassword    string
 	UserAgent       string
 	Token           string
 	IdleTimeout     time.Duration
@@ -63,6 +64,7 @@ func loadConfig() cfg {
 		DataURL:         envOr("DATA_URL", ""),
 		DefaultConfig:   envOr("DEFAULT_CONFIG_PATH", "/opt/default-server.cfg"),
 		ConfigPath:      envOr("CONFIG_PATH", "/opt/data/server.cfg"),
+		RconPassword:    envOr("RCON_PASSWORD", ""),
 		UserAgent:       envOr("DOWNLOAD_USER_AGENT", ""),
 		Token:           envOr("TOKEN", "abc123"),
 		IdleTimeout:     time.Duration(idleTimeout) * time.Second,
@@ -413,6 +415,10 @@ func main() {
 
 	if err := downloadData(c.DataURL, c.DefaultConfig, c.ConfigPath, c.UserAgent); err != nil {
 		log.Fatalf("SIDECAR: data download failed: %v", err)
+	}
+
+	if err := configureRcon(c.Protocol, c.ConfigPath, c.RconPassword); err != nil {
+		log.Fatalf("SIDECAR: rcon setup failed: %v", err)
 	}
 
 	if err := startGame(c); err != nil {

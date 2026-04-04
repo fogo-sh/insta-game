@@ -15,6 +15,7 @@ services:
       GAME_ARGS: ""
       GAME_QUIT_CMD: "exit"
       GAME_QUIT_TIMEOUT: "30"
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
       # DATA_URL is optional for Xonotic — a default server.cfg is bundled.
       # Set it to supply a custom server.cfg, e.g.:
@@ -33,10 +34,11 @@ services:
     environment:
       PROTOCOL: "quake1"
       GAME_CMD: "./qssm"
-      GAME_ARGS: "-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg"
+      GAME_ARGS: "-dedicated 12 -basedir /opt -game omicron -port 26000 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
       CONFIG_PATH: "/opt/id1/server.cfg"
+      RCON_PASSWORD: "${QSSM_RCON_PASSWORD:-${RCON_PASSWORD:-abc123}}"
       TOKEN: "abc123"
       # DATA_URL is required for QSS-M — Quake pak files are commercial and not bundled.
       # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
@@ -63,6 +65,7 @@ services:
       GAME_QUIT_TIMEOUT: "15"
       GAME_PORT: "27910"
       CONFIG_PATH: "/opt/baseq2/server.cfg"
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
       # DATA_URL is required for q2repro — Quake II pak files are commercial and not bundled.
       # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
@@ -90,6 +93,7 @@ services:
       GAME_QUIT_TIMEOUT: "15"
       GAME_PORT: "5154"
       CONFIG_PATH: "/opt/data/server.cfg"
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
       # DATA_URL is optional for BZFlag; a private random-map config is bundled.
       # Set it to supply a custom bzfs config file.
@@ -119,6 +123,7 @@ services:
       GAME_QUIT_TIMEOUT: "15"
       GAME_PORT: "7777"
       CONFIG_PATH: "/opt/data/UnrealTournament.ini"
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
       # DATA_URL is required for UT99 GOTY — game assets and binaries are not bundled.
       # Set UT99_DATA_URL in .env to a zip that extracts into /opt and optionally includes

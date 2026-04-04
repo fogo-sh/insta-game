@@ -55,6 +55,14 @@ UT99_DATA_URL="https://example.com/ut99.zip" docker compose up ut99
 
 Downloaded data is cached in `.cache/<game>/` and reused on subsequent runs — the sidecar skips the download if it already has a sentinel file from a previous successful fetch.
 
+Set `RCON_PASSWORD` in your local `.env` to configure the admin password for
+all game servers. `QSSM_RCON_PASSWORD` can override only QSS-M. In-game admin
+login commands differ by engine:
+
+- Xonotic, QSS-M, q2repro: `rcon_password <password>`
+- BZFlag: `/password <password>`
+- UT99: `adminlogin <password>`
+
 For Xonotic and BZFlag, `DATA_URL` is optional because each image ships with a default config. Set it only if you want to supply a custom config:
 
 ```sh
@@ -98,6 +106,7 @@ Set required config:
 uv run pulumi config set --secret sidecarToken <token>
 uv run pulumi config set defaultDataUrl <data-url>
 uv run pulumi config set xonoticDataUrl <xonotic-data-url>
+uv run pulumi config set --secret rconPassword <rcon-password>
 uv run pulumi config set qssmDataUrl <quake1-data-url>
 uv run pulumi config set q2reproDataUrl <quake2-data-url>
 uv run pulumi config set bzflagDataUrl <bzflag-config-url>

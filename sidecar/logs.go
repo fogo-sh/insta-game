@@ -14,8 +14,8 @@ type RingLog struct {
 	head int // index of the oldest entry (wraps)
 	size int // number of valid entries (<= cap)
 
-	partial string // incomplete line fragment waiting for a newline
-	pendingCR bool // previous write ended with \r, so skip a leading \n next write
+	partial   string // incomplete line fragment waiting for a newline
+	pendingCR bool   // previous write ended with \r, so skip a leading \n next write
 
 	subs map[int]chan string
 	next int // next subscriber ID

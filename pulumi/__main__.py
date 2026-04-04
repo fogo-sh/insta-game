@@ -25,6 +25,8 @@ cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get("defaultDataUrl")
 xonotic_data_url = config.get("xonoticDataUrl") or default_data_url
 qss_m_data_url = config.get("qssmDataUrl") or default_data_url
+rcon_password = config.get_secret("rconPassword") or sidecar_token
+qssm_rcon_password = config.get_secret("qssmRconPassword") or rcon_password
 q2repro_data_url = config.get("q2reproDataUrl") or default_data_url
 bzflag_data_url = config.get("bzflagDataUrl") or default_data_url
 ut99_data_url = config.get("ut99DataUrl") or default_data_url
@@ -280,6 +282,7 @@ xonotic = GameService(
     game_args="",
     game_quit_cmd="exit",
     game_quit_timeout=30,
+    rcon_password=rcon_password,
 )
 
 qssm = GameService(
@@ -300,10 +303,11 @@ qssm = GameService(
     data_url=qss_m_data_url,
     protocol="quake1",
     game_cmd="./qssm",
-    game_args="-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg",
+    game_args="-dedicated 12 -basedir /opt -game omicron -port 26000 +exec server.cfg",
     game_quit_cmd="quit",
     game_quit_timeout=15,
     config_path="/opt/id1/server.cfg",
+    rcon_password=qssm_rcon_password,
 )
 
 q2repro = GameService(
@@ -332,6 +336,7 @@ q2repro = GameService(
     game_quit_cmd="quit",
     game_quit_timeout=15,
     config_path="/opt/baseq2/server.cfg",
+    rcon_password=rcon_password,
 )
 
 bzflag = GameService(
@@ -358,6 +363,7 @@ bzflag = GameService(
     game_quit_cmd="quit",
     game_quit_timeout=15,
     config_path="/opt/data/server.cfg",
+    rcon_password=rcon_password,
 )
 
 ut99 = GameService(
@@ -392,6 +398,7 @@ ut99 = GameService(
     game_quit_cmd="exit",
     game_quit_timeout=15,
     config_path="/opt/data/UnrealTournament.ini",
+    rcon_password=rcon_password,
 )
 
 # ---- Lambda ----

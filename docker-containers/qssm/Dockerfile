@@ -6,6 +6,7 @@ RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
 FROM debian:bookworm-slim AS qssm-builder
 
 ARG QSSM_VERSION=1.6.5
+ARG OMICRON_URL=https://s3.amazonaws.com/neogeographica-downloads/mods/obots/obots102-fixed.zip
 
 WORKDIR /src
 
@@ -22,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopusfile-dev \
     libsdl2-dev \
     libvorbis-dev \
+    unzip \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -34,11 +36,16 @@ RUN curl -L \
     && install -m 0644 Quake/quakespasm.pak /usr/local/share/quakespasm.pak \
     && install -m 0644 Quake/qssm.pak /usr/local/share/qssm.pak
 
+RUN curl -fsSL "${OMICRON_URL}" -o /tmp/obots102-fixed.zip \
+    && unzip -q /tmp/obots102-fixed.zip -d /opt \
+    && rm -f /tmp/obots102-fixed.zip
+
 FROM debian:bookworm-slim
 
 COPY --from=qssm-builder /usr/local/bin/qssm /opt/qssm
 COPY --from=qssm-builder /usr/local/share/quakespasm.pak /opt/quakespasm.pak
 COPY --from=qssm-builder /usr/local/share/qssm.pak /opt/qssm.pak
+COPY --from=qssm-builder /opt/omicron /opt/omicron
 
 WORKDIR /opt
 
