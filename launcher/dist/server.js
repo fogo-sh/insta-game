@@ -100605,7 +100605,7 @@ var DockerBackend = class {
       const running = Boolean(sidecar.running);
       const ready = Boolean(sidecar.ready);
       const players = Number(sidecar.players ?? 0);
-      return { status: running && ready ? "online" : "starting", publicIp: SIDECAR_HOST, players, ready };
+      return { status: running && ready ? "online" : "starting", publicIp: "localhost", players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
     }
