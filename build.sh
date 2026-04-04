@@ -5,11 +5,31 @@ GAME=$1
 
 if [ -z "$GAME" ]; then
   echo "Usage: $0 <game>"
-  echo "  Games: xonotic, qssm, q2repro, bzflag, ut99"
+  echo "  Games: xonotic, qssm, q2repro, bzflag, ut99, launcher, all"
   exit 1
 fi
 
 case "$GAME" in
+  all)
+    echo "==> Building all services..."
+    "$0" launcher
+    "$0" xonotic
+    "$0" qssm
+    "$0" q2repro
+    "$0" bzflag
+    "$0" ut99
+    echo "==> All builds complete."
+    exit 0
+    ;;
+  launcher)
+    echo "==> Building launcher bundle..."
+    cd launcher
+    npm install
+    npm run build:docker
+    cd ..
+    echo "==> Building launcher image..."
+    docker compose build launcher
+    ;;
   xonotic)
     echo "==> Preparing Xonotic build context..."
     cd docker-containers/xonotic
@@ -93,7 +113,7 @@ case "$GAME" in
     ;;
   *)
     echo "Unknown game: $GAME"
-    echo "  Games: xonotic, qssm, q2repro, bzflag, ut99"
+    echo "  Games: xonotic, qssm, q2repro, bzflag, ut99, launcher, all"
     exit 1
     ;;
 esac
