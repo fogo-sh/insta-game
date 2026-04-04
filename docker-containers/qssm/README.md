@@ -36,10 +36,8 @@ until valid `pak0.pak` and `pak1.pak` files are present in `/opt/id1`.
 
 ## RCON
 
-Set `RCON_PASSWORD` in your local `.env` before `docker compose up qssm`, or
-use `QSSM_RCON_PASSWORD` if you want a QSS-M-specific override. In production,
-set the Pulumi secret `rconPassword`, with `qssmRconPassword` as an optional
-QSS-M-only override.
+Set `RCON_PASSWORD` in your local `.env` before `docker compose up qssm`.
+In production, set the Pulumi secret `rconPassword`.
 
 From a QSS-M client console:
 

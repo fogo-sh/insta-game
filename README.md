@@ -1,11 +1,16 @@
 # insta-game
 
-`insta-game` is an on-demand game server system for AWS. A public Lambda Function URL starts and stops an ECS Fargate game server, so the service can sit at zero tasks when idle and only run when players need it.
+`insta-game` runs on-demand dedicated game servers in one of two modes:
+
+- **AWS deployment**: Pulumi provisions Lambda + ECS Fargate, and the launcher starts/stops game tasks in AWS.
+- **Local/self-hosted deployment**: Docker Compose runs the launcher plus game containers on one machine, and the launcher controls local containers through the Docker socket.
+
+These modes are separate. Use the Pulumi workflow for AWS, or use `docker compose` for local/self-hosted runs. You do not need Docker Compose for the AWS deployment path.
 
 ## Repository Layout
 
 - `pulumi/`: AWS infrastructure in Python, managed with `uv`
-- `launcher/`: Hono app — Lambda handler (AWS) and Docker backend (self-hosted)
+- `launcher/`: Hono app with two backends: Lambda handler for AWS, Docker API backend for self-hosted Compose
 - `sidecar/`: Go sidecar binary — HTTP control API and process manager for game containers
 - `docker-containers/xonotic/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
 - `docker-containers/qssm/`: QSS-M Quake 1 server image and local build scripts
@@ -13,7 +18,10 @@
 - `docker-containers/bzflag/`: BZFlag server image and local build scripts
 - `docker-containers/ut99/`: Unreal Tournament GOTY server image and local build scripts
 
-## Local Workflow
+## Self-Hosted Docker Workflow
+
+Use this path when you want to run the launcher and game servers locally with
+Docker Compose instead of deploying AWS infrastructure.
 
 From the repo root:
 
@@ -56,8 +64,7 @@ UT99_DATA_URL="https://example.com/ut99.zip" docker compose up ut99
 Downloaded data is cached in `.cache/<game>/` and reused on subsequent runs — the sidecar skips the download if it already has a sentinel file from a previous successful fetch.
 
 Set `RCON_PASSWORD` in your local `.env` to configure the admin password for
-all game servers. `QSSM_RCON_PASSWORD` can override only QSS-M. In-game admin
-login commands differ by engine:
+all game servers. In-game admin login commands differ by engine:
 
 - Xonotic, QSS-M, q2repro: `rcon_password <password>`
 - BZFlag: `/password <password>`
@@ -82,13 +89,32 @@ include `data/UnrealTournament.ini` to override the bundled default config:
 UT99_DATA_URL="https://example.com/ut99.zip" docker compose up ut99
 ```
 
+To run the local launcher UI/API against those Docker-managed game containers:
+
+```sh
+cd launcher
+npm install
+npm run build:docker
+cd ..
+docker compose up launcher
+```
+
+Set `WEB_UI_PASSPHRASE`, `API_TOKEN`, and `SIDECAR_TOKEN` in `.env` if you do
+not want the default local values from `compose.yml`.
+
+The launcher will be available at `http://localhost:3000`. It manages the game
+containers through the mounted Docker socket.
+
 Local sidecar status:
 
 ```sh
 curl http://127.0.0.1:5001/status
 ```
 
-## Infrastructure Workflow
+## AWS Infrastructure Workflow
+
+Use this path when you want Lambda + ECS Fargate on AWS. This workflow does not
+use `docker compose`.
 
 From `pulumi/`:
 
@@ -100,24 +126,44 @@ uv run pulumi preview
 uv run pulumi up
 ```
 
-Set required config:
+Set required stack config:
 
 ```sh
-uv run pulumi config set --secret sidecarToken <token>
-uv run pulumi config set defaultDataUrl <data-url>
-uv run pulumi config set xonoticDataUrl <xonotic-data-url>
+# Launcher auth
+uv run pulumi config set --secret webUiPassphrase <passphrase>
+uv run pulumi config set --secret apiToken <token>
+
+# In-game admin auth
 uv run pulumi config set --secret rconPassword <rcon-password>
+
+# Discord integration
+uv run pulumi config set --secret discordPublicKey <public-key>
+uv run pulumi config set --secret discordBotToken <bot-token>
+uv run pulumi config set discordAppId <app-id>
+
+# Billing alerts
+uv run pulumi config set budgetAlertEmail <email>
+```
+
+Optional stack config:
+
+```sh
+# Shared fallback asset/config URL for every game service
+uv run pulumi config set defaultDataUrl <data-url>
+
+# Per-game DATA_URL overrides
+uv run pulumi config set xonoticDataUrl <xonotic-data-url>
 uv run pulumi config set qssmDataUrl <quake1-data-url>
 uv run pulumi config set q2reproDataUrl <quake2-data-url>
 uv run pulumi config set bzflagDataUrl <bzflag-config-url>
 uv run pulumi config set ut99DataUrl <ut99-zip-url>
-uv run pulumi config set --secret webUiPassphrase <passphrase>
-uv run pulumi config set --secret apiToken <token>
-uv run pulumi config set --secret discordPublicKey <public-key>
-uv run pulumi config set --secret discordBotToken <bot-token>
-uv run pulumi config set discordAppId <app-id>
-uv run pulumi config set budgetAlertEmail <email>
+
+# Network and budget defaults
+uv run pulumi config set cidrBlock 172.16.0.0/16
 uv run pulumi config set monthlyBudgetLimitUsd 50
+
+# Custom domain
+uv run pulumi config set customDomainHostname <games-hostname>
 uv run pulumi config set enableCustomDomain false
 ```
 
@@ -146,6 +192,8 @@ If you use temporary credentials, also set `AWS_SESSION_TOKEN`.
 
 `monthlyBudgetLimitUsd` creates AWS Budget email alerts at 50%, 80%, and 100%
 forecasted spend.
+
+`cidrBlock` defaults to `172.16.0.0/16`.
 
 `customDomainHostname` is only required when `enableCustomDomain=true`.
 
@@ -209,35 +257,21 @@ uv run pulumi stack output prod_url
 Examples:
 
 ```sh
-curl "<prod_url>?game=xonotic&operation=start"
-curl "<prod_url>?game=qssm&operation=start"
-curl "<prod_url>?game=q2repro&operation=start"
-curl "<prod_url>?game=bzflag&operation=start"
-curl "<prod_url>?game=ut99&operation=start"
-curl "<prod_url>?game=xonotic"
-curl "<prod_url>?game=xonotic&operation=stop"
+# Web UI routes (HTML responses, passphrase auth for start/stop/status actions)
+curl "<prod_url>/"
+curl -H "x-passphrase: <passphrase>" "<prod_url>/?game=xonotic&operation=status"
+curl -H "x-passphrase: <passphrase>" "<prod_url>/?game=xonotic&operation=start"
+curl -H "x-passphrase: <passphrase>" "<prod_url>/?game=xonotic&operation=stop"
+
+# JSON API routes
+curl -H "x-api-token: <api-token>" "<prod_url>/api?game=xonotic"
+curl -H "x-api-token: <api-token>" "<prod_url>/api?game=qssm&operation=start"
+curl -H "x-api-token: <api-token>" "<prod_url>/api?game=q2repro&operation=stop"
+
+# Log stream proxy for a running game (SSE)
+curl -N "<prod_url>/logs?game=xonotic&token=<passphrase>"
+
+# Same operations work for each game key
+curl -H "x-api-token: <api-token>" "<prod_url>/api?game=bzflag&operation=start"
+curl -H "x-api-token: <api-token>" "<prod_url>/api?game=ut99&operation=start"
 ```
-
-## Self-hosted (Docker)
-
-The launcher can run locally against Docker instead of ECS.
-
-1. Build the Docker bundle:
-   ```sh
-   cd launcher
-   npm run build:docker
-   ```
-
-2. Set environment variables in `.env`:
-   ```
-   WEB_UI_PASSPHRASE=your-passphrase
-   API_TOKEN=your-api-token
-   SIDECAR_TOKEN=abc123
-   ```
-
-3. Start everything:
-   ```sh
-   docker compose up launcher
-   ```
-
-The launcher will be available at `http://localhost:3000`. It manages the other game containers via the Docker socket.

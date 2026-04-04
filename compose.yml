@@ -38,7 +38,7 @@ services:
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
       CONFIG_PATH: "/opt/id1/server.cfg"
-      RCON_PASSWORD: "${QSSM_RCON_PASSWORD:-${RCON_PASSWORD:-abc123}}"
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
       # DATA_URL is required for QSS-M — Quake pak files are commercial and not bundled.
       # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.

@@ -3,11 +3,11 @@ import json
 
 import pulumi
 import pulumi_aws as aws
+import pulumi_random as random
 
 from game_service import GameService
 
 config = pulumi.Config()
-sidecar_token = config.require_secret("sidecarToken")
 web_ui_passphrase = config.require_secret("webUiPassphrase")
 api_token = config.require_secret("apiToken")
 discord_public_key = config.require_secret("discordPublicKey")
@@ -25,14 +25,19 @@ cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get("defaultDataUrl")
 xonotic_data_url = config.get("xonoticDataUrl") or default_data_url
 qss_m_data_url = config.get("qssmDataUrl") or default_data_url
-rcon_password = config.get_secret("rconPassword") or sidecar_token
-qssm_rcon_password = config.get_secret("qssmRconPassword") or rcon_password
+rcon_password = config.require_secret("rconPassword")
 q2repro_data_url = config.get("q2reproDataUrl") or default_data_url
 bzflag_data_url = config.get("bzflagDataUrl") or default_data_url
 ut99_data_url = config.get("ut99DataUrl") or default_data_url
 region_code = aws.get_region().region
 account_id = aws.get_caller_identity().account_id
 account_suffix = account_id[-6:]
+
+sidecar_token = random.RandomPassword(
+    "sidecar-token",
+    length=40,
+    special=False,
+).result
 
 
 def regional_name(*parts: str) -> str:
@@ -307,7 +312,7 @@ qssm = GameService(
     game_quit_cmd="quit",
     game_quit_timeout=15,
     config_path="/opt/id1/server.cfg",
-    rcon_password=qssm_rcon_password,
+    rcon_password=rcon_password,
 )
 
 q2repro = GameService(
