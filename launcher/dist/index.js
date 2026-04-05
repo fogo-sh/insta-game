@@ -501,8 +501,8 @@ var EventProcessor = class {
   createRequest(event) {
     const queryString = this.getQueryString(event);
     const domainName = this.getDomainName(event);
-    const path = this.getPath(event);
-    const urlPath = `https://${domainName}${path}`;
+    const path2 = this.getPath(event);
+    const urlPath = `https://${domainName}${path2}`;
     const url = queryString ? `${urlPath}?${queryString}` : urlPath;
     const headers = this.getHeaders(event);
     const method = this.getMethod(event);
@@ -849,16 +849,56 @@ async function restartWithConfig(ip, port, configUrl) {
 
 // src/backends/docker.ts
 var import_http = __toESM(require("http"));
+
+// src/game-definitions.ts
+var import_fs = require("fs");
+var import_path = __toESM(require("path"));
+function loadDockerGameDefinitions(repoRoot) {
+  const dockerRoot = import_path.default.join(repoRoot, "docker-containers");
+  const entries = (0, import_fs.readdirSync)(dockerRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  const definitions = [];
+  for (const entry of entries) {
+    const gameDir = import_path.default.join(dockerRoot, entry);
+    const dockerfilePath = import_path.default.join(gameDir, "Dockerfile");
+    const metadataPath = import_path.default.join(gameDir, "game.json");
+    try {
+      const metadata = JSON.parse((0, import_fs.readFileSync)(metadataPath, "utf8"));
+      (0, import_fs.readFileSync)(dockerfilePath, "utf8");
+      definitions.push(metadata);
+    } catch {
+      continue;
+    }
+  }
+  return definitions;
+}
+
+// src/logger.ts
+function ts() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+var log = {
+  info: (msg) => console.log(`${ts()} INFO  ${msg}`),
+  warn: (msg) => console.warn(`${ts()} WARN  ${msg}`),
+  error: (msg, err) => {
+    const detail = err instanceof Error ? ` \u2014 ${err.message}` : err != null ? ` \u2014 ${String(err)}` : "";
+    console.error(`${ts()} ERROR ${msg}${detail}`);
+  }
+};
+
+// src/backends/docker.ts
 var SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
+var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
+var DATA_DIR = process.env.DATA_DIR ?? "/data";
 var MAX_POLLS2 = 20;
 var POLL_INTERVAL_MS2 = 3e3;
-function dockerRequest(method, path, body) {
+var RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
+function dockerRequest(method, path2, body) {
   return new Promise((resolve, reject) => {
     const bodyStr = body ? JSON.stringify(body) : void 0;
     const req = import_http.default.request({
       socketPath: SOCKET,
-      path,
+      path: path2,
       method,
       headers: {
         "Content-Type": "application/json",
@@ -869,10 +909,19 @@ function dockerRequest(method, path, body) {
       res.on("data", (c) => chunks.push(c));
       res.on("end", () => {
         const text = Buffer.concat(chunks).toString();
-        try {
-          resolve(text ? JSON.parse(text) : null);
-        } catch {
-          resolve(text);
+        const parsed = (() => {
+          try {
+            return text ? JSON.parse(text) : null;
+          } catch {
+            return text;
+          }
+        })();
+        const status = res.statusCode ?? 0;
+        if (status < 200 || status >= 300) {
+          const message = parsed?.message ?? text;
+          reject(new Error(`Docker API ${method} ${path2} \u2192 ${status}: ${message}`));
+        } else {
+          resolve(parsed);
         }
       });
     });
@@ -880,6 +929,65 @@ function dockerRequest(method, path, body) {
     if (bodyStr) req.write(bodyStr);
     req.end();
   });
+}
+function pullImage(image) {
+  return new Promise((resolve, reject) => {
+    const req = import_http.default.request({
+      socketPath: SOCKET,
+      path: `/images/create?fromImage=${encodeURIComponent(image)}`,
+      method: "POST"
+    }, (res) => {
+      res.on("data", () => {
+      });
+      res.on("end", () => {
+        const status = res.statusCode ?? 0;
+        if (status < 200 || status >= 300) {
+          reject(new Error(`Docker pull ${image} \u2192 ${status}`));
+        } else {
+          resolve();
+        }
+      });
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+async function ensureContainer(c) {
+  const existing = await inspectContainer(c.containerName);
+  if (existing) return;
+  log.info(`docker: image pull ${c.image}`);
+  await pullImage(c.image);
+  log.info(`docker: pulled ${c.image}`);
+  const portBindings = {};
+  const exposedPorts = {};
+  for (const [containerPort, binding] of Object.entries(c.ports ?? {})) {
+    const key = containerPort.includes("/") ? containerPort : `${containerPort}/tcp`;
+    portBindings[key] = [{ HostIp: binding.hostIp ?? "0.0.0.0", HostPort: binding.hostPort }];
+    exposedPorts[key] = {};
+  }
+  const sidecarKey = `${c.sidecarPort}/tcp`;
+  if (!portBindings[sidecarKey]) {
+    portBindings[sidecarKey] = [{ HostIp: "127.0.0.1", HostPort: String(c.sidecarPort) }];
+    exposedPorts[sidecarKey] = {};
+  }
+  const binds = (c.volumes ?? []).map((v) => {
+    const [hostPath, ...rest] = v.split(":");
+    const absHost = hostPath.startsWith("/") ? hostPath : `${DATA_DIR}/${hostPath}`;
+    return [absHost, ...rest].join(":");
+  });
+  const env = Object.entries(c.environment ?? {}).map(([k, v]) => `${k}=${v}`);
+  log.info(`docker: creating container ${c.containerName}`);
+  await dockerRequest("POST", `/containers/create?name=${encodeURIComponent(c.containerName)}`, {
+    Image: c.image,
+    Env: env,
+    ExposedPorts: exposedPorts,
+    HostConfig: {
+      PortBindings: portBindings,
+      Binds: binds,
+      RestartPolicy: { Name: "no" }
+    }
+  });
+  log.info(`docker: created container ${c.containerName}`);
 }
 async function inspectContainer(name) {
   try {
@@ -897,7 +1005,7 @@ function getHostPort(inspect, containerPort) {
 }
 async function getSidecarStatus2(port) {
   try {
-    const res = await fetch(`http://localhost:${port}/status`, { signal: AbortSignal.timeout(5e3) });
+    const res = await fetch(`http://${SIDECAR_HOST}:${port}/status`, { signal: AbortSignal.timeout(5e3) });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -905,16 +1013,19 @@ async function getSidecarStatus2(port) {
   }
 }
 async function waitForState2(backend2, config, desired) {
+  const c = config;
   let state = await backend2.getGameState(config);
   for (let i = 0; i < MAX_POLLS2; i++) {
     if (state.status === desired) return state;
+    log.info(`docker: waiting for ${c.containerName} to be ${desired} (currently ${state.status}, poll ${i + 1}/${MAX_POLLS2})`);
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS2));
     state = await backend2.getGameState(config);
   }
+  if (state.status !== desired) log.warn(`docker: ${c.containerName} did not reach ${desired} after ${MAX_POLLS2} polls (stuck at ${state.status})`);
   return state;
 }
 async function restartWithConfig2(port, configUrl) {
-  await fetch(`http://localhost:${port}/restart`, {
+  await fetch(`http://${SIDECAR_HOST}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN2}`, "Content-Type": "application/json" },
     body: JSON.stringify({ config_url: configUrl }),
@@ -923,7 +1034,32 @@ async function restartWithConfig2(port, configUrl) {
 }
 var DockerBackend = class {
   getGames() {
-    return JSON.parse(process.env.GAMES ?? "{}");
+    const configs = {};
+    for (const definition of loadDockerGameDefinitions(DATA_DIR)) {
+      const environment = {
+        GAME_CMD: definition.gameCmd,
+        GAME_ARGS: definition.gameArgs ?? "",
+        GAME_QUIT_CMD: definition.gameQuitCmd ?? "quit",
+        GAME_QUIT_TIMEOUT: String(definition.gameQuitTimeout ?? 15),
+        GAME_PORT: String(definition.gamePort ?? 26e3),
+        TOKEN: SIDECAR_TOKEN2
+      };
+      if (definition.configPath) environment.CONFIG_PATH = definition.configPath;
+      if (definition.dataUrlEnv) {
+        const value = process.env[definition.dataUrlEnv];
+        if (value) environment.DATA_URL = value;
+      }
+      if (RCON_PASSWORD) environment.RCON_PASSWORD = RCON_PASSWORD;
+      configs[definition.id] = {
+        containerName: definition.containerName ?? `insta-game-${definition.id}-1`,
+        image: definition.image ?? `ghcr.io/fogo-sh/insta-game:${definition.id}`,
+        sidecarPort: definition.sidecarPort,
+        ports: definition.ports,
+        environment,
+        volumes: definition.volumes
+      };
+    }
+    return configs;
   }
   async getGameState(config) {
     const c = config;
@@ -946,7 +1082,14 @@ var DockerBackend = class {
   }
   async startGame(config, configUrl) {
     const c = config;
-    await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/start`);
+    log.info(`docker: starting container ${c.containerName}`);
+    try {
+      await ensureContainer(c);
+      await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/start`);
+    } catch (err) {
+      log.error(`docker: failed to start ${c.containerName}`, err);
+      return { status: "offline", players: 0, ready: false };
+    }
     let state = await waitForState2(this, config, "online");
     if (configUrl && state.status === "online") {
       const inspect = await inspectContainer(c.containerName);
@@ -961,7 +1104,13 @@ var DockerBackend = class {
   }
   async stopGame(config) {
     const c = config;
-    await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/stop?t=15`);
+    log.info(`docker: stopping container ${c.containerName}`);
+    try {
+      await dockerRequest("POST", `/containers/${encodeURIComponent(c.containerName)}/stop?t=15`);
+    } catch (err) {
+      log.error(`docker: failed to stop ${c.containerName}`, err);
+      return { status: "offline", players: 0, ready: false };
+    }
     return waitForState2(this, config, "offline");
   }
 };
@@ -1093,26 +1242,26 @@ var handleParsingNestedValues = (form2, key, value) => {
 };
 
 // node_modules/hono/dist/utils/url.js
-var splitPath = (path) => {
-  const paths = path.split("/");
+var splitPath = (path2) => {
+  const paths = path2.split("/");
   if (paths[0] === "") {
     paths.shift();
   }
   return paths;
 };
 var splitRoutingPath = (routePath) => {
-  const { groups, path } = extractGroupsFromPath(routePath);
-  const paths = splitPath(path);
+  const { groups, path: path2 } = extractGroupsFromPath(routePath);
+  const paths = splitPath(path2);
   return replaceGroupMarks(paths, groups);
 };
-var extractGroupsFromPath = (path) => {
+var extractGroupsFromPath = (path2) => {
   const groups = [];
-  path = path.replace(/\{[^}]+\}/g, (match2, index) => {
+  path2 = path2.replace(/\{[^}]+\}/g, (match2, index) => {
     const mark = `@${index}`;
     groups.push([mark, match2]);
     return mark;
   });
-  return { groups, path };
+  return { groups, path: path2 };
 };
 var replaceGroupMarks = (paths, groups) => {
   for (let i = groups.length - 1; i >= 0; i--) {
@@ -1169,8 +1318,8 @@ var getPath = (request) => {
       const queryIndex = url.indexOf("?", i);
       const hashIndex = url.indexOf("#", i);
       const end = queryIndex === -1 ? hashIndex === -1 ? void 0 : hashIndex : hashIndex === -1 ? queryIndex : Math.min(queryIndex, hashIndex);
-      const path = url.slice(start, end);
-      return tryDecodeURI(path.includes("%25") ? path.replace(/%25/g, "%2525") : path);
+      const path2 = url.slice(start, end);
+      return tryDecodeURI(path2.includes("%25") ? path2.replace(/%25/g, "%2525") : path2);
     } else if (charCode === 63 || charCode === 35) {
       break;
     }
@@ -1187,11 +1336,11 @@ var mergePath = (base, sub, ...rest) => {
   }
   return `${base?.[0] === "/" ? "" : "/"}${base}${sub === "/" ? "" : `${base?.at(-1) === "/" ? "" : "/"}${sub?.[0] === "/" ? sub.slice(1) : sub}`}`;
 };
-var checkOptionalParameter = (path) => {
-  if (path.charCodeAt(path.length - 1) !== 63 || !path.includes(":")) {
+var checkOptionalParameter = (path2) => {
+  if (path2.charCodeAt(path2.length - 1) !== 63 || !path2.includes(":")) {
     return null;
   }
-  const segments = path.split("/");
+  const segments = path2.split("/");
   const results = [];
   let basePath = "";
   segments.forEach((segment) => {
@@ -1332,9 +1481,9 @@ var HonoRequest = class {
    */
   path;
   bodyCache = {};
-  constructor(request, path = "/", matchResult = [[]]) {
+  constructor(request, path2 = "/", matchResult = [[]]) {
     this.raw = request;
-    this.path = path;
+    this.path = path2;
     this.#matchResult = matchResult;
     this.#validatedData = {};
   }
@@ -2145,8 +2294,8 @@ var Hono = class _Hono {
         return this;
       };
     });
-    this.on = (method, path, ...handlers) => {
-      for (const p of [path].flat()) {
+    this.on = (method, path2, ...handlers) => {
+      for (const p of [path2].flat()) {
         this.#path = p;
         for (const m of [method].flat()) {
           handlers.map((handler2) => {
@@ -2203,8 +2352,8 @@ var Hono = class _Hono {
    * app.route("/api", app2) // GET /api/user
    * ```
    */
-  route(path, app2) {
-    const subApp = this.basePath(path);
+  route(path2, app2) {
+    const subApp = this.basePath(path2);
     app2.routes.map((r) => {
       let handler2;
       if (app2.errorHandler === errorHandler) {
@@ -2230,9 +2379,9 @@ var Hono = class _Hono {
    * const api = new Hono().basePath('/api')
    * ```
    */
-  basePath(path) {
+  basePath(path2) {
     const subApp = this.#clone();
-    subApp._basePath = mergePath(this._basePath, path);
+    subApp._basePath = mergePath(this._basePath, path2);
     return subApp;
   }
   /**
@@ -2306,7 +2455,7 @@ var Hono = class _Hono {
    * })
    * ```
    */
-  mount(path, applicationHandler, options) {
+  mount(path2, applicationHandler, options) {
     let replaceRequest;
     let optionHandler;
     if (options) {
@@ -2333,7 +2482,7 @@ var Hono = class _Hono {
       return [c.env, executionContext];
     };
     replaceRequest ||= (() => {
-      const mergedPath = mergePath(this._basePath, path);
+      const mergedPath = mergePath(this._basePath, path2);
       const pathPrefixLength = mergedPath === "/" ? 0 : mergedPath.length;
       return (request) => {
         const url = new URL(request.url);
@@ -2348,14 +2497,14 @@ var Hono = class _Hono {
       }
       await next();
     };
-    this.#addRoute(METHOD_NAME_ALL, mergePath(path, "*"), handler2);
+    this.#addRoute(METHOD_NAME_ALL, mergePath(path2, "*"), handler2);
     return this;
   }
-  #addRoute(method, path, handler2) {
+  #addRoute(method, path2, handler2) {
     method = method.toUpperCase();
-    path = mergePath(this._basePath, path);
-    const r = { basePath: this._basePath, path, method, handler: handler2 };
-    this.router.add(method, path, [handler2, r]);
+    path2 = mergePath(this._basePath, path2);
+    const r = { basePath: this._basePath, path: path2, method, handler: handler2 };
+    this.router.add(method, path2, [handler2, r]);
     this.routes.push(r);
   }
   #handleError(err, c) {
@@ -2368,10 +2517,10 @@ var Hono = class _Hono {
     if (method === "HEAD") {
       return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
     }
-    const path = this.getPath(request, { env });
-    const matchResult = this.router.match(method, path);
+    const path2 = this.getPath(request, { env });
+    const matchResult = this.router.match(method, path2);
     const c = new Context(request, {
-      path,
+      path: path2,
       matchResult,
       env,
       executionCtx,
@@ -2471,15 +2620,15 @@ var Hono = class _Hono {
 
 // node_modules/hono/dist/router/reg-exp-router/matcher.js
 var emptyParam = [];
-function match(method, path) {
+function match(method, path2) {
   const matchers = this.buildAllMatchers();
-  const match2 = ((method2, path2) => {
+  const match2 = ((method2, path22) => {
     const matcher = matchers[method2] || matchers[METHOD_NAME_ALL];
-    const staticMatch = matcher[2][path2];
+    const staticMatch = matcher[2][path22];
     if (staticMatch) {
       return staticMatch;
     }
-    const match3 = path2.match(matcher[0]);
+    const match3 = path22.match(matcher[0]);
     if (!match3) {
       return [[], emptyParam];
     }
@@ -2487,7 +2636,7 @@ function match(method, path) {
     return [matcher[1][index], match3];
   });
   this.match = match2;
-  return match2(method, path);
+  return match2(method, path2);
 }
 
 // node_modules/hono/dist/router/reg-exp-router/node.js
@@ -2602,12 +2751,12 @@ var Node = class _Node {
 var Trie = class {
   #context = { varIndex: 0 };
   #root = new Node();
-  insert(path, index, pathErrorCheckOnly) {
+  insert(path2, index, pathErrorCheckOnly) {
     const paramAssoc = [];
     const groups = [];
     for (let i = 0; ; ) {
       let replaced = false;
-      path = path.replace(/\{[^}]+\}/g, (m) => {
+      path2 = path2.replace(/\{[^}]+\}/g, (m) => {
         const mark = `@\\${i}`;
         groups[i] = [mark, m];
         i++;
@@ -2618,7 +2767,7 @@ var Trie = class {
         break;
       }
     }
-    const tokens = path.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
+    const tokens = path2.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
     for (let i = groups.length - 1; i >= 0; i--) {
       const [mark] = groups[i];
       for (let j = tokens.length - 1; j >= 0; j--) {
@@ -2657,9 +2806,9 @@ var Trie = class {
 // node_modules/hono/dist/router/reg-exp-router/router.js
 var nullMatcher = [/^$/, [], /* @__PURE__ */ Object.create(null)];
 var wildcardRegExpCache = /* @__PURE__ */ Object.create(null);
-function buildWildcardRegExp(path) {
-  return wildcardRegExpCache[path] ??= new RegExp(
-    path === "*" ? "" : `^${path.replace(
+function buildWildcardRegExp(path2) {
+  return wildcardRegExpCache[path2] ??= new RegExp(
+    path2 === "*" ? "" : `^${path2.replace(
       /\/\*$|([.\\+*[^\]$()])/g,
       (_, metaChar) => metaChar ? `\\${metaChar}` : "(?:|/.*)"
     )}$`
@@ -2681,17 +2830,17 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   );
   const staticMap = /* @__PURE__ */ Object.create(null);
   for (let i = 0, j = -1, len = routesWithStaticPathFlag.length; i < len; i++) {
-    const [pathErrorCheckOnly, path, handlers] = routesWithStaticPathFlag[i];
+    const [pathErrorCheckOnly, path2, handlers] = routesWithStaticPathFlag[i];
     if (pathErrorCheckOnly) {
-      staticMap[path] = [handlers.map(([h]) => [h, /* @__PURE__ */ Object.create(null)]), emptyParam];
+      staticMap[path2] = [handlers.map(([h]) => [h, /* @__PURE__ */ Object.create(null)]), emptyParam];
     } else {
       j++;
     }
     let paramAssoc;
     try {
-      paramAssoc = trie.insert(path, j, pathErrorCheckOnly);
+      paramAssoc = trie.insert(path2, j, pathErrorCheckOnly);
     } catch (e) {
-      throw e === PATH_ERROR ? new UnsupportedPathError(path) : e;
+      throw e === PATH_ERROR ? new UnsupportedPathError(path2) : e;
     }
     if (pathErrorCheckOnly) {
       continue;
@@ -2725,12 +2874,12 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   }
   return [regexp, handlerMap, staticMap];
 }
-function findMiddleware(middleware, path) {
+function findMiddleware(middleware, path2) {
   if (!middleware) {
     return void 0;
   }
   for (const k of Object.keys(middleware).sort((a, b) => b.length - a.length)) {
-    if (buildWildcardRegExp(k).test(path)) {
+    if (buildWildcardRegExp(k).test(path2)) {
       return [...middleware[k]];
     }
   }
@@ -2744,7 +2893,7 @@ var RegExpRouter = class {
     this.#middleware = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
     this.#routes = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
   }
-  add(method, path, handler2) {
+  add(method, path2, handler2) {
     const middleware = this.#middleware;
     const routes = this.#routes;
     if (!middleware || !routes) {
@@ -2759,18 +2908,18 @@ var RegExpRouter = class {
         });
       });
     }
-    if (path === "/*") {
-      path = "*";
+    if (path2 === "/*") {
+      path2 = "*";
     }
-    const paramCount = (path.match(/\/:/g) || []).length;
-    if (/\*$/.test(path)) {
-      const re = buildWildcardRegExp(path);
+    const paramCount = (path2.match(/\/:/g) || []).length;
+    if (/\*$/.test(path2)) {
+      const re = buildWildcardRegExp(path2);
       if (method === METHOD_NAME_ALL) {
         Object.keys(middleware).forEach((m) => {
-          middleware[m][path] ||= findMiddleware(middleware[m], path) || findMiddleware(middleware[METHOD_NAME_ALL], path) || [];
+          middleware[m][path2] ||= findMiddleware(middleware[m], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
         });
       } else {
-        middleware[method][path] ||= findMiddleware(middleware[method], path) || findMiddleware(middleware[METHOD_NAME_ALL], path) || [];
+        middleware[method][path2] ||= findMiddleware(middleware[method], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
       }
       Object.keys(middleware).forEach((m) => {
         if (method === METHOD_NAME_ALL || method === m) {
@@ -2788,15 +2937,15 @@ var RegExpRouter = class {
       });
       return;
     }
-    const paths = checkOptionalParameter(path) || [path];
+    const paths = checkOptionalParameter(path2) || [path2];
     for (let i = 0, len = paths.length; i < len; i++) {
-      const path2 = paths[i];
+      const path22 = paths[i];
       Object.keys(routes).forEach((m) => {
         if (method === METHOD_NAME_ALL || method === m) {
-          routes[m][path2] ||= [
-            ...findMiddleware(middleware[m], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || []
+          routes[m][path22] ||= [
+            ...findMiddleware(middleware[m], path22) || findMiddleware(middleware[METHOD_NAME_ALL], path22) || []
           ];
-          routes[m][path2].push([handler2, paramCount - len + i + 1]);
+          routes[m][path22].push([handler2, paramCount - len + i + 1]);
         }
       });
     }
@@ -2815,13 +2964,13 @@ var RegExpRouter = class {
     const routes = [];
     let hasOwnRoute = method === METHOD_NAME_ALL;
     [this.#middleware, this.#routes].forEach((r) => {
-      const ownRoute = r[method] ? Object.keys(r[method]).map((path) => [path, r[method][path]]) : [];
+      const ownRoute = r[method] ? Object.keys(r[method]).map((path2) => [path2, r[method][path2]]) : [];
       if (ownRoute.length !== 0) {
         hasOwnRoute ||= true;
         routes.push(...ownRoute);
       } else if (method !== METHOD_NAME_ALL) {
         routes.push(
-          ...Object.keys(r[METHOD_NAME_ALL]).map((path) => [path, r[METHOD_NAME_ALL][path]])
+          ...Object.keys(r[METHOD_NAME_ALL]).map((path2) => [path2, r[METHOD_NAME_ALL][path2]])
         );
       }
     });
@@ -2841,13 +2990,13 @@ var SmartRouter = class {
   constructor(init) {
     this.#routers = init.routers;
   }
-  add(method, path, handler2) {
+  add(method, path2, handler2) {
     if (!this.#routes) {
       throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
     }
-    this.#routes.push([method, path, handler2]);
+    this.#routes.push([method, path2, handler2]);
   }
-  match(method, path) {
+  match(method, path2) {
     if (!this.#routes) {
       throw new Error("Fatal error");
     }
@@ -2862,7 +3011,7 @@ var SmartRouter = class {
         for (let i2 = 0, len2 = routes.length; i2 < len2; i2++) {
           router.add(...routes[i2]);
         }
-        res = router.match(method, path);
+        res = router.match(method, path2);
       } catch (e) {
         if (e instanceof UnsupportedPathError) {
           continue;
@@ -2912,10 +3061,10 @@ var Node2 = class _Node2 {
     }
     this.#patterns = [];
   }
-  insert(method, path, handler2) {
+  insert(method, path2, handler2) {
     this.#order = ++this.#order;
     let curNode = this;
-    const parts = splitRoutingPath(path);
+    const parts = splitRoutingPath(path2);
     const possibleKeys = [];
     for (let i = 0, len = parts.length; i < len; i++) {
       const p = parts[i];
@@ -2964,12 +3113,12 @@ var Node2 = class _Node2 {
       }
     }
   }
-  search(method, path) {
+  search(method, path2) {
     const handlerSets = [];
     this.#params = emptyParams;
     const curNode = this;
     let curNodes = [curNode];
-    const parts = splitPath(path);
+    const parts = splitPath(path2);
     const curNodesQueue = [];
     const len = parts.length;
     let partOffsets = null;
@@ -3011,13 +3160,13 @@ var Node2 = class _Node2 {
           if (matcher instanceof RegExp) {
             if (partOffsets === null) {
               partOffsets = new Array(len);
-              let offset = path[0] === "/" ? 1 : 0;
+              let offset = path2[0] === "/" ? 1 : 0;
               for (let p = 0; p < len; p++) {
                 partOffsets[p] = offset;
                 offset += parts[p].length + 1;
               }
             }
-            const restPathString = path.substring(partOffsets[i]);
+            const restPathString = path2.substring(partOffsets[i]);
             const m = matcher.exec(restPathString);
             if (m) {
               params[name] = m[0];
@@ -3070,18 +3219,18 @@ var TrieRouter = class {
   constructor() {
     this.#node = new Node2();
   }
-  add(method, path, handler2) {
-    const results = checkOptionalParameter(path);
+  add(method, path2, handler2) {
+    const results = checkOptionalParameter(path2);
     if (results) {
       for (let i = 0, len = results.length; i < len; i++) {
         this.#node.insert(method, results[i], handler2);
       }
       return;
     }
-    this.#node.insert(method, path, handler2);
+    this.#node.insert(method, path2, handler2);
   }
-  match(method, path) {
-    return this.#node.search(method, path);
+  match(method, path2) {
+    return this.#node.search(method, path2);
   }
 };
 
@@ -3262,7 +3411,10 @@ async function discordHandler(c, backend2) {
   const timestamp = c.req.header("x-signature-timestamp") ?? "";
   const rawBody = await c.req.text();
   const isValid = await (0, import_discord_interactions.verifyKey)(rawBody, signature, timestamp, DISCORD_PUBLIC_KEY);
-  if (!isValid) return c.text("invalid signature", 401);
+  if (!isValid) {
+    log.warn("discord: invalid signature");
+    return c.text("invalid signature", 401);
+  }
   const interaction = JSON.parse(rawBody);
   if (interaction.type === import_discord_interactions.InteractionType.PING) {
     return c.json({ type: import_discord_interactions.InteractionResponseType.PONG });
@@ -3279,6 +3431,7 @@ async function discordHandler(c, backend2) {
       });
     }
     if (name === "status") {
+      log.info(`discord: /status ${gameName}`);
       const state = await backend2.getGameState(config);
       return c.json({
         type: import_discord_interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -3286,13 +3439,16 @@ async function discordHandler(c, backend2) {
       });
     }
     if (name === "stop") {
+      log.info(`discord: /stop ${gameName}`);
       const state = await backend2.stopGame(config);
+      log.info(`discord: /stop ${gameName} \u2192 ${state.status}`);
       return c.json({
         type: import_discord_interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { content: formatState(gameName, state) }
       });
     }
     if (name === "start") {
+      log.info(`discord: /start ${gameName}`);
       void sendFollowup(interaction.token, gameName, config, backend2);
       return c.json({ type: import_discord_interactions.InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE });
     }
@@ -3305,6 +3461,7 @@ async function discordHandler(c, backend2) {
 }
 async function sendFollowup(interactionToken, gameName, config, backend2) {
   const state = await backend2.startGame(config);
+  log.info(`discord: /start ${gameName} \u2192 ${state.status}`);
   const content = formatState(gameName, state);
   await fetch(
     `https://discord.com/api/v10/webhooks/${DISCORD_APP_ID}/${interactionToken}/messages/@original`,
@@ -3908,7 +4065,6 @@ var initScript = `
     var auth = document.getElementById("auth");
     var panel = document.getElementById("panel");
     auth.style.display = "none";
-    panel.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
     panel.style.display = "";
     htmx.process(panel);
     // Kick off initial status fetch now that headers are set
@@ -3988,6 +4144,7 @@ var GameCard = ({ game }) => /* @__PURE__ */ jsxDEV("div", { class: "game", id: 
       id: `status-${game}`,
       "data-status-poll": "true",
       "hx-get": `/?game=${game}&operation=status`,
+      "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
       "hx-trigger": "poll, every 10s",
       "hx-target": `#status-${game}`,
       children: "loading..."
@@ -3998,6 +4155,7 @@ var GameCard = ({ game }) => /* @__PURE__ */ jsxDEV("div", { class: "game", id: 
       "button",
       {
         "hx-post": `/?game=${game}&operation=start`,
+        "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
         "hx-target": `#status-${game}`,
         "hx-indicator": `#status-indicator-${game}`,
         "hx-disabled-elt": `#game-${game} .actions button`,
@@ -4008,6 +4166,7 @@ var GameCard = ({ game }) => /* @__PURE__ */ jsxDEV("div", { class: "game", id: 
       "button",
       {
         "hx-post": `/?game=${game}&operation=stop`,
+        "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
         "hx-target": `#status-${game}`,
         "hx-indicator": `#status-indicator-${game}`,
         "hx-disabled-elt": `#game-${game} .actions button`,
@@ -4042,7 +4201,7 @@ function renderUi(games) {
         ),
         /* @__PURE__ */ jsxDEV("button", { id: "unlock-button", onclick: "authenticate()", children: "unlock" })
       ] }),
-      /* @__PURE__ */ jsxDEV("div", { id: "panel", style: "display:none", "hx-headers": "{}", children: [
+      /* @__PURE__ */ jsxDEV("div", { id: "panel", style: "display:none", children: [
         /* @__PURE__ */ jsxDEV("div", { class: "games", children: games.map((g) => /* @__PURE__ */ jsxDEV(GameCard, { game: g }, g)) }),
         /* @__PURE__ */ jsxDEV("br", {}),
         /* @__PURE__ */ jsxDEV("button", { onclick: "logout()", style: "margin-top:1rem;padding:.3rem .7rem;background:#222;color:#888;border:1px solid #444;cursor:pointer;font-family:monospace;font-size:0.8rem;", children: "logout" })
@@ -4080,14 +4239,25 @@ function createApp(backend2) {
     const operation = c.req.query("operation");
     if (game && operation) {
       const passphrase = c.req.header("x-passphrase") ?? "";
-      if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
+      if (passphrase !== WEB_UI_PASSPHRASE) {
+        log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
+        return c.text("unauthorized", 401);
+      }
       const games2 = backend2.getGames();
       const config = games2[game];
       if (!config) return c.html(`<span class="status">unknown game: ${game}</span>`, 400);
       let state;
-      if (operation === "start") state = await backend2.startGame(config);
-      else if (operation === "stop") state = await backend2.stopGame(config);
-      else state = await backend2.getGameState(config);
+      if (operation === "start") {
+        log.info(`web: start ${game}`);
+        state = await backend2.startGame(config);
+        log.info(`web: start ${game} \u2192 ${state.status}`);
+      } else if (operation === "stop") {
+        log.info(`web: stop ${game}`);
+        state = await backend2.stopGame(config);
+        log.info(`web: stop ${game} \u2192 ${state.status}`);
+      } else {
+        state = await backend2.getGameState(config);
+      }
       return c.html(statusFragment(state));
     }
     const games = backend2.getGames();
@@ -4096,6 +4266,7 @@ function createApp(backend2) {
   app2.post("/", async (c) => {
     const passphrase = c.req.header("x-passphrase") ?? "";
     if (passphrase !== WEB_UI_PASSPHRASE) {
+      log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
       const isHtmx2 = !!c.req.header("hx-request");
       if (isHtmx2) return c.html(`<span class="status">unauthorized</span>`, 401);
       return c.json({ error: "unauthorized" }, 401);
@@ -4120,9 +4291,17 @@ function createApp(backend2) {
       return c.json({ error: `unknown game: ${gameKey}` }, 400);
     }
     let state;
-    if (operation === "start") state = await backend2.startGame(config);
-    else if (operation === "stop") state = await backend2.stopGame(config);
-    else state = await backend2.getGameState(config);
+    if (operation === "start") {
+      log.info(`web: start ${gameKey}`);
+      state = await backend2.startGame(config);
+      log.info(`web: start ${gameKey} \u2192 ${state.status}`);
+    } else if (operation === "stop") {
+      log.info(`web: stop ${gameKey}`);
+      state = await backend2.stopGame(config);
+      log.info(`web: stop ${gameKey} \u2192 ${state.status}`);
+    } else {
+      state = await backend2.getGameState(config);
+    }
     if (isHtmx) return c.html(statusFragment(state));
     return c.json(state);
   });
@@ -4139,6 +4318,7 @@ function createApp(backend2) {
     }
     const sidecarUrl = `http://${state.publicIp}:${config.sidecarPort}/logs`;
     return streamSSE(c, async (stream2) => {
+      log.info(`logs: stream opened for ${game}`);
       await stream2.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
       let res;
       try {
@@ -4147,6 +4327,7 @@ function createApp(backend2) {
           signal: c.req.raw.signal
         });
       } catch (error) {
+        log.info(`logs: stream closed for ${game} (connection error)`);
         await stream2.writeSSE({
           data: `[log proxy error: ${error instanceof Error ? error.message : String(error)}]`,
           event: "log"
@@ -4155,6 +4336,7 @@ function createApp(backend2) {
         return;
       }
       if (!res.ok || !res.body) {
+        log.warn(`logs: sidecar returned ${res.status} for ${game}`);
         await stream2.writeSSE({
           data: `[log proxy error: sidecar returned HTTP ${res.status}]`,
           event: "log"
@@ -4181,6 +4363,7 @@ function createApp(backend2) {
         }
       } catch {
       }
+      log.info(`logs: stream closed for ${game}`);
     });
   });
   app2.get("/api", async (c) => {
@@ -4191,8 +4374,18 @@ function createApp(backend2) {
     const games = backend2.getGames();
     const config = games[game];
     if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
-    if (operation === "start") return c.json(await backend2.startGame(config));
-    if (operation === "stop") return c.json(await backend2.stopGame(config));
+    if (operation === "start") {
+      log.info(`api: start ${game}`);
+      const state = await backend2.startGame(config);
+      log.info(`api: start ${game} \u2192 ${state.status}`);
+      return c.json(state);
+    }
+    if (operation === "stop") {
+      log.info(`api: stop ${game}`);
+      const state = await backend2.stopGame(config);
+      log.info(`api: stop ${game} \u2192 ${state.status}`);
+      return c.json(state);
+    }
     return c.json(await backend2.getGameState(config));
   });
   app2.post("/discord", makeDiscordHandler(backend2));

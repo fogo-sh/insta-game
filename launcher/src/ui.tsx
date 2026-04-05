@@ -41,11 +41,6 @@ const initScript = `
   var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
   var logStreams = {};
 
-  window.htmxHeaders = function() {
-    var pp = sessionStorage.getItem(SESSION_KEY) || "";
-    return JSON.stringify({"X-Passphrase": pp});
-  };
-
   function appendLogLine(game, text) {
     var lines = document.getElementById("log-lines-" + game);
     var line = document.createElement("div");
@@ -141,7 +136,7 @@ const GameCard: FC<GameCardProps> = ({ game }) => (
     <div class="status" id={`status-${game}`}
       data-status-poll="true"
       hx-get={`/?game=${game}&operation=status`}
-      hx-headers="js:htmxHeaders()"
+      hx-headers={`js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`}
       hx-trigger="poll, every 10s"
       hx-target={`#status-${game}`}
     >
@@ -150,14 +145,14 @@ const GameCard: FC<GameCardProps> = ({ game }) => (
     <div class="actions">
       <button
         hx-post={`/?game=${game}&operation=start`}
-        hx-headers="js:htmxHeaders()"
+        hx-headers={`js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`}
         hx-target={`#status-${game}`}
         hx-indicator={`#status-indicator-${game}`}
         hx-disabled-elt={`#game-${game} .actions button`}
       >start</button>
       <button
         hx-post={`/?game=${game}&operation=stop`}
-        hx-headers="js:htmxHeaders()"
+        hx-headers={`js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`}
         hx-target={`#status-${game}`}
         hx-indicator={`#status-indicator-${game}`}
         hx-disabled-elt={`#game-${game} .actions button`}
