@@ -90,6 +90,13 @@ build_game_image() {
     -t "ghcr.io/fogo-sh/insta-game:$game_name" \
     -f "docker-containers/$game_name/Dockerfile" \
     .
+
+  # Remove stale container so it gets recreated with fresh config on next start
+  container="insta-game-${game_name}-1"
+  if docker inspect "$container" > /dev/null 2>&1; then
+    echo "==> Removing stale container $container..."
+    docker rm -f "$container"
+  fi
 }
 
 if [ -z "$GAME" ]; then

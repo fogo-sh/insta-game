@@ -85,10 +85,29 @@ function pullImage(image: string): Promise<void> {
   });
 }
 
-// Ensure the container exists, creating it (and pulling the image) if needed
+// Remove a container (must be stopped first, or use force)
+async function removeContainer(name: string): Promise<void> {
+  await dockerRequest("DELETE", `/containers/${encodeURIComponent(name)}?force=true`);
+}
+
+// Ensure the container exists with the correct config, recreating it if stale
 async function ensureContainer(c: DockerGameConfig): Promise<void> {
   const existing = await inspectContainer(c.containerName);
-  if (existing) return;
+  if (existing) {
+    // Check if the image matches — if not, container is stale and needs recreating
+    const existingImage = (existing.Config as Record<string, unknown>)?.Image as string ?? "";
+    const expectedBinds = (c.volumes ?? []).map(v => {
+      const [hostPath, ...rest] = v.split(":");
+      const absHost = hostPath.startsWith("/") ? hostPath : `${HOST_DATA_DIR}/${hostPath}`;
+      return [absHost, ...rest].join(":");
+    });
+    const existingBinds: string[] = ((existing.HostConfig as Record<string, unknown>)?.Binds as string[]) ?? [];
+    const bindsMatch = expectedBinds.every(b => existingBinds.includes(b));
+    const imageMatches = existingImage === c.image || existingImage.startsWith(c.image + "@");
+    if (imageMatches && bindsMatch) return;
+    log.info(`docker: removing stale container ${c.containerName} (image or mounts changed)`);
+    await removeContainer(c.containerName);
+  }
 
   log.info(`docker: image pull ${c.image}`);
   await pullImage(c.image);

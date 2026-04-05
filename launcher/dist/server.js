@@ -100565,9 +100565,25 @@ function pullImage(image) {
     req.end();
   });
 }
+async function removeContainer(name) {
+  await dockerRequest("DELETE", `/containers/${encodeURIComponent(name)}?force=true`);
+}
 async function ensureContainer(c5) {
   const existing = await inspectContainer(c5.containerName);
-  if (existing) return;
+  if (existing) {
+    const existingImage = existing.Config?.Image ?? "";
+    const expectedBinds = (c5.volumes ?? []).map((v5) => {
+      const [hostPath, ...rest] = v5.split(":");
+      const absHost = hostPath.startsWith("/") ? hostPath : `${HOST_DATA_DIR}/${hostPath}`;
+      return [absHost, ...rest].join(":");
+    });
+    const existingBinds = existing.HostConfig?.Binds ?? [];
+    const bindsMatch = expectedBinds.every((b5) => existingBinds.includes(b5));
+    const imageMatches = existingImage === c5.image || existingImage.startsWith(c5.image + "@");
+    if (imageMatches && bindsMatch) return;
+    log.info(`docker: removing stale container ${c5.containerName} (image or mounts changed)`);
+    await removeContainer(c5.containerName);
+  }
   log.info(`docker: image pull ${c5.image}`);
   await pullImage(c5.image);
   log.info(`docker: pulled ${c5.image}`);
