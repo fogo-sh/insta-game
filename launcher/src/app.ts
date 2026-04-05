@@ -3,7 +3,7 @@ import { streamSSE } from "hono/streaming";
 import type { Backend } from "./backend.js";
 import { makeDiscordHandler } from "./discord.js";
 import { log } from "./logger.js";
-import { renderUi } from "./ui.js";
+import { renderUi, type GameUiConfig } from "./ui.js";
 
 const WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 const API_TOKEN = process.env.API_TOKEN ?? "";
@@ -51,7 +51,14 @@ export function createApp(backend: Backend): Hono {
     }
 
     const games = backend.getGames();
-    return c.html(renderUi(Object.keys(games)));
+    const gameEntries = await Promise.all(
+      Object.entries(games).map(async ([key, config]) => {
+        const state = await backend.getCachedState(config);
+        const ui: GameUiConfig = { connectAddress: null, clientDownloadUrl: null };
+        return { key, state, ui };
+      })
+    );
+    return c.html(renderUi(gameEntries));
   });
 
   // Web UI form submission / htmx button posts
