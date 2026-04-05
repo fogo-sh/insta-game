@@ -103760,7 +103760,7 @@ var initScript = `
 
   function adminControlsHtml(game) {
     var indicator = "#status-result-" + game;
-    var disabledElt = "#admin-controls-" + game + " button";
+    var disabledElt = "closest div";
     return '<div class="admin-controls" id="admin-controls-' + game + '">' +
       '<button hx-post="/?game=' + game + '&operation=start"' +
         ' hx-target="' + indicator + '"' +
@@ -103770,7 +103770,7 @@ var initScript = `
         ' hx-target="' + indicator + '"' +
         ' hx-indicator="' + indicator + '"' +
         ' hx-disabled-elt="' + disabledElt + '">stop</button>' +
-      '<button onclick="toggleLogs(' + JSON.stringify(game) + ')">logs</button>' +
+      "<button type="button" onclick="toggleLogs('" + game + "')">logs</button>" +
       '</div>' +
       '<div id="status-result-' + game + '" class="status-frag">' +
         '<span class="htmx-indicator">working...</span>' +
