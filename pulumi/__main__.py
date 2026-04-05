@@ -457,6 +457,7 @@ openarena = GameService(
     game_args=(
         "+set fs_basepath /usr/lib/openarena-server +set fs_homepath /opt"
         " +set com_basegame baseoa +set com_homepath .openarena"
+        " +set vm_game 0"
         " +set dedicated 2 +set net_ip 0.0.0.0"
         " +set net_port 27960 +set sv_maxclients 12"
         " +set com_hunkMegs 64 +exec server.cfg"
