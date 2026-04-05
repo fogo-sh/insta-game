@@ -3,9 +3,9 @@ config:
   aws:region: ca-central-1
   insta-game:budgetAlertEmail: me@steveparson.ca
   insta-game:webUiPassphrase:
-    secure: v1:i4sRMirtwSQ7aeCx:mpTrF3ChYbd/ttflXbXS6U6maQ==
+    secure: v1:qh+pb5qqg/Nsqd2N:2bpjNkk7ds820tBoDWAuhWVyZ8JIbg==
   insta-game:apiToken:
-    secure: v1:cpMqZ0MSJ+VrZgwO:yJwQ1ls92mpmQw1K8MOT5ACFkA==
+    secure: v1:gXCewfdDJZAtGKuu:e5vxMQaR9K8NIYpmzDnSan6hZjE3xQ==
   insta-game:discordPublicKey:
     secure: v1:n5vOnXu4T3dLFwku:Tzms2gbXr5NYx96KiwkL8AJUNJ9dE24SeY+P3hHXk5r/Ku4iYbxXOhwxxopHaq3afLzMkQvdLKeaeFaLGqRrb0G7onUrgQhSiOCrWi/wkZY=
   insta-game:discordBotToken:
