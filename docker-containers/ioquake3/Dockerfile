@@ -8,6 +8,7 @@ FROM debian:bookworm-slim AS ioquake3-builder
 WORKDIR /src
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     ca-certificates \
     cmake \
     git \
@@ -28,10 +29,7 @@ RUN cmake -S . -B build \
     -DBUILD_GAME_QVMS=OFF \
     -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build --parallel \
-    && cmake --install build --prefix /runtime \
-    && mkdir -p /runtime/baseq3 \
-    && find build -type f -name 'qagame*.so' -exec install -m 0755 {} /runtime/baseq3/ \; \
-    && install -m 0755 "$(find /runtime -type f -name 'ioq3ded*' -perm /111 | head -n 1)" /runtime/ioq3ded
+    && cmake --install build --prefix /runtime
 
 FROM debian:bookworm-slim
 
