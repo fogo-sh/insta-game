@@ -5,6 +5,7 @@ go 1.23.0
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.41.4
+	github.com/buildkite/terminal-to-html/v3 v3.16.8
 )
 
 require (
@@ -20,6 +21,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.23.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.28.6 // indirect
 	github.com/aws/smithy-go v1.20.2 // indirect
-	github.com/buildkite/terminal-to-html/v3 v3.16.8 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 )
