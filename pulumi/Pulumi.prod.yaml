@@ -1,0 +1,25 @@
+encryptionsalt: v1:aZTSzECkikk=:v1:frHB5wRJD/2Q3YW8:WOI64riDdtHA8wrr4NncUonrC0mpKw==
+config:
+  aws:region: ca-central-1
+  insta-game:budgetAlertEmail: me@steveparson.ca
+  insta-game:webUiPassphrase:
+    secure: v1:i4sRMirtwSQ7aeCx:mpTrF3ChYbd/ttflXbXS6U6maQ==
+  insta-game:apiToken:
+    secure: v1:cpMqZ0MSJ+VrZgwO:yJwQ1ls92mpmQw1K8MOT5ACFkA==
+  insta-game:discordPublicKey:
+    secure: v1:n5vOnXu4T3dLFwku:Tzms2gbXr5NYx96KiwkL8AJUNJ9dE24SeY+P3hHXk5r/Ku4iYbxXOhwxxopHaq3afLzMkQvdLKeaeFaLGqRrb0G7onUrgQhSiOCrWi/wkZY=
+  insta-game:discordBotToken:
+    secure: v1:CPI1AIaD0V731zQc:CPqJ0uZHUJlKspkwcn3GVgD51j8phA5fDjqKIVVk/0JHvWZ1cqpP+w8/VnaPA3Eb2UCqmA9W7x7wt0AUzgfsTkjTgAyolO9kwsLojc7ItqSoopZZBsa8yA==
+  insta-game:rconPassword:
+    secure: v1:SxHWGWmTRAL+ZX1S:RsZpgMSXloNBD9EryGv8MHT7pwskZw==
+  insta-game:discordAppId:
+    secure: v1:XQmItKi4V8zQE8pB:zWEfUAuwgvub5bW15OQ1CfoLBbH3QegCbPRcTldCHnc6wjY=
+  insta-game:monthlyBudgetLimitUsd: "20"
+  insta-game:enableCustomDomain: "false"
+  insta-game:qssmDataUrl:
+    secure: v1:PFja3p6haLZHB7Sm:IxhdIXhD7pMtLmIAGxiXlJwYaayrfeMqBu+iQ3rJm5ZhTAwcBFEAc4ALzdzEsY6Dfahe
+  insta-game:q2reproDataUrl:
+    secure: v1:ntzXn0d+LJjmbDmh:e9JTDufU5ZDqQpQ49trY5UQSWbTC7bkD/xz3zRPpyVuL6cQAg4oP2nJEYqgS9Cs2iI5VqF+HYvFjEnU48g==
+  insta-game:ut99DataUrl:
+    secure: v1:aYBCZzu5bM+4U/Za:1WdRtzmmfgX5dxafNQ91lJaUBBCVU0h1nPoHbpA8u2T39yaC6W4D1CnxkGBhhvpOsI4uv3jICSiCKwU=
+  insta-game:customDomainHostname: games.fogo.sh
