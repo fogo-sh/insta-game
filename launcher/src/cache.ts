@@ -1,7 +1,7 @@
 import type { Backend, CachedGameState } from "./backend.js";
 import { log } from "./logger.js";
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 5_000;
 
 export class GameCache {
   private cache = new Map<string, CachedGameState>();

@@ -194,7 +194,7 @@ const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloa
         id={`row-header-${game}`}
         class="row-header"
         hx-get={`/status?game=${game}`}
-        hx-trigger="every 30s"
+        hx-trigger="every 5s"
         hx-target={`#row-header-${game}`}
         hx-swap="outerHTML"
         onclick={`toggleRow('${game}')`}
@@ -322,7 +322,7 @@ export function renderRowHeader(
       id={`row-header-${game}`}
       class="row-header"
       hx-get={`/status?game=${game}`}
-      hx-trigger="every 30s"
+      hx-trigger="every 5s"
       hx-target={`#row-header-${game}`}
       hx-swap="outerHTML"
       onclick={`toggleRow('${game}')`}

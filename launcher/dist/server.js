@@ -100712,7 +100712,7 @@ function createBackend() {
 }
 
 // src/cache.ts
-var POLL_INTERVAL_MS3 = 3e4;
+var POLL_INTERVAL_MS3 = 5e3;
 var GameCache = class {
   constructor(backend2) {
     this.backend = backend2;
@@ -103841,7 +103841,7 @@ var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) 
         id: `row-header-${game}`,
         class: "row-header",
         "hx-get": `/status?game=${game}`,
-        "hx-trigger": "every 30s",
+        "hx-trigger": "every 5s",
         "hx-target": `#row-header-${game}`,
         "hx-swap": "outerHTML",
         onclick: `toggleRow('${game}')`,
@@ -103954,7 +103954,7 @@ function renderRowHeader(game, state2) {
       id: `row-header-${game}`,
       class: "row-header",
       "hx-get": `/status?game=${game}`,
-      "hx-trigger": "every 30s",
+      "hx-trigger": "every 5s",
       "hx-target": `#row-header-${game}`,
       "hx-swap": "outerHTML",
       onclick: `toggleRow('${game}')`,
