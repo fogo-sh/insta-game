@@ -22,13 +22,13 @@ custom_domain_hostname = (
     else config.get("customDomainHostname")
 )
 cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
-default_data_url = config.get("defaultDataUrl")
-xonotic_data_url = config.get("xonoticDataUrl") or default_data_url
-qss_m_data_url = config.get("qssmDataUrl") or default_data_url
+default_data_url = config.get_secret("defaultDataUrl")
+xonotic_data_url = config.get_secret("xonoticDataUrl") or default_data_url
+qss_m_data_url = config.get_secret("qssmDataUrl") or default_data_url
 rcon_password = config.require_secret("rconPassword")
-q2repro_data_url = config.get("q2reproDataUrl") or default_data_url
-bzflag_data_url = config.get("bzflagDataUrl") or default_data_url
-ut99_data_url = config.get("ut99DataUrl") or default_data_url
+q2repro_data_url = config.get_secret("q2reproDataUrl") or default_data_url
+bzflag_data_url = config.get_secret("bzflagDataUrl") or default_data_url
+ut99_data_url = config.get_secret("ut99DataUrl") or default_data_url
 region_code = aws.get_region().region
 account_id = aws.get_caller_identity().account_id
 account_suffix = account_id[-6:]

@@ -41,6 +41,11 @@ const initScript = `
   var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
   var logStreams = {};
 
+  window.htmxHeaders = function() {
+    var pp = sessionStorage.getItem(SESSION_KEY) || "";
+    return JSON.stringify({"X-Passphrase": pp});
+  };
+
   function appendLogLine(game, text) {
     var lines = document.getElementById("log-lines-" + game);
     var line = document.createElement("div");
@@ -54,7 +59,6 @@ const initScript = `
     var auth = document.getElementById("auth");
     var panel = document.getElementById("panel");
     auth.style.display = "none";
-    panel.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
     panel.style.display = "";
     htmx.process(panel);
     // Kick off initial status fetch now that headers are set
@@ -137,6 +141,7 @@ const GameCard: FC<GameCardProps> = ({ game }) => (
     <div class="status" id={`status-${game}`}
       data-status-poll="true"
       hx-get={`/?game=${game}&operation=status`}
+      hx-headers="js:htmxHeaders()"
       hx-trigger="poll, every 10s"
       hx-target={`#status-${game}`}
     >
@@ -145,12 +150,14 @@ const GameCard: FC<GameCardProps> = ({ game }) => (
     <div class="actions">
       <button
         hx-post={`/?game=${game}&operation=start`}
+        hx-headers="js:htmxHeaders()"
         hx-target={`#status-${game}`}
         hx-indicator={`#status-indicator-${game}`}
         hx-disabled-elt={`#game-${game} .actions button`}
       >start</button>
       <button
         hx-post={`/?game=${game}&operation=stop`}
+        hx-headers="js:htmxHeaders()"
         hx-target={`#status-${game}`}
         hx-indicator={`#status-indicator-${game}`}
         hx-disabled-elt={`#game-${game} .actions button`}
@@ -186,7 +193,7 @@ export function renderUi(games: string[]): string {
           <button id="unlock-button" onclick="authenticate()">unlock</button>
         </div>
 
-        <div id="panel" style="display:none" hx-headers="{}">
+        <div id="panel" style="display:none">
           <div class="games">
             {games.map(g => <GameCard key={g} game={g} />)}
           </div>

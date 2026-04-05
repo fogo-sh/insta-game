@@ -25,7 +25,7 @@ class GameService(pulumi.ComponentResource):
         task_role_arn: pulumi.Input[str],
         execution_role_arn: pulumi.Input[str],
         sidecar_token: pulumi.Input[str],
-        data_url: str | None = None,
+        data_url: pulumi.Input[str] | None = None,
         game_port: int = 26000,
         game_port_protocols: list[str] | None = None,
         extra_port_mappings: list[dict[str, int | str]] | None = None,
@@ -67,6 +67,7 @@ class GameService(pulumi.ComponentResource):
             cluster_name,
             game_args,
             rcon_password,
+            data_url,
         ).apply(
             lambda args: json.dumps(
                 [
@@ -97,7 +98,7 @@ class GameService(pulumi.ComponentResource):
                             {"name": "GAME_QUIT_TIMEOUT", "value": str(game_quit_timeout)},
                             {"name": "CONFIG_PATH", "value": config_path},
                             *([{"name": "RCON_PASSWORD", "value": args[4]}] if args[4] else []),
-                            *([{"name": "DATA_URL", "value": data_url}] if data_url else []),
+                            *([{"name": "DATA_URL", "value": args[5]}] if args[5] else []),
                         ],
                         "logConfiguration": {
                             "logDriver": "awslogs",

@@ -1,0 +1,144 @@
+name: Publish Game Images
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docker-containers/**"
+      - "sidecar/**"
+      - ".github/workflows/publish-images.yml"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_changes: ${{ steps.set-matrix.outputs.has_changes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build image matrix from changed paths
+        id: set-matrix
+        shell: bash
+        run: |
+          python3 <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          import subprocess
+
+          event_name = os.environ["GITHUB_EVENT_NAME"]
+          event_before = os.environ.get("GITHUB_EVENT_BEFORE", "")
+          sha = os.environ["GITHUB_SHA"]
+
+          def git_diff(base: str, head: str) -> list[str]:
+              result = subprocess.run(
+                  ["git", "diff", "--name-only", base, head],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return [line for line in result.stdout.splitlines() if line]
+
+          if event_name == "workflow_dispatch":
+              changed = ["sidecar/forced-rebuild"]
+          else:
+              if not event_before or event_before == "0000000000000000000000000000000000000000":
+                  result = subprocess.run(
+                      ["git", "ls-tree", "-r", "--name-only", sha],
+                      check=True,
+                      capture_output=True,
+                      text=True,
+                  )
+                  changed = [line for line in result.stdout.splitlines() if line]
+              else:
+                  changed = git_diff(event_before, sha)
+
+          images = [
+              {
+                  "image": "xonotic",
+                  "dockerfile": "docker-containers/xonotic/Dockerfile",
+                  "watch_paths": ["docker-containers/xonotic/"],
+                  "prep": "cd ./docker-containers/xonotic && make download && make clean",
+              },
+              {
+                  "image": "qssm",
+                  "dockerfile": "docker-containers/qssm/Dockerfile",
+                  "watch_paths": ["docker-containers/qssm/"],
+              },
+              {
+                  "image": "q2repro",
+                  "dockerfile": "docker-containers/q2repro/Dockerfile",
+                  "watch_paths": ["docker-containers/q2repro/"],
+                  "prep": "cd ./docker-containers/q2repro && make download && make clean",
+              },
+              {
+                  "image": "bzflag",
+                  "dockerfile": "docker-containers/bzflag/Dockerfile",
+                  "watch_paths": ["docker-containers/bzflag/"],
+              },
+              {
+                  "image": "ut99",
+                  "dockerfile": "docker-containers/ut99/Dockerfile",
+                  "watch_paths": ["docker-containers/ut99/"],
+                  "prep": "cd ./docker-containers/ut99 && make download && make clean",
+              },
+          ]
+
+          global_prefixes = ("sidecar/",)
+          selected = []
+          for image in images:
+              if any(path.startswith(global_prefixes) for path in changed) or any(
+                  path.startswith(tuple(image["watch_paths"])) for path in changed
+              ):
+                  selected.append({k: v for k, v in image.items() if k != "watch_paths"})
+
+          print(f"has_changes={'true' if selected else 'false'}")
+          print(f"matrix={json.dumps({'include': selected})}")
+          PY
+
+  build-and-push:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.has_changes == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare image inputs
+        if: ${{ matrix.prep }}
+        run: ${{ matrix.prep }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.image }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.image }}-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.image }}-cache,mode=max
