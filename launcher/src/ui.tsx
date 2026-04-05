@@ -46,16 +46,15 @@ const css = `
 
   .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
   .admin-section.unlocked { display: block; }
-  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
   .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
   .admin-controls button:hover { background: #444; }
 
   .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
   .status-frag .online { color: #4f4; }
   .status-frag .starting { color: #fa4; }
-  .htmx-indicator { display: none; }
-  .htmx-request .htmx-indicator { display: inline; }
-  .htmx-request.htmx-indicator { display: inline; }
+  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+  .htmx-request .htmx-indicator { opacity: 1; }
 
   .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
   .log-section.open { display: block; }
@@ -67,7 +66,6 @@ const initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
 
-  // Retrieve stored passphrase
   function getPassphrase() {
     return sessionStorage.getItem(SESSION_KEY) || "";
   }
@@ -85,39 +83,20 @@ const initScript = `
     navigator.clipboard.writeText(text).catch(function() {});
   };
 
-  // Unlock all admin sections with the given passphrase
+  // Unlock all admin sections — set hx-headers then show them
   function unlockAll(pp) {
-    document.querySelectorAll("[data-admin-section]").forEach(function(section) {
-      var game = section.getAttribute("data-admin-section");
+    document.querySelectorAll(".admin-section").forEach(function(section) {
       section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
-      section.innerHTML = adminControlsHtml(game);
       section.classList.add("unlocked");
       htmx.process(section);
     });
-    var authForm = document.getElementById("auth-form");
-    var authStatus = document.getElementById("auth-status");
-    authForm.style.display = "none";
-    authStatus.style.display = "";
-    authStatus.textContent = "admin";
+    document.getElementById("auth-form").style.display = "none";
+    var status = document.getElementById("auth-status");
+    status.style.display = "";
+    status.textContent = "admin";
   }
 
-  function adminControlsHtml(game) {
-    var indicator = "#status-result-" + game;
-    return '<div class="admin-controls" id="admin-controls-' + game + '">' +
-      '<button hx-post="/?game=' + game + '&operation=start"' +
-        ' hx-target="' + indicator + '"' +
-        ' hx-indicator="' + indicator + '">start</button>' +
-      '<button hx-post="/?game=' + game + '&operation=stop"' +
-        ' hx-target="' + indicator + '"' +
-        ' hx-indicator="' + indicator + '">stop</button>' +
-      "<button type=\"button\" onclick=\"toggleLogs('" + game + "')\">logs</button>" +
-      '</div>' +
-      '<div id="status-result-' + game + '" class="status-frag">' +
-        '<span class="htmx-indicator">working...</span>' +
-      '</div>';
-  }
-
-  // Top-level authenticate button
+  // Top-level authenticate
   window.authenticate = function() {
     var input = document.getElementById("passphrase-input");
     var btn = document.getElementById("passphrase-btn");
@@ -142,17 +121,7 @@ const initScript = `
       });
   };
 
-  // Restore auth state on page load
-  function restoreAdminControls() {
-    var pp = getPassphrase();
-    if (!pp) return;
-    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
-      .then(function(res) {
-        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
-        unlockAll(pp);
-      });
-  }
-
+  // Toggle inline log panel open/closed
   window.toggleLogs = function(game) {
     var section = document.getElementById("log-section-" + game);
     var isOpen = section.classList.toggle("open");
@@ -170,7 +139,16 @@ const initScript = `
     }
   };
 
-  restoreAdminControls();
+  // Restore auth on page load
+  (function() {
+    var pp = getPassphrase();
+    if (!pp) return;
+    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
+        unlockAll(pp);
+      });
+  })();
 })();
 `;
 
@@ -190,6 +168,7 @@ interface RowProps {
 
 const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloadUrl }) => {
   const metaOnline = state.status === "online";
+  const indicator = `#status-result-${game}`;
   return (
     <div class="row" id={`row-${game}`}>
       {/* Collapsed header — always visible, auto-refreshed by htmx every 30s */}
@@ -218,7 +197,7 @@ const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloa
         <div class="row-details">
           {connectAddress ? (
             <div class="connect">
-              connect:               <code onclick={`copyConnect(${JSON.stringify(connectAddress)})`} title="click to copy">{connectAddress}</code>
+              connect: <code onclick={`copyConnect(${JSON.stringify(connectAddress)})`} title="click to copy">{connectAddress}</code>
             </div>
           ) : null}
           {clientDownloadUrl ? (
@@ -228,10 +207,29 @@ const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloa
           ) : null}
         </div>
 
-        {/* Admin section — hidden until top-level passphrase is entered */}
-        <div class="admin-section" id={`admin-section-${game}`} data-admin-section={game} />
+        {/* Admin controls — rendered in HTML, hidden until unlockAll() runs */}
+        <div class="admin-section" id={`admin-section-${game}`}>
+          <div class="admin-controls">
+            <button
+              hx-post={`/?game=${game}&operation=start`}
+              hx-target={indicator}
+              hx-indicator={indicator}
+              hx-disabled-elt="this"
+            >start</button>
+            <button
+              hx-post={`/?game=${game}&operation=stop`}
+              hx-target={indicator}
+              hx-indicator={indicator}
+              hx-disabled-elt="this"
+            >stop</button>
+            <button type="button" onclick={`toggleLogs('${game}')`}>logs</button>
+          </div>
+          <div id={`status-result-${game}`} class="status-frag">
+            <span class="htmx-indicator">working...</span>
+          </div>
+        </div>
 
-        {/* Inline log panel — toggled by admin controls */}
+        {/* Inline log panel */}
         <div class="log-section" id={`log-section-${game}`}>
           <div id={`log-sse-${game}`}>
             <div id={`log-lines-${game}`} class="log-panel" sse-swap="log" hx-swap="beforeend" />
@@ -301,7 +299,6 @@ export function renderRowHeader(
 ): string {
   const metaOnline = state.status === "online";
   const dot = state.status === "online" ? "🟢" : state.status === "starting" ? "🟡" : "⚫";
-  // Return just the row-header div (htmx swaps outerHTML on the 30s poll)
   const frag = (
     <div
       id={`row-header-${game}`}

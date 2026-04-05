@@ -103704,16 +103704,15 @@ var css = `
 
   .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
   .admin-section.unlocked { display: block; }
-  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
   .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
   .admin-controls button:hover { background: #444; }
 
   .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
   .status-frag .online { color: #4f4; }
   .status-frag .starting { color: #fa4; }
-  .htmx-indicator { display: none; }
-  .htmx-request .htmx-indicator { display: inline; }
-  .htmx-request.htmx-indicator { display: inline; }
+  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+  .htmx-request .htmx-indicator { opacity: 1; }
 
   .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
   .log-section.open { display: block; }
@@ -103724,7 +103723,6 @@ var initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
 
-  // Retrieve stored passphrase
   function getPassphrase() {
     return sessionStorage.getItem(SESSION_KEY) || "";
   }
@@ -103742,39 +103740,20 @@ var initScript = `
     navigator.clipboard.writeText(text).catch(function() {});
   };
 
-  // Unlock all admin sections with the given passphrase
+  // Unlock all admin sections \u2014 set hx-headers then show them
   function unlockAll(pp) {
-    document.querySelectorAll("[data-admin-section]").forEach(function(section) {
-      var game = section.getAttribute("data-admin-section");
+    document.querySelectorAll(".admin-section").forEach(function(section) {
       section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
-      section.innerHTML = adminControlsHtml(game);
       section.classList.add("unlocked");
       htmx.process(section);
     });
-    var authForm = document.getElementById("auth-form");
-    var authStatus = document.getElementById("auth-status");
-    authForm.style.display = "none";
-    authStatus.style.display = "";
-    authStatus.textContent = "admin";
+    document.getElementById("auth-form").style.display = "none";
+    var status = document.getElementById("auth-status");
+    status.style.display = "";
+    status.textContent = "admin";
   }
 
-  function adminControlsHtml(game) {
-    var indicator = "#status-result-" + game;
-    return '<div class="admin-controls" id="admin-controls-' + game + '">' +
-      '<button hx-post="/?game=' + game + '&operation=start"' +
-        ' hx-target="' + indicator + '"' +
-        ' hx-indicator="' + indicator + '">start</button>' +
-      '<button hx-post="/?game=' + game + '&operation=stop"' +
-        ' hx-target="' + indicator + '"' +
-        ' hx-indicator="' + indicator + '">stop</button>' +
-      "<button type="button" onclick="toggleLogs('" + game + "')">logs</button>" +
-      '</div>' +
-      '<div id="status-result-' + game + '" class="status-frag">' +
-        '<span class="htmx-indicator">working...</span>' +
-      '</div>';
-  }
-
-  // Top-level authenticate button
+  // Top-level authenticate
   window.authenticate = function() {
     var input = document.getElementById("passphrase-input");
     var btn = document.getElementById("passphrase-btn");
@@ -103799,17 +103778,7 @@ var initScript = `
       });
   };
 
-  // Restore auth state on page load
-  function restoreAdminControls() {
-    var pp = getPassphrase();
-    if (!pp) return;
-    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
-      .then(function(res) {
-        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
-        unlockAll(pp);
-      });
-  }
-
+  // Toggle inline log panel open/closed
   window.toggleLogs = function(game) {
     var section = document.getElementById("log-section-" + game);
     var isOpen = section.classList.toggle("open");
@@ -103827,7 +103796,16 @@ var initScript = `
     }
   };
 
-  restoreAdminControls();
+  // Restore auth on page load
+  (function() {
+    var pp = getPassphrase();
+    if (!pp) return;
+    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
+        unlockAll(pp);
+      });
+  })();
 })();
 `;
 var StatusDot = ({ status }) => {
@@ -103837,6 +103815,7 @@ var StatusDot = ({ status }) => {
 };
 var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) => {
   const metaOnline = state2.status === "online";
+  const indicator = `#status-result-${game}`;
   return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
     /* @__PURE__ */ jsxDEV(
       "div",
@@ -103868,12 +103847,37 @@ var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) 
     /* @__PURE__ */ jsxDEV("div", { class: "row-body", id: `row-body-${game}`, children: [
       /* @__PURE__ */ jsxDEV("div", { class: "row-details", children: [
         connectAddress ? /* @__PURE__ */ jsxDEV("div", { class: "connect", children: [
-          "connect:               ",
+          "connect: ",
           /* @__PURE__ */ jsxDEV("code", { onclick: `copyConnect(${JSON.stringify(connectAddress)})`, title: "click to copy", children: connectAddress })
         ] }) : null,
         clientDownloadUrl ? /* @__PURE__ */ jsxDEV("div", { class: "client-link", children: /* @__PURE__ */ jsxDEV("a", { href: clientDownloadUrl, target: "_blank", rel: "noopener", children: "get client \u2197" }) }) : null
       ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "admin-section", id: `admin-section-${game}`, "data-admin-section": game }),
+      /* @__PURE__ */ jsxDEV("div", { class: "admin-section", id: `admin-section-${game}`, children: [
+        /* @__PURE__ */ jsxDEV("div", { class: "admin-controls", children: [
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              "hx-post": `/?game=${game}&operation=start`,
+              "hx-target": indicator,
+              "hx-indicator": indicator,
+              "hx-disabled-elt": "this",
+              children: "start"
+            }
+          ),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              "hx-post": `/?game=${game}&operation=stop`,
+              "hx-target": indicator,
+              "hx-indicator": indicator,
+              "hx-disabled-elt": "this",
+              children: "stop"
+            }
+          ),
+          /* @__PURE__ */ jsxDEV("button", { type: "button", onclick: `toggleLogs('${game}')`, children: "logs" })
+        ] }),
+        /* @__PURE__ */ jsxDEV("div", { id: `status-result-${game}`, class: "status-frag", children: /* @__PURE__ */ jsxDEV("span", { class: "htmx-indicator", children: "working..." }) })
+      ] }),
       /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${game}`, class: "log-panel", "sse-swap": "log", "hx-swap": "beforeend" }) }) })
     ] })
   ] });
