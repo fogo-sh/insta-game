@@ -246,8 +246,6 @@ func queryServer(c cfg) *protocol.ServerInfo {
 		info, err = protocol.QueryQuake2(c.GamePort)
 	case "quake3":
 		info, err = protocol.QueryQuake3(c.GamePort)
-	case "supertuxkart":
-		return nil
 	case "ut99":
 		info, err = protocol.QueryUT99(c.GamePort)
 	default:
@@ -259,33 +257,11 @@ func queryServer(c cfg) *protocol.ServerInfo {
 	return info
 }
 
-func readyFromProcess(protocolName string) bool {
-	switch protocolName {
-	case "supertuxkart":
-		return true
-	default:
-		return false
-	}
-}
-
-func supportsPlayerQuery(protocolName string) bool {
-	switch protocolName {
-	case "supertuxkart":
-		return false
-	default:
-		return true
-	}
-}
-
 // ---- Auto-shutdown ----------------------------------------------------------
 
 func autoShutdownLoop(c cfg) {
 	if c.IdleTimeout == 0 || c.ECSService == "" {
 		log.Printf("SIDECAR: auto-shutdown disabled")
-		return
-	}
-	if !supportsPlayerQuery(c.Protocol) {
-		log.Printf("SIDECAR: auto-shutdown disabled for %s (no player query support)", c.Protocol)
 		return
 	}
 	log.Printf("SIDECAR: auto-shutdown enabled (timeout %s)", c.IdleTimeout)
@@ -364,10 +340,9 @@ func statusHandler(c cfg) http.HandlerFunc {
 		procMu.Unlock()
 
 		info := queryServer(c)
-		ready := info != nil || (running && readyFromProcess(c.Protocol))
 		resp := map[string]any{
 			"running":   running,
-			"ready":     ready,
+			"ready":     info != nil,
 			"players":   0,
 			"hostname":  "",
 			"map":       "",
@@ -412,7 +387,7 @@ func indexHandler(c cfg) http.HandlerFunc {
 
 		info := queryServer(c)
 
-		ready := info != nil || (running && readyFromProcess(c.Protocol))
+		ready := info != nil
 		players := 0
 		hostname := ""
 		mapName := ""

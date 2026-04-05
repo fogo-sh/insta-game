@@ -12,7 +12,6 @@ Current AWS game services are:
 - FTEQW / Quake 1 on ARM64 Fargate with 1024 CPU and 2048 MiB memory
 - q2repro / Quake 2 on ARM64 Fargate
 - ioquake3 / Quake 3 Arena on ARM64 Fargate
-- SuperTuxKart on ARM64 Fargate
 - OpenArena on ARM64 Fargate
 - BZFlag on ARM64 Fargate
 - UT99 GOTY on ARM64 Fargate
@@ -59,7 +58,6 @@ docker compose up ioquake3  # run ioquake3 / Quake 3 Arena (requires DATA_URL en
 docker compose up openarena # run OpenArena
 docker compose up bzflag    # run BZFlag
 docker compose up ut99      # run UT99 GOTY (requires DATA_URL env var — see compose.yml)
-docker compose up supertuxkart # run SuperTuxKart
 ```
 
 All game images, including UT99 GOTY, are `linux/arm64`. Make sure Docker
@@ -76,7 +74,6 @@ To build images locally (handles any required pre-build steps automatically):
 ./build.sh openarena
 ./build.sh bzflag
 ./build.sh ut99
-./build.sh supertuxkart
 ```
 
 `./build.sh` now discovers buildable games from `docker-containers/*/game.json`
