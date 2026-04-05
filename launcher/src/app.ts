@@ -155,7 +155,7 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
 
     return streamSSE(c, async stream => {
       log.info(`logs: stream opened for ${game}`);
-      await stream.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
+      await stream.writeSSE({ data: `<div class="log-line">[connecting to ${game} logs]</div>`, event: "log" });
       let res: Response;
       try {
         res = await fetch(sidecarUrl, {
@@ -164,17 +164,17 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
         });
       } catch (error) {
         log.info(`logs: stream closed for ${game} (connection error)`);
-        await stream.writeSSE({ data: `[log proxy error: ${error instanceof Error ? error.message : String(error)}]`, event: "log" });
+        await stream.writeSSE({ data: `<div class="log-line">[log proxy error: ${error instanceof Error ? error.message : String(error)}]</div>`, event: "log" });
         await stream.close();
         return;
       }
       if (!res.ok || !res.body) {
         log.warn(`logs: sidecar returned ${res.status} for ${game}`);
-        await stream.writeSSE({ data: `[log proxy error: sidecar returned HTTP ${res.status}]`, event: "log" });
+        await stream.writeSSE({ data: `<div class="log-line">[log proxy error: sidecar returned HTTP ${res.status}]</div>`, event: "log" });
         await stream.close();
         return;
       }
-      await stream.writeSSE({ data: `[connected to ${game} logs]`, event: "log" });
+      await stream.writeSSE({ data: `<div class="log-line">[connected to ${game} logs]</div>`, event: "log" });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -186,7 +186,7 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
           const lines = buf.split("\n");
           buf = lines.pop() ?? "";
           for (const line of lines) {
-            if (line.startsWith("data: ")) await stream.writeSSE({ data: line.slice(6), event: "log" });
+            if (line.startsWith("data: ")) await stream.writeSSE({ data: `<div class="log-line">${line.slice(6)}</div>`, event: "log" });
           }
         }
       } catch { /* client disconnected */ }

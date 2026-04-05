@@ -231,8 +231,9 @@ const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloa
 
         {/* Inline log panel */}
         <div class="log-section" id={`log-section-${game}`}>
-          <div id={`log-sse-${game}`}>
-            <div id={`log-lines-${game}`} class="log-panel" sse-swap="log" hx-swap="beforeend" />
+          {/* log-sse-* gets hx-ext="sse" + sse-connect set dynamically by toggleLogs() */}
+          <div id={`log-sse-${game}`} hx-swap="beforeend">
+            <div id={`log-lines-${game}`} class="log-panel" sse-swap="log" />
           </div>
         </div>
       </div>

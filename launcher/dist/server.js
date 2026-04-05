@@ -103878,7 +103878,7 @@ var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) 
         ] }),
         /* @__PURE__ */ jsxDEV("div", { id: `status-result-${game}`, class: "status-frag", children: /* @__PURE__ */ jsxDEV("span", { class: "htmx-indicator", children: "working..." }) })
       ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${game}`, class: "log-panel", "sse-swap": "log", "hx-swap": "beforeend" }) }) })
+      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, "hx-swap": "beforeend", children: /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${game}`, class: "log-panel", "sse-swap": "log" }) }) })
     ] })
   ] });
 };
@@ -104084,7 +104084,7 @@ function createApp(backend2, cache6) {
     const sidecarUrl = `http://${SIDECAR_HOST2}:${config.sidecarPort}/logs`;
     return streamSSE(c5, async (stream2) => {
       log.info(`logs: stream opened for ${game}`);
-      await stream2.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
+      await stream2.writeSSE({ data: `<div class="log-line">[connecting to ${game} logs]</div>`, event: "log" });
       let res;
       try {
         res = await fetch(sidecarUrl, {
@@ -104093,17 +104093,17 @@ function createApp(backend2, cache6) {
         });
       } catch (error2) {
         log.info(`logs: stream closed for ${game} (connection error)`);
-        await stream2.writeSSE({ data: `[log proxy error: ${error2 instanceof Error ? error2.message : String(error2)}]`, event: "log" });
+        await stream2.writeSSE({ data: `<div class="log-line">[log proxy error: ${error2 instanceof Error ? error2.message : String(error2)}]</div>`, event: "log" });
         await stream2.close();
         return;
       }
       if (!res.ok || !res.body) {
         log.warn(`logs: sidecar returned ${res.status} for ${game}`);
-        await stream2.writeSSE({ data: `[log proxy error: sidecar returned HTTP ${res.status}]`, event: "log" });
+        await stream2.writeSSE({ data: `<div class="log-line">[log proxy error: sidecar returned HTTP ${res.status}]</div>`, event: "log" });
         await stream2.close();
         return;
       }
-      await stream2.writeSSE({ data: `[connected to ${game} logs]`, event: "log" });
+      await stream2.writeSSE({ data: `<div class="log-line">[connected to ${game} logs]</div>`, event: "log" });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -104115,7 +104115,7 @@ function createApp(backend2, cache6) {
           const lines = buf.split("\n");
           buf = lines.pop() ?? "";
           for (const line of lines) {
-            if (line.startsWith("data: ")) await stream2.writeSSE({ data: line.slice(6), event: "log" });
+            if (line.startsWith("data: ")) await stream2.writeSSE({ data: `<div class="log-line">${line.slice(6)}</div>`, event: "log" });
           }
         }
       } catch {
