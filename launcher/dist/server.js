@@ -103760,16 +103760,13 @@ var initScript = `
 
   function adminControlsHtml(game) {
     var indicator = "#status-result-" + game;
-    var disabledElt = "closest div";
     return '<div class="admin-controls" id="admin-controls-' + game + '">' +
       '<button hx-post="/?game=' + game + '&operation=start"' +
         ' hx-target="' + indicator + '"' +
-        ' hx-indicator="' + indicator + '"' +
-        ' hx-disabled-elt="' + disabledElt + '">start</button>' +
+        ' hx-indicator="' + indicator + '">start</button>' +
       '<button hx-post="/?game=' + game + '&operation=stop"' +
         ' hx-target="' + indicator + '"' +
-        ' hx-indicator="' + indicator + '"' +
-        ' hx-disabled-elt="' + disabledElt + '">stop</button>' +
+        ' hx-indicator="' + indicator + '">stop</button>' +
       "<button type="button" onclick="toggleLogs('" + game + "')">logs</button>" +
       '</div>' +
       '<div id="status-result-' + game + '" class="status-frag">' +
