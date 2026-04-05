@@ -3,6 +3,8 @@
   "displayName": "FTEQW (Quake 1)",
   "protocol": "quake1",
   "sidecarPort": 5001,
+  "cpu": 1024,
+  "memory": 2048,
   "gamePort": 26000,
   "ports": {
     "26000/udp": { "hostPort": "26000" },

@@ -25,10 +25,11 @@ Current AWS game services are:
 
 ## Game Metadata
 
-For local Docker and CI image publishing, `docker-containers/<game>/game.json` is
-the source of truth for a game. It defines the game ID, display name, sidecar
-protocol, ports, launch command, optional volumes, and any runtime `DATA_URL`
-environment variable name.
+`docker-containers/<game>/game.json` is the source of truth for a game across
+local Docker, CI image publishing, Discord command choices, and AWS/Pulumi. It
+defines the game ID, display name, sidecar protocol, ports, launch command,
+optional volumes, optional ECS sizing (`cpu`, `memory`), and any runtime
+`DATA_URL` environment variable name.
 
 Adding a new game folder with both a `Dockerfile` and `game.json` automatically:
 
@@ -36,10 +37,11 @@ Adding a new game folder with both a `Dockerfile` and `game.json` automatically:
 - includes it in the GHCR image publish workflow
 - exposes it to the local Docker launcher backend
 - adds it to Discord slash-command registration
+- creates the AWS/Pulumi ECS service and launcher config
 - gives the sidecar the correct protocol without a separate `PROTOCOL` env var
 
-This does not yet auto-create a new `docker compose` service or AWS/Pulumi ECS
-service. Those remain explicit.
+This still does not auto-create a new `docker compose` service. Compose service
+definitions remain explicit in `compose.yml`.
 
 ## Self-Hosted Docker Workflow
 
@@ -142,15 +144,17 @@ containers through the mounted Docker socket. In Docker mode it discovers games
 from `docker-containers/*/game.json`, not from a hard-coded list in
 `compose.yml`.
 
-### Adding a new local game
+### Adding a new game
 
-To make a new game available to local builds, CI image publishing, and the
-Docker launcher backend:
+To make a new game available to local builds, CI image publishing, the Docker
+launcher backend, and AWS/Pulumi:
 
 1. Create `docker-containers/<game>/Dockerfile`.
 2. Create `docker-containers/<game>/game.json`.
 3. Optionally add `Makefile`, `download.sh`, and `clean.sh` if the image needs
    build-context preparation.
+4. If the game needs more than the default ECS sizing, add `cpu` and `memory`
+   fields to `game.json`.
 
 Minimal example:
 
@@ -160,6 +164,8 @@ Minimal example:
   "displayName": "My Game",
   "protocol": "quake2",
   "sidecarPort": 5001,
+  "cpu": 1024,
+  "memory": 2048,
   "gamePort": 27910,
   "ports": {
     "27910/udp": { "hostPort": "27910" },
@@ -174,7 +180,9 @@ Minimal example:
 
 If the game needs runtime-downloaded assets, set `dataUrlEnv`, for example
 `"dataUrlEnv": "MYGAME_DATA_URL"`, and provide that environment variable when
-running the launcher or the container.
+running the launcher or the container. For AWS/Pulumi, the corresponding stack
+config key is the camelCase form of that env var, for example
+`MYGAME_DATA_URL` becomes `mygameDataUrl`.
 
 Local sidecar status:
 
@@ -316,9 +324,9 @@ Register Discord slash commands:
 DISCORD_APP_ID=<app-id> DISCORD_BOT_TOKEN=<bot-token> npm run register
 ```
 
-This registers `/start`, `/stop`, and `/status` globally. In local development,
-the game choices are generated from `docker-containers/*/game.json`. Safe to
-re-run.
+This registers `/start`, `/stop`, and `/status` globally. The game choices are
+generated from `docker-containers/*/game.json` in both local development and
+AWS/Pulumi deployment. Safe to re-run.
 
 ## Public API
 

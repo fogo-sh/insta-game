@@ -1,5 +1,6 @@
 import ipaddress
 import json
+from pathlib import Path
 
 import pulumi
 import pulumi_aws as aws
@@ -23,13 +24,7 @@ custom_domain_hostname = (
 )
 cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get_secret("defaultDataUrl")
-xonotic_data_url = config.get_secret("xonoticDataUrl") or default_data_url
-fteqw_data_url = config.get_secret("fteqwDataUrl") or default_data_url
 rcon_password = config.require_secret("rconPassword")
-q2repro_data_url = config.get_secret("q2reproDataUrl") or default_data_url
-bzflag_data_url = config.get_secret("bzflagDataUrl") or default_data_url
-ut99_data_url = config.get_secret("ut99DataUrl") or default_data_url
-ioquake3_data_url = config.get_secret("ioquake3DataUrl") or default_data_url
 region_code = aws.get_region().region
 account_id = aws.get_caller_identity().account_id
 account_suffix = account_id[-6:]
@@ -47,6 +42,61 @@ def regional_name(*parts: str) -> str:
 
 def global_name(*parts: str) -> str:
     return "-".join(["insta-game", *parts, region_code, account_suffix])
+
+
+def load_game_definitions() -> list[dict]:
+    definitions: list[dict] = []
+    docker_root = Path(__file__).resolve().parent.parent / "docker-containers"
+    for game_dir in sorted(path for path in docker_root.iterdir() if path.is_dir()):
+        metadata_path = game_dir / "game.json"
+        dockerfile_path = game_dir / "Dockerfile"
+        if not metadata_path.exists() or not dockerfile_path.exists():
+            continue
+        with metadata_path.open() as f:
+            definitions.append(json.load(f))
+    return definitions
+
+
+def env_var_to_pulumi_key(env_var: str) -> str:
+    parts = env_var.lower().split("_")
+    return parts[0] + "".join(part.title() for part in parts[1:])
+
+
+def data_url_for_game(metadata: dict):
+    data_url_env = metadata.get("dataUrlEnv")
+    if not data_url_env:
+        return None
+    return config.get_secret(env_var_to_pulumi_key(data_url_env)) or default_data_url
+
+
+def parse_port_mapping(port_key: str) -> tuple[int, str]:
+    port, protocol = port_key.split("/", 1)
+    return int(port), protocol.lower()
+
+
+def game_port_settings(metadata: dict) -> tuple[int, list[str], list[dict[str, int | str]]]:
+    game_port = int(metadata.get("gamePort", 26000))
+    sidecar_port = int(metadata.get("sidecarPort", 5001))
+    declared_ports = metadata.get("ports", {})
+
+    game_port_protocols: list[str] = []
+    extra_port_mappings: list[dict[str, int | str]] = []
+    for port_key in sorted(declared_ports):
+        container_port, protocol = parse_port_mapping(port_key)
+        if container_port == sidecar_port and protocol == "tcp":
+            continue
+        if container_port == game_port:
+            game_port_protocols.append(protocol)
+            continue
+        extra_port_mappings.append({"containerPort": container_port, "protocol": protocol})
+
+    if not game_port_protocols:
+        game_port_protocols = ["udp"]
+
+    return game_port, sorted(set(game_port_protocols)), extra_port_mappings
+
+
+game_definitions = load_game_definitions()
 
 
 # ---- VPC ----
@@ -101,47 +151,18 @@ security_group = aws.ec2.SecurityGroup(
     name=regional_name("game-sg"),
     ingress=[
         aws.ec2.SecurityGroupIngressArgs(
-            from_port=5001,
-            to_port=5001,
-            protocol="tcp",
+            from_port=port,
+            to_port=port,
+            protocol=protocol,
             cidr_blocks=["0.0.0.0/0"],
-        ),
-        aws.ec2.SecurityGroupIngressArgs(
-            from_port=26000,
-            to_port=26000,
-            protocol="udp",
-            cidr_blocks=["0.0.0.0/0"],
-        ),
-        aws.ec2.SecurityGroupIngressArgs(
-            from_port=27910,
-            to_port=27910,
-            protocol="udp",
-            cidr_blocks=["0.0.0.0/0"],
-        ),
-        aws.ec2.SecurityGroupIngressArgs(
-            from_port=27960,
-            to_port=27960,
-            protocol="udp",
-            cidr_blocks=["0.0.0.0/0"],
-        ),
-        aws.ec2.SecurityGroupIngressArgs(
-            from_port=5154,
-            to_port=5154,
-            protocol="tcp",
-            cidr_blocks=["0.0.0.0/0"],
-        ),
-        aws.ec2.SecurityGroupIngressArgs(
-            from_port=5154,
-            to_port=5154,
-            protocol="udp",
-            cidr_blocks=["0.0.0.0/0"],
-        ),
-        aws.ec2.SecurityGroupIngressArgs(
-            from_port=7777,
-            to_port=7781,
-            protocol="udp",
-            cidr_blocks=["0.0.0.0/0"],
-        ),
+        )
+        for port, protocol in sorted(
+            {
+                parse_port_mapping(port_key)
+                for metadata in game_definitions
+                for port_key in metadata.get("ports", {})
+            }
+        )
     ],
     egress=[
         aws.ec2.SecurityGroupEgressArgs(
@@ -273,202 +294,50 @@ aws.iam.RolePolicyAttachment(
 
 cluster = aws.ecs.Cluster("game-cluster", name=regional_name("cluster"))
 
-xonotic = GameService(
-    "xonotic-arm",
-    game_name="xonotic-arm",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:xonotic",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=512,
-    memory=1024,
-    cpu_architecture="ARM64",
-    data_url=xonotic_data_url,
-    game_cmd="./xonotic-linux-arm64-dedicated",
-    game_args="",
-    game_quit_cmd="exit",
-    game_quit_timeout=30,
-    rcon_password=rcon_password,
-)
-
-fteqw = GameService(
-    "fteqw-arm",
-    game_name="fteqw-arm",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:fteqw",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=1024,
-    memory=2048,
-    cpu_architecture="ARM64",
-    data_url=fteqw_data_url,
-    game_cmd="./fteqw.sv",
-    game_args="-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg",
-    game_quit_cmd="quit",
-    game_quit_timeout=15,
-    config_path="/opt/id1/server.cfg",
-    rcon_password=rcon_password,
-)
-
-q2repro = GameService(
-    "q2repro",
-    game_name="q2repro",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:q2repro",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=1024,
-    memory=2048,
-    cpu_architecture="ARM64",
-    data_url=q2repro_data_url,
-    game_cmd="./q2proded",
-    game_args=(
-        "+set dedicated 1 +set basedir /opt +set game baseq2"
-        " +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg"
-    ),
-    game_port=27910,
-    game_quit_cmd="quit",
-    game_quit_timeout=15,
-    config_path="/opt/baseq2/server.cfg",
-    rcon_password=rcon_password,
-)
-
-bzflag = GameService(
-    "bzflag",
-    game_name="bzflag",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:bzflag",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=512,
-    memory=1024,
-    cpu_architecture="ARM64",
-    data_url=bzflag_data_url,
-    game_port=5154,
-    game_port_protocols=["tcp", "udp"],
-    game_cmd="/usr/games/bzfs",
-    game_args="-conf /opt/data/server.cfg -p 5154",
-    game_quit_cmd="quit",
-    game_quit_timeout=15,
-    config_path="/opt/data/server.cfg",
-    rcon_password=rcon_password,
-)
-
-ut99 = GameService(
-    "ut99",
-    game_name="ut99",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:ut99",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=512,
-    memory=1024,
-    cpu_architecture="ARM64",
-    data_url=ut99_data_url,
-    game_port=7777,
-    extra_port_mappings=[
-        {"containerPort": 7778, "protocol": "udp"},
-        {"containerPort": 7779, "protocol": "udp"},
-        {"containerPort": 7780, "protocol": "udp"},
-        {"containerPort": 7781, "protocol": "udp"},
-    ],
-    game_cmd="/usr/local/bin/start-ut99.sh",
-    game_args=(
-        "/opt/SystemARM64/ucc-bin-arm64 server DM-Deck16][?game=Botpack.DeathMatchPlus"
-        " ini=/opt/data/UnrealTournament.ini -nohomedir"
-    ),
-    game_quit_cmd="exit",
-    game_quit_timeout=15,
-    config_path="/opt/data/UnrealTournament.ini",
-    rcon_password=rcon_password,
-)
-
-ioquake3 = GameService(
-    "ioquake3",
-    game_name="ioquake3",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:ioquake3",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=512,
-    memory=1024,
-    cpu_architecture="ARM64",
-    data_url=ioquake3_data_url,
-    game_port=27960,
-    game_cmd="./ioq3ded",
-    game_args=(
-        "+set dedicated 2 +set fs_basepath /opt +set fs_homepath /opt"
-        " +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 8"
-        " +set com_hunkMegs 64 +exec server.cfg"
-    ),
-    game_quit_cmd="quit",
-    game_quit_timeout=15,
-    config_path="/opt/baseq3/server.cfg",
-    rcon_password=rcon_password,
-)
-
-openarena = GameService(
-    "openarena",
-    game_name="openarena",
-    name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:openarena",
-    cluster_id=cluster.id,
-    cluster_name=cluster.name,
-    subnet_ids=[s.id for s in subnets],
-    security_group_id=security_group.id,
-    task_role_arn=ecs_task_role.arn,
-    execution_role_arn=ecs_execution_role.arn,
-    sidecar_token=sidecar_token,
-    cpu=512,
-    memory=1024,
-    cpu_architecture="ARM64",
-    game_port=27960,
-    game_cmd="/opt/openarena-ded",
-    game_args=(
-        "+set fs_basepath /usr/lib/openarena-server +set fs_homepath /opt"
-        " +set com_basegame baseoa +set com_homepath .openarena"
-        " +set vm_game 0"
-        " +set dedicated 2 +set net_ip 0.0.0.0"
-        " +set net_port 27960 +set sv_maxclients 12"
-        " +set com_hunkMegs 64 +exec server.cfg"
-    ),
-    game_quit_cmd="quit",
-    game_quit_timeout=15,
-    config_path="/opt/baseoa/server.cfg",
-    rcon_password=rcon_password,
-)
+game_services: dict[str, GameService] = {}
+for metadata in game_definitions:
+    game_id = metadata["id"]
+    game_port, game_port_protocols, extra_port_mappings = game_port_settings(metadata)
+    game_services[game_id] = GameService(
+        game_id,
+        game_name=game_id,
+        name_prefix=regional_name("game"),
+        image=metadata.get("image", f"ghcr.io/fogo-sh/insta-game:{game_id}"),
+        cluster_id=cluster.id,
+        cluster_name=cluster.name,
+        subnet_ids=[s.id for s in subnets],
+        security_group_id=security_group.id,
+        task_role_arn=ecs_task_role.arn,
+        execution_role_arn=ecs_execution_role.arn,
+        sidecar_token=sidecar_token,
+        data_url=data_url_for_game(metadata),
+        game_port=game_port,
+        game_port_protocols=game_port_protocols,
+        extra_port_mappings=extra_port_mappings,
+        sidecar_port=int(metadata.get("sidecarPort", 5001)),
+        cpu=int(metadata.get("cpu", 512)),
+        memory=int(metadata.get("memory", 1024)),
+        cpu_architecture="ARM64",
+        game_cmd=metadata.get("gameCmd", ""),
+        game_args=metadata.get("gameArgs", ""),
+        game_quit_cmd=metadata.get("gameQuitCmd", "quit"),
+        game_quit_timeout=int(metadata.get("gameQuitTimeout", 15)),
+        config_path=metadata.get("configPath", "/opt/data/server.cfg"),
+        rcon_password=rcon_password,
+    )
 
 # ---- Lambda ----
+
+launcher_games = {
+    metadata["id"]: {
+        "serviceName": game_services[metadata["id"]].service_name,
+        "sidecarPort": int(metadata.get("sidecarPort", 5001)),
+    }
+    for metadata in game_definitions
+}
+
+launcher_game_ids = [metadata["id"] for metadata in game_definitions]
+launcher_game_services = [game_services[game_id].service_name for game_id in launcher_game_ids]
 
 launcher = aws.lambda_.Function(
     "launcher",
@@ -481,58 +350,29 @@ launcher = aws.lambda_.Function(
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables=pulumi.Output.all(
             sidecar_token,
-            xonotic.service_name,
             cluster.name,
-            fteqw.service_name,
-            q2repro.service_name,
             web_ui_passphrase,
             api_token,
             discord_public_key,
             discord_bot_token,
             discord_app_id,
-            bzflag.service_name,
-            ut99.service_name,
-            ioquake3.service_name,
-            openarena.service_name,
+            *launcher_game_services,
         ).apply(
             lambda args: {
                 "SIDECAR_TOKEN": args[0],
-                "ECS_CLUSTER": args[2],
-                "WEB_UI_PASSPHRASE": args[5],
-                "API_TOKEN": args[6],
-                "DISCORD_PUBLIC_KEY": args[7],
-                "DISCORD_BOT_TOKEN": args[8],
-                "DISCORD_APP_ID": args[9],
+                "ECS_CLUSTER": args[1],
+                "WEB_UI_PASSPHRASE": args[2],
+                "API_TOKEN": args[3],
+                "DISCORD_PUBLIC_KEY": args[4],
+                "DISCORD_BOT_TOKEN": args[5],
+                "DISCORD_APP_ID": args[6],
                 "GAMES": json.dumps(
                     {
-                        "xonotic": {
-                            "serviceName": args[1],
-                            "sidecarPort": 5001,
-                        },
-                        "fteqw": {
-                            "serviceName": args[3],
-                            "sidecarPort": 5001,
-                        },
-                        "q2repro": {
-                            "serviceName": args[4],
-                            "sidecarPort": 5001,
-                        },
-                        "bzflag": {
-                            "serviceName": args[10],
-                            "sidecarPort": 5001,
-                        },
-                        "ut99": {
-                            "serviceName": args[11],
-                            "sidecarPort": 5001,
-                        },
-                        "ioquake3": {
-                            "serviceName": args[12],
-                            "sidecarPort": 5001,
-                        },
-                        "openarena": {
-                            "serviceName": args[13],
-                            "sidecarPort": 5001,
-                        },
+                        game_id: {
+                            "serviceName": args[index + 7],
+                            "sidecarPort": launcher_games[game_id]["sidecarPort"],
+                        }
+                        for index, game_id in enumerate(launcher_game_ids)
                     }
                 ),
             }
