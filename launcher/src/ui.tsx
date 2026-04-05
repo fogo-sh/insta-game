@@ -112,17 +112,16 @@ const initScript = `
 
   function showAdminControls(game, pp) {
     var section = document.getElementById("admin-section-" + game);
+    section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
     section.innerHTML = adminControlsHtml(game);
     htmx.process(section);
-    // Set passphrase header on the controls
-    section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
   }
 
   function adminControlsHtml(game) {
-    return '<div class="admin-controls" hx-headers=\'{"X-Passphrase": ""}\' id="admin-controls-' + game + '">' +
+    return '<div class="admin-controls" id="admin-controls-' + game + '">' +
       '<button hx-post="/?game=' + game + '&operation=start" hx-target="#status-result-' + game + '">start</button>' +
       '<button hx-post="/?game=' + game + '&operation=stop" hx-target="#status-result-' + game + '">stop</button>' +
-      '<button onclick="toggleLogs(\\'' + game + '\\')" >logs</button>' +
+      '<button onclick="toggleLogs(' + JSON.stringify(game) + ')" >logs</button>' +
       '</div>' +
       '<div id="status-result-' + game + '" class="status-frag"></div>';
   }
@@ -207,7 +206,7 @@ const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloa
         <div class="row-details">
           {connectAddress ? (
             <div class="connect">
-              connect: <code onclick={`copyConnect('${connectAddress}')`} title="click to copy">{connectAddress}</code>
+              connect:               <code onclick={`copyConnect(${JSON.stringify(connectAddress)})`} title="click to copy">{connectAddress}</code>
             </div>
           ) : null}
           {clientDownloadUrl ? (
