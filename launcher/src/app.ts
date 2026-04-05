@@ -61,7 +61,7 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     }
 
     // Passphrase validation ping (HX-Request with no game/operation)
-    if (c.req.header("hx-request") && passphrase) {
+    if (c.req.header("hx-request") && WEB_UI_PASSPHRASE !== "") {
       if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
       return c.text("ok");
     }
