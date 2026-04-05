@@ -1,0 +1,18 @@
+{
+  "id": "fteqw",
+  "displayName": "FTEQW (Quake 1)",
+  "protocol": "quake1",
+  "sidecarPort": 5001,
+  "gamePort": 26000,
+  "ports": {
+    "26000/udp": { "hostPort": "26000" },
+    "5001/tcp": { "hostPort": "5001" }
+  },
+  "gameCmd": "./fteqw.sv",
+  "gameArgs": "-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15,
+  "configPath": "/opt/id1/server.cfg",
+  "volumes": [".cache/fteqw:/opt/id1"],
+  "dataUrlEnv": "FTEQW_DATA_URL"
+}

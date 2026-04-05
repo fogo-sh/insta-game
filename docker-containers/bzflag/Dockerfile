@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mkdir -p /opt/data
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
+COPY docker-containers/bzflag/game.json /opt/game.json
 COPY docker-containers/bzflag/server.cfg /opt/default-server.cfg
 
 EXPOSE 5154/tcp

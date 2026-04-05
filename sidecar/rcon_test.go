@@ -75,3 +75,61 @@ func TestConfigureRconBZFlagConfig(t *testing.T) {
 		t.Fatalf("expected appended BZFlag password, got:\n%s", got)
 	}
 }
+
+func TestResolveProtocolPrefersEnv(t *testing.T) {
+	t.Setenv("PROTOCOL", "quake2")
+
+	got := resolveProtocol(cfg{
+		ProtocolFile: filepath.Join(t.TempDir(), "missing"),
+		GameCmd:      "./xonotic-linux-arm64-dedicated",
+	})
+
+	if got != "quake2" {
+		t.Fatalf("expected env protocol, got %q", got)
+	}
+}
+
+func TestResolveProtocolReadsProtocolFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "protocol.txt")
+	if err := os.WriteFile(path, []byte("ut99\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := resolveProtocol(cfg{
+		ProtocolFile: path,
+		GameCmd:      "./xonotic-linux-arm64-dedicated",
+	})
+
+	if got != "ut99" {
+		t.Fatalf("expected file protocol, got %q", got)
+	}
+}
+
+func TestResolveProtocolReadsMetadataFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.json")
+	if err := os.WriteFile(path, []byte("{\"protocol\":\"bzflag\"}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := resolveProtocol(cfg{
+		MetadataPath: path,
+		ProtocolFile: filepath.Join(t.TempDir(), "missing"),
+		GameCmd:      "./xonotic-linux-arm64-dedicated",
+	})
+
+	if got != "bzflag" {
+		t.Fatalf("expected metadata protocol, got %q", got)
+	}
+}
+
+func TestResolveProtocolFallsBackToGameCmd(t *testing.T) {
+	got := resolveProtocol(cfg{
+		MetadataPath: filepath.Join(t.TempDir(), "missing-game-json"),
+		ProtocolFile: filepath.Join(t.TempDir(), "missing"),
+		GameCmd:      "./fteqw.sv",
+	})
+
+	if got != "quake1" {
+		t.Fatalf("expected inferred protocol, got %q", got)
+	}
+}

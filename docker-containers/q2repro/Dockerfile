@@ -58,6 +58,7 @@ USER game
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 
+COPY docker-containers/q2repro/game.json /opt/game.json
 COPY docker-containers/q2repro/server.cfg /opt/default-server.cfg
 COPY --chmod=755 docker-containers/q2repro/entrypoint.sh /usr/local/bin/entrypoint.sh
 

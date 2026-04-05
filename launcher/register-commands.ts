@@ -1,3 +1,5 @@
+import { defaultRepoRoot, loadDockerGameDefinitions } from "./src/game-definitions.js";
+
 const APP_ID = process.env.DISCORD_APP_ID ?? "";
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN ?? "";
 
@@ -6,13 +8,10 @@ if (!APP_ID || !BOT_TOKEN) {
   process.exit(1);
 }
 
-const GAME_CHOICES = [
-  { name: "Xonotic", value: "xonotic" },
-  { name: "FTEQW (Quake 1)", value: "fteqw" },
-  { name: "q2repro (Quake 2)", value: "q2repro" },
-  { name: "BZFlag", value: "bzflag" },
-  { name: "UT99 GOTY", value: "ut99" },
-];
+const GAME_CHOICES = loadDockerGameDefinitions(defaultRepoRoot(__dirname)).map(game => ({
+  name: game.displayName,
+  value: game.id,
+}));
 
 const commands = [
   {

@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 COPY --from=fteqw-builder /usr/local/bin/fteqw.sv /opt/fteqw.sv
 
+COPY docker-containers/fteqw/game.json /opt/game.json
 COPY docker-containers/fteqw/server.cfg /opt/default-server.cfg
 
 EXPOSE 26000/udp

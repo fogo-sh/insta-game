@@ -1,0 +1,15 @@
+{
+  "id": "xonotic",
+  "displayName": "Xonotic",
+  "protocol": "xonotic",
+  "sidecarPort": 5001,
+  "gamePort": 26000,
+  "ports": {
+    "26000/udp": { "hostPort": "26000" },
+    "5001/tcp": { "hostPort": "5001" }
+  },
+  "gameCmd": "./xonotic-linux-arm64-dedicated",
+  "gameArgs": "",
+  "gameQuitCmd": "exit",
+  "gameQuitTimeout": 30
+}

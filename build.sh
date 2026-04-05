@@ -2,10 +2,91 @@
 set -e
 
 GAME=$1
+GAME_DIRS=$(find docker-containers -mindepth 1 -maxdepth 1 -type f -name game.json -exec dirname {} \; | while read -r dir; do [ -f "$dir/Dockerfile" ] && printf '%s\n' "$dir"; done | sort)
+GAMES=$(printf '%s\n' "$GAME_DIRS" | xargs -n1 basename)
+GAME_LIST=$(printf '%s\n' "$GAMES" | paste -sd ', ' -)
+
+ensure_data_url() {
+  game_name=$1
+  env_name=$2
+  prompt=$3
+  empty_message=$4
+  cache_dir=$5
+
+  if [ -f .env ]; then
+    # shellcheck disable=SC1091
+    . ./.env
+  fi
+
+  eval current_value=\${$env_name}
+  if [ -z "$current_value" ]; then
+    printf "%s" "$prompt"
+    read -r current_value
+    if [ -z "$current_value" ]; then
+      echo "$empty_message"
+      exit 1
+    fi
+    echo "$env_name=$current_value" >> .env
+    echo "==> Saved $env_name to .env"
+  else
+    echo "==> Using saved $env_name from .env"
+  fi
+
+  mkdir -p "$cache_dir"
+}
+
+prepare_game() {
+  game_name=$1
+
+  case "$game_name" in
+    fteqw)
+      ensure_data_url \
+        "$game_name" \
+        "FTEQW_DATA_URL" \
+        "FTEQW_DATA_URL (semicolon-separated url=path entries): " \
+        "FTEQW_DATA_URL is required to build FTEQW." \
+        ".cache/fteqw"
+      ;;
+    q2repro)
+      ensure_data_url \
+        "$game_name" \
+        "Q2REPRO_DATA_URL" \
+        "Q2REPRO_DATA_URL (semicolon-separated url=path entries): " \
+        "Q2REPRO_DATA_URL is required to run q2repro." \
+        ".cache/q2repro"
+      ;;
+    bzflag)
+      mkdir -p .cache/bzflag
+      ;;
+    ut99)
+      ensure_data_url \
+        "$game_name" \
+        "UT99_DATA_URL" \
+        "UT99_DATA_URL (zip URL that extracts into /opt): " \
+        "UT99_DATA_URL is required to run ut99." \
+        ".cache/ut99"
+      ;;
+  esac
+
+  echo "==> Preparing $game_name build context..."
+  make -C "docker-containers/$game_name" download clean
+}
+
+build_game_image() {
+  game_name=$1
+
+  echo "==> Building $game_name image..."
+  docker buildx build \
+    --platform linux/arm64 \
+    --load \
+    -t "ghcr.io/fogo-sh/insta-game:$game_name" \
+    -f "docker-containers/$game_name/Dockerfile" \
+    .
+}
 
 if [ -z "$GAME" ]; then
   echo "Usage: $0 <game>"
-  echo "  Games: xonotic, fteqw, q2repro, bzflag, ut99, launcher, all"
+  echo "  Games: $GAME_LIST, launcher, all"
   exit 1
 fi
 
@@ -13,13 +94,9 @@ case "$GAME" in
   all)
     echo "==> Building all services..."
     "$0" launcher
-    "$0" xonotic
-    "$0" fteqw
-    "$0" q2repro
-    "$0" bzflag
-    "$0" ut99
-    echo "==> Creating game containers (stopped)..."
-    docker compose up --no-start xonotic fteqw q2repro bzflag ut99
+    for game_name in $GAMES; do
+      "$0" "$game_name"
+    done
     echo "==> All builds complete."
     exit 0
     ;;
@@ -32,91 +109,15 @@ case "$GAME" in
     echo "==> Building launcher image..."
     docker compose build launcher
     ;;
-  xonotic)
-    echo "==> Preparing Xonotic build context..."
-    cd docker-containers/xonotic
-    make download
-    make clean
-    cd ../..
-    echo "==> Building xonotic image..."
-    docker compose build xonotic
-    ;;
-  fteqw)
-    # Load saved DATA_URL from .env if present
-    if [ -f .env ]; then
-      . ./.env
-    fi
-
-    if [ -z "$FTEQW_DATA_URL" ]; then
-      printf "FTEQW_DATA_URL (semicolon-separated url=path entries): "
-      read -r FTEQW_DATA_URL
-      if [ -z "$FTEQW_DATA_URL" ]; then
-        echo "FTEQW_DATA_URL is required to build FTEQW."
-        exit 1
-      fi
-      echo "FTEQW_DATA_URL=$FTEQW_DATA_URL" >> .env
-      echo "==> Saved FTEQW_DATA_URL to .env"
-    else
-      echo "==> Using saved FTEQW_DATA_URL from .env"
-    fi
-
-    mkdir -p .cache/fteqw
-    echo "==> Building fteqw image..."
-    docker compose build fteqw
-    ;;
-  q2repro)
-    if [ -f .env ]; then
-      . ./.env
-    fi
-
-    if [ -z "$Q2REPRO_DATA_URL" ]; then
-      printf "Q2REPRO_DATA_URL (semicolon-separated url=path entries): "
-      read -r Q2REPRO_DATA_URL
-      if [ -z "$Q2REPRO_DATA_URL" ]; then
-        echo "Q2REPRO_DATA_URL is required to run q2repro."
-        exit 1
-      fi
-      echo "Q2REPRO_DATA_URL=$Q2REPRO_DATA_URL" >> .env
-      echo "==> Saved Q2REPRO_DATA_URL to .env"
-    else
-      echo "==> Using saved Q2REPRO_DATA_URL from .env"
-    fi
-
-    mkdir -p .cache/q2repro
-    echo "==> Building q2repro image..."
-    docker compose build q2repro
-    ;;
-  bzflag)
-    mkdir -p .cache/bzflag
-    echo "==> Building bzflag image..."
-    docker compose build bzflag
-    ;;
-  ut99)
-    if [ -f .env ]; then
-      . ./.env
-    fi
-
-    if [ -z "$UT99_DATA_URL" ]; then
-      printf "UT99_DATA_URL (zip URL that extracts into /opt): "
-      read -r UT99_DATA_URL
-      if [ -z "$UT99_DATA_URL" ]; then
-        echo "UT99_DATA_URL is required to run ut99."
-        exit 1
-      fi
-      echo "UT99_DATA_URL=$UT99_DATA_URL" >> .env
-      echo "==> Saved UT99_DATA_URL to .env"
-    else
-      echo "==> Using saved UT99_DATA_URL from .env"
-    fi
-
-    mkdir -p .cache/ut99
-    echo "==> Building ut99 image..."
-    docker compose build ut99
-    ;;
   *)
-    echo "Unknown game: $GAME"
-    echo "  Games: xonotic, fteqw, q2repro, bzflag, ut99, launcher, all"
-    exit 1
+    if printf '%s\n' "$GAMES" | grep -Fxq "$GAME"; then
+      prepare_game "$GAME"
+      build_game_image "$GAME"
+    else
+      echo "Unknown game: $GAME"
+      echo "  Games: $GAME_LIST, launcher, all"
+      exit 1
+    fi
     ;;
 esac
 

@@ -1,5 +1,7 @@
 import http from "http";
 import type { Backend, GameConfig, GameState } from "../backend.js";
+import { loadDockerGameDefinitions } from "../game-definitions.js";
+import type { PortBinding } from "../game-definitions.js";
 import { log } from "../logger.js";
 
 const SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
@@ -9,11 +11,7 @@ const DATA_DIR = process.env.DATA_DIR ?? "/data";
 const MAX_POLLS = 20;
 const POLL_INTERVAL_MS = 3000;
 
-export interface PortBinding {
-  hostIp?: string;
-  hostPort: string;
-  proto?: "tcp" | "udp";   // default "tcp"
-}
+const RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
 
 export interface DockerGameConfig extends GameConfig {
   containerName: string;
@@ -181,7 +179,36 @@ async function restartWithConfig(port: number, configUrl: string): Promise<void>
 
 export class DockerBackend implements Backend {
   getGames(): Record<string, DockerGameConfig> {
-    return JSON.parse(process.env.GAMES ?? "{}");
+    const configs: Record<string, DockerGameConfig> = {};
+
+    for (const definition of loadDockerGameDefinitions(DATA_DIR)) {
+      const environment: Record<string, string> = {
+        GAME_CMD: definition.gameCmd,
+        GAME_ARGS: definition.gameArgs ?? "",
+        GAME_QUIT_CMD: definition.gameQuitCmd ?? "quit",
+        GAME_QUIT_TIMEOUT: String(definition.gameQuitTimeout ?? 15),
+        GAME_PORT: String(definition.gamePort ?? 26000),
+        TOKEN: SIDECAR_TOKEN,
+      };
+
+      if (definition.configPath) environment.CONFIG_PATH = definition.configPath;
+      if (definition.dataUrlEnv) {
+        const value = process.env[definition.dataUrlEnv];
+        if (value) environment.DATA_URL = value;
+      }
+      if (RCON_PASSWORD) environment.RCON_PASSWORD = RCON_PASSWORD;
+
+      configs[definition.id] = {
+        containerName: definition.containerName ?? `insta-game-${definition.id}-1`,
+        image: definition.image ?? `ghcr.io/fogo-sh/insta-game:${definition.id}`,
+        sidecarPort: definition.sidecarPort,
+        ports: definition.ports,
+        environment,
+        volumes: definition.volumes,
+      };
+    }
+
+    return configs;
   }
 
   async getGameState(config: GameConfig): Promise<GameState> {

@@ -10,7 +10,6 @@ services:
       - "127.0.0.1:26000:26000/udp"
       - "127.0.0.1:5001:5001/tcp"
     environment:
-      PROTOCOL: "xonotic"
       GAME_CMD: "./xonotic-linux-arm64-dedicated"
       GAME_ARGS: ""
       GAME_QUIT_CMD: "exit"
@@ -32,7 +31,6 @@ services:
       - "127.0.0.1:26000:26000/udp"
       - "127.0.0.1:5001:5001/tcp"
     environment:
-      PROTOCOL: "quake1"
       GAME_CMD: "./fteqw.sv"
       GAME_ARGS: "-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
@@ -57,7 +55,6 @@ services:
       - "127.0.0.1:27910:27910/udp"
       - "127.0.0.1:5003:5001/tcp"
     environment:
-      PROTOCOL: "quake2"
       GAME_CMD: "./q2proded"
       GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
@@ -85,7 +82,6 @@ services:
       - "127.0.0.1:5154:5154/udp"
       - "127.0.0.1:5004:5001/tcp"
     environment:
-      PROTOCOL: "bzflag"
       GAME_CMD: "/usr/games/bzfs"
       GAME_ARGS: "-conf /opt/data/server.cfg -p 5154"
       GAME_QUIT_CMD: "quit"
@@ -115,7 +111,6 @@ services:
       - "127.0.0.1:7781:7781/udp"
       - "127.0.0.1:5005:5001/tcp"
     environment:
-      PROTOCOL: "ut99"
       GAME_CMD: "/usr/local/bin/start-ut99.sh"
       GAME_ARGS: "/opt/SystemARM64/ucc-bin-arm64 server DM-Deck16][?game=Botpack.DeathMatchPlus ini=/opt/data/UnrealTournament.ini -nohomedir"
       GAME_QUIT_CMD: "exit"
@@ -149,107 +144,7 @@ services:
       WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE:-gaming}"
       API_TOKEN: "${API_TOKEN:-gaming}"
       SIDECAR_TOKEN: "${SIDECAR_TOKEN:-abc123}"
-      GAMES: |
-        {
-          "xonotic": {
-            "containerName": "insta-game-xonotic-1",
-            "image": "ghcr.io/fogo-sh/insta-game:xonotic",
-            "sidecarPort": 5001,
-            "ports": {
-              "26000/udp": {"hostPort": "26000"},
-              "5001/tcp":  {"hostPort": "5001"}
-            },
-            "environment": {
-              "PROTOCOL": "xonotic",
-              "GAME_CMD": "./xonotic-linux-arm64-dedicated",
-              "GAME_ARGS": "",
-              "GAME_QUIT_CMD": "exit",
-              "GAME_QUIT_TIMEOUT": "30",
-              "TOKEN": "${SIDECAR_TOKEN:-abc123}"
-            }
-          },
-          "fteqw": {
-            "containerName": "insta-game-fteqw-1",
-            "image": "ghcr.io/fogo-sh/insta-game:fteqw",
-            "sidecarPort": 5001,
-            "ports": {
-              "26000/udp": {"hostPort": "26000"},
-              "5001/tcp":  {"hostPort": "5001"}
-            },
-            "environment": {
-              "PROTOCOL": "quake1",
-              "GAME_CMD": "./fteqw.sv",
-              "GAME_ARGS": "-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg",
-              "GAME_QUIT_CMD": "quit",
-              "GAME_QUIT_TIMEOUT": "15",
-              "CONFIG_PATH": "/opt/id1/server.cfg",
-              "TOKEN": "${SIDECAR_TOKEN:-abc123}",
-              "DATA_URL": "${FTEQW_DATA_URL:-}"
-            },
-            "volumes": [".cache/fteqw:/opt/id1"]
-          },
-          "q2repro": {
-            "containerName": "insta-game-q2repro-1",
-            "image": "ghcr.io/fogo-sh/insta-game:q2repro",
-            "sidecarPort": 5001,
-            "ports": {
-              "27910/udp": {"hostPort": "27910"},
-              "5001/tcp":  {"hostPort": "5003"}
-            },
-            "environment": {
-              "PROTOCOL": "quake2",
-              "GAME_CMD": "./q2proded",
-              "GAME_ARGS": "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg",
-              "GAME_QUIT_CMD": "quit",
-              "GAME_QUIT_TIMEOUT": "15",
-              "GAME_PORT": "27910",
-              "CONFIG_PATH": "/opt/baseq2/server.cfg",
-              "TOKEN": "${SIDECAR_TOKEN:-abc123}",
-              "DATA_URL": "${Q2REPRO_DATA_URL:-}"
-            },
-            "volumes": [".cache/q2repro:/opt/baseq2"]
-          },
-          "bzflag": {
-            "containerName": "insta-game-bzflag-1",
-            "image": "ghcr.io/fogo-sh/insta-game:bzflag",
-            "sidecarPort": 5001,
-            "ports": {
-              "5154/tcp":  {"hostPort": "5154"},
-              "5154/udp":  {"hostPort": "5154"},
-              "5001/tcp":  {"hostPort": "5004"}
-            },
-            "environment": {
-              "PROTOCOL": "bzflag",
-              "GAME_CMD": "/usr/games/bzfs",
-              "GAME_ARGS": "-conf /opt/data/server.cfg -p 5154",
-              "GAME_QUIT_CMD": "quit",
-              "GAME_QUIT_TIMEOUT": "15",
-              "GAME_PORT": "5154",
-              "CONFIG_PATH": "/opt/data/server.cfg",
-              "TOKEN": "${SIDECAR_TOKEN:-abc123}"
-            },
-            "volumes": [".cache/bzflag:/opt/data"]
-          },
-          "ut99": {
-            "containerName": "insta-game-ut99-1",
-            "image": "ghcr.io/fogo-sh/insta-game:ut99",
-            "sidecarPort": 5001,
-            "ports": {
-              "7777/udp": {"hostPort": "7777"},
-              "7778/udp": {"hostPort": "7778"},
-              "5001/tcp": {"hostPort": "5005"}
-            },
-            "environment": {
-              "PROTOCOL": "ut99",
-              "GAME_CMD": "/usr/local/bin/start-ut99.sh",
-              "GAME_ARGS": "/opt/SystemARM64/ucc-bin-arm64 server DM-Deck16][?game=Botpack.DeathMatchPlus ini=/opt/data/UnrealTournament.ini -nohomedir",
-              "GAME_QUIT_CMD": "exit",
-              "GAME_QUIT_TIMEOUT": "15",
-              "GAME_PORT": "7777",
-              "CONFIG_PATH": "/opt/data/UnrealTournament.ini",
-              "TOKEN": "${SIDECAR_TOKEN:-abc123}",
-              "DATA_URL": "${UT99_DATA_URL:-}"
-            },
-            "volumes": [".cache/ut99:/opt"]
-          }
-        }
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
+      FTEQW_DATA_URL: "${FTEQW_DATA_URL:-}"
+      Q2REPRO_DATA_URL: "${Q2REPRO_DATA_URL:-}"
+      UT99_DATA_URL: "${UT99_DATA_URL:-}"

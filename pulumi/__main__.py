@@ -282,7 +282,6 @@ xonotic = GameService(
     memory=1024,
     cpu_architecture="ARM64",
     data_url=xonotic_data_url,
-    protocol="xonotic",
     game_cmd="./xonotic-linux-arm64-dedicated",
     game_args="",
     game_quit_cmd="exit",
@@ -306,7 +305,6 @@ fteqw = GameService(
     memory=1024,
     cpu_architecture="ARM64",
     data_url=fteqw_data_url,
-    protocol="quake1",
     game_cmd="./fteqw.sv",
     game_args="-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg",
     game_quit_cmd="quit",
@@ -331,7 +329,6 @@ q2repro = GameService(
     memory=2048,
     cpu_architecture="ARM64",
     data_url=q2repro_data_url,
-    protocol="quake2",
     game_cmd="./q2proded",
     game_args=(
         "+set dedicated 1 +set basedir /opt +set game baseq2"
@@ -362,7 +359,6 @@ bzflag = GameService(
     data_url=bzflag_data_url,
     game_port=5154,
     game_port_protocols=["tcp", "udp"],
-    protocol="bzflag",
     game_cmd="/usr/games/bzfs",
     game_args="-conf /opt/data/server.cfg -p 5154",
     game_quit_cmd="quit",
@@ -394,7 +390,6 @@ ut99 = GameService(
         {"containerPort": 7780, "protocol": "udp"},
         {"containerPort": 7781, "protocol": "udp"},
     ],
-    protocol="ut99",
     game_cmd="/usr/local/bin/start-ut99.sh",
     game_args=(
         "/opt/SystemARM64/ucc-bin-arm64 server DM-Deck16][?game=Botpack.DeathMatchPlus"

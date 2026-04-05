@@ -6,6 +6,7 @@
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/*",
     "build:watch": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/* --watch",
     "build:docker": "esbuild src/server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js",
+    "lint": "eslint .",
     "register": "tsx register-commands.ts",
     "start": "node dist/server.js"
   },
@@ -17,10 +18,14 @@
     "hono": "^4.12.10"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/aws-lambda": "^8.10.161",
     "@types/node": "^25.5.2",
     "esbuild": "^0.28.0",
+    "eslint": "^10.2.0",
+    "globals": "^17.4.0",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.0"
   }
 }

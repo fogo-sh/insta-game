@@ -38,6 +38,7 @@ RUN ldconfig
 COPY docker-containers/xonotic/Xonotic-clean/data ./data
 RUN mkdir -p /opt/data && touch /opt/data/server.cfg
 
+COPY docker-containers/xonotic/game.json /opt/game.json
 COPY docker-containers/xonotic/server.cfg /opt/default-server.cfg
 
 EXPOSE 26000/udp

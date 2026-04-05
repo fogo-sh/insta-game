@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -25,6 +26,8 @@ import (
 
 type cfg struct {
 	Protocol        string
+	MetadataPath    string
+	ProtocolFile    string
 	GameCmd         string
 	GameArgs        []string
 	GameQuitCmd     string
@@ -55,7 +58,8 @@ func loadConfig() cfg {
 	port, _ := strconv.Atoi(envOr("PORT", "5001"))
 
 	return cfg{
-		Protocol:        envOr("PROTOCOL", "xonotic"),
+		MetadataPath:    envOr("GAME_METADATA_PATH", "/opt/game.json"),
+		ProtocolFile:    envOr("PROTOCOL_FILE", "/opt/protocol.txt"),
 		GameCmd:         envOr("GAME_CMD", ""),
 		GameArgs:        gameArgs,
 		GameQuitCmd:     envOr("GAME_QUIT_CMD", "quit"),
@@ -81,6 +85,75 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func resolveProtocol(c cfg) string {
+	if protocol := strings.TrimSpace(os.Getenv("PROTOCOL")); protocol != "" {
+		return protocol
+	}
+
+	if protocol, err := readMetadataProtocol(c.MetadataPath); err == nil {
+		return protocol
+	}
+
+	if protocol, err := readProtocolFile(c.ProtocolFile); err == nil {
+		return protocol
+	}
+
+	return inferProtocolFromConfig(c)
+}
+
+func readProtocolFile(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	protocol := strings.TrimSpace(string(content))
+	if protocol == "" {
+		return "", fmt.Errorf("protocol file %q is empty", path)
+	}
+	return protocol, nil
+}
+
+func readMetadataProtocol(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	var metadata struct {
+		Protocol string `json:"protocol"`
+	}
+	if err := json.Unmarshal(content, &metadata); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(metadata.Protocol) == "" {
+		return "", fmt.Errorf("metadata file %q does not define a protocol", path)
+	}
+	return strings.TrimSpace(metadata.Protocol), nil
+}
+
+func inferProtocolFromConfig(c cfg) string {
+	switch strings.ToLower(filepath.Base(c.GameCmd)) {
+	case "bzfs":
+		return "bzflag"
+	case "fteqw.sv":
+		return "quake1"
+	case "q2proded", "q2reproded", "q2pro":
+		return "quake2"
+	case "start-ut99.sh", "ucc-bin-arm64":
+		return "ut99"
+	case "xonotic-linux-arm64-dedicated":
+		return "xonotic"
+	}
+
+	switch strings.ToLower(filepath.Base(c.ConfigPath)) {
+	case "unrealtournament.ini":
+		return "ut99"
+	}
+
+	return "xonotic"
 }
 
 // ---- Process ----------------------------------------------------------------
@@ -412,6 +485,7 @@ func logsHandler(c cfg) http.HandlerFunc {
 
 func main() {
 	c := loadConfig()
+	c.Protocol = resolveProtocol(c)
 
 	if err := downloadData(c.DataURL, c.DefaultConfig, c.ConfigPath, c.UserAgent); err != nil {
 		log.Fatalf("SIDECAR: data download failed: %v", err)

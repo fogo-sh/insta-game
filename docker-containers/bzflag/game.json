@@ -1,0 +1,18 @@
+{
+  "id": "bzflag",
+  "displayName": "BZFlag",
+  "protocol": "bzflag",
+  "sidecarPort": 5001,
+  "gamePort": 5154,
+  "ports": {
+    "5154/tcp": { "hostPort": "5154" },
+    "5154/udp": { "hostPort": "5154" },
+    "5001/tcp": { "hostPort": "5004" }
+  },
+  "gameCmd": "/usr/games/bzfs",
+  "gameArgs": "-conf /opt/data/server.cfg -p 5154",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15,
+  "configPath": "/opt/data/server.cfg",
+  "volumes": [".cache/bzflag:/opt/data"]
+}

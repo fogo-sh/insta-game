@@ -12,11 +12,25 @@ These modes are separate. Use the Pulumi workflow for AWS, or use `docker compos
 - `pulumi/`: AWS infrastructure in Python, managed with `uv`
 - `launcher/`: Hono app with two backends: Lambda handler for AWS, Docker API backend for self-hosted Compose
 - `sidecar/`: Go sidecar binary — HTTP control API and process manager for game containers
-- `docker-containers/xonotic/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
-- `docker-containers/fteqw/`: FTEQW Quake 1 server image and local build scripts
-- `docker-containers/q2repro/`: q2repro Quake 2 server image and local build scripts
-- `docker-containers/bzflag/`: BZFlag server image and local build scripts
-- `docker-containers/ut99/`: Unreal Tournament GOTY server image and local build scripts
+- `docker-containers/<game>/`: one folder per local game image; each supported game folder includes a `Dockerfile` and `game.json`
+
+## Game Metadata
+
+For local Docker and CI image publishing, `docker-containers/<game>/game.json` is
+the source of truth for a game. It defines the game ID, display name, sidecar
+protocol, ports, launch command, optional volumes, and any runtime `DATA_URL`
+environment variable name.
+
+Adding a new game folder with both a `Dockerfile` and `game.json` automatically:
+
+- includes it in local `./build.sh`
+- includes it in the GHCR image publish workflow
+- exposes it to the local Docker launcher backend
+- adds it to Discord slash-command registration
+- gives the sidecar the correct protocol without a separate `PROTOCOL` env var
+
+This does not yet auto-create a new `docker compose` service or AWS/Pulumi ECS
+service. Those remain explicit.
 
 ## Self-Hosted Docker Workflow
 
@@ -46,6 +60,10 @@ To build images locally (handles any required pre-build steps automatically):
 ./build.sh bzflag
 ./build.sh ut99
 ```
+
+`./build.sh` now discovers buildable games from `docker-containers/*/game.json`
+plus `Dockerfile`, so you do not need to edit the script when adding another
+game folder.
 
 For FTEQW, q2repro, and UT99, `DATA_URL` is required because commercial game assets are not bundled. In local Compose, set `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, or `UT99_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
 
@@ -103,7 +121,43 @@ Set `WEB_UI_PASSPHRASE`, `API_TOKEN`, and `SIDECAR_TOKEN` in `.env` if you do
 not want the default local values from `compose.yml`.
 
 The launcher will be available at `http://localhost:3000`. It manages the game
-containers through the mounted Docker socket.
+containers through the mounted Docker socket. In Docker mode it discovers games
+from `docker-containers/*/game.json`, not from a hard-coded list in
+`compose.yml`.
+
+### Adding a new local game
+
+To make a new game available to local builds, CI image publishing, and the
+Docker launcher backend:
+
+1. Create `docker-containers/<game>/Dockerfile`.
+2. Create `docker-containers/<game>/game.json`.
+3. Optionally add `Makefile`, `download.sh`, and `clean.sh` if the image needs
+   build-context preparation.
+
+Minimal example:
+
+```json
+{
+  "id": "mygame",
+  "displayName": "My Game",
+  "protocol": "quake2",
+  "sidecarPort": 5001,
+  "gamePort": 27910,
+  "ports": {
+    "27910/udp": { "hostPort": "27910" },
+    "5001/tcp": { "hostPort": "5010" }
+  },
+  "gameCmd": "./mygame-server",
+  "gameArgs": "+set dedicated 1",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15
+}
+```
+
+If the game needs runtime-downloaded assets, set `dataUrlEnv`, for example
+`"dataUrlEnv": "MYGAME_DATA_URL"`, and provide that environment variable when
+running the launcher or the container.
 
 Local sidecar status:
 
@@ -244,7 +298,9 @@ Register Discord slash commands:
 DISCORD_APP_ID=<app-id> DISCORD_BOT_TOKEN=<bot-token> npm run register
 ```
 
-This registers `/start`, `/stop`, and `/status` globally. Safe to re-run.
+This registers `/start`, `/stop`, and `/status` globally. In local development,
+the game choices are generated from `docker-containers/*/game.json`. Safe to
+re-run.
 
 ## Public API
 

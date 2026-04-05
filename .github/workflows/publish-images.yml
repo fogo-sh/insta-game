@@ -61,36 +61,27 @@ jobs:
               else:
                   changed = git_diff(event_before, sha)
 
-          images = [
-              {
-                  "image": "xonotic",
-                  "dockerfile": "docker-containers/xonotic/Dockerfile",
-                  "watch_paths": ["docker-containers/xonotic/"],
-                  "prep": "cd ./docker-containers/xonotic && make download && make clean",
-              },
-              {
-                  "image": "fteqw",
-                  "dockerfile": "docker-containers/fteqw/Dockerfile",
-                  "watch_paths": ["docker-containers/fteqw/"],
-              },
-              {
-                  "image": "q2repro",
-                  "dockerfile": "docker-containers/q2repro/Dockerfile",
-                  "watch_paths": ["docker-containers/q2repro/"],
-                  "prep": "cd ./docker-containers/q2repro && make download && make clean",
-              },
-              {
-                  "image": "bzflag",
-                  "dockerfile": "docker-containers/bzflag/Dockerfile",
-                  "watch_paths": ["docker-containers/bzflag/"],
-              },
-              {
-                  "image": "ut99",
-                  "dockerfile": "docker-containers/ut99/Dockerfile",
-                  "watch_paths": ["docker-containers/ut99/"],
-                  "prep": "cd ./docker-containers/ut99 && make download && make clean",
-              },
-          ]
+          images = []
+          docker_root = "docker-containers"
+          for entry in sorted(os.listdir(docker_root)):
+              dockerfile = os.path.join(docker_root, entry, "Dockerfile")
+              metadata = os.path.join(docker_root, entry, "game.json")
+              if not os.path.isfile(dockerfile):
+                  continue
+              if not os.path.isfile(metadata):
+                  continue
+
+              image = {
+                  "image": entry,
+                  "dockerfile": dockerfile,
+                  "watch_paths": [f"{docker_root}/{entry}/"],
+              }
+
+              makefile = os.path.join(docker_root, entry, "Makefile")
+              if os.path.isfile(makefile):
+                  image["prep"] = f"make -C ./{docker_root}/{entry} download clean"
+
+              images.append(image)
 
           global_prefixes = ("sidecar/",)
           selected = []

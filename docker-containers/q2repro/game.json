@@ -1,0 +1,18 @@
+{
+  "id": "q2repro",
+  "displayName": "q2repro (Quake 2)",
+  "protocol": "quake2",
+  "sidecarPort": 5001,
+  "gamePort": 27910,
+  "ports": {
+    "27910/udp": { "hostPort": "27910" },
+    "5001/tcp": { "hostPort": "5003" }
+  },
+  "gameCmd": "./q2proded",
+  "gameArgs": "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15,
+  "configPath": "/opt/baseq2/server.cfg",
+  "volumes": [".cache/q2repro:/opt/baseq2"],
+  "dataUrlEnv": "Q2REPRO_DATA_URL"
+}
