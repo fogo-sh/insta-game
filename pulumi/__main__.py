@@ -437,6 +437,35 @@ ioquake3 = GameService(
     rcon_password=rcon_password,
 )
 
+openarena = GameService(
+    "openarena",
+    game_name="openarena",
+    name_prefix=regional_name("game"),
+    image="ghcr.io/fogo-sh/insta-game:openarena",
+    cluster_id=cluster.id,
+    cluster_name=cluster.name,
+    subnet_ids=[s.id for s in subnets],
+    security_group_id=security_group.id,
+    task_role_arn=ecs_task_role.arn,
+    execution_role_arn=ecs_execution_role.arn,
+    sidecar_token=sidecar_token,
+    cpu=512,
+    memory=1024,
+    cpu_architecture="ARM64",
+    game_port=27960,
+    game_cmd="/usr/lib/ioquake3/ioq3ded",
+    game_args=(
+        "+set fs_basepath /usr/lib/openarena-server +set fs_homepath /opt"
+        " +set fs_game baseoa +set dedicated 2 +set net_ip 0.0.0.0"
+        " +set net_port 27960 +set sv_maxclients 8"
+        " +set com_hunkMegs 64 +exec server.cfg"
+    ),
+    game_quit_cmd="quit",
+    game_quit_timeout=15,
+    config_path="/opt/baseoa/server.cfg",
+    rcon_password=rcon_password,
+)
+
 # ---- Lambda ----
 
 launcher = aws.lambda_.Function(
@@ -462,6 +491,7 @@ launcher = aws.lambda_.Function(
             bzflag.service_name,
             ut99.service_name,
             ioquake3.service_name,
+            openarena.service_name,
         ).apply(
             lambda args: {
                 "SIDECAR_TOKEN": args[0],
@@ -495,6 +525,10 @@ launcher = aws.lambda_.Function(
                         },
                         "ioquake3": {
                             "serviceName": args[12],
+                            "sidecarPort": 5001,
+                        },
+                        "openarena": {
+                            "serviceName": args[13],
                             "sidecarPort": 5001,
                         },
                     }

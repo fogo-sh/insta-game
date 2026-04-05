@@ -12,6 +12,7 @@ Current AWS game services are:
 - FTEQW / Quake 1 on ARM64 Fargate with 1024 CPU and 2048 MiB memory
 - q2repro / Quake 2 on ARM64 Fargate
 - ioquake3 / Quake 3 Arena on ARM64 Fargate
+- OpenArena on ARM64 Fargate
 - BZFlag on ARM64 Fargate
 - UT99 GOTY on ARM64 Fargate
 
@@ -52,6 +53,7 @@ docker compose up xonotic   # run Xonotic
 docker compose up fteqw     # run FTEQW / Quake 1 (requires DATA_URL env var — see compose.yml)
 docker compose up q2repro   # run q2repro / Quake 2 (requires DATA_URL env var — see compose.yml)
 docker compose up ioquake3  # run ioquake3 / Quake 3 Arena (requires DATA_URL env var — see compose.yml)
+docker compose up openarena # run OpenArena
 docker compose up bzflag    # run BZFlag
 docker compose up ut99      # run UT99 GOTY (requires DATA_URL env var — see compose.yml)
 ```
@@ -67,6 +69,7 @@ To build images locally (handles any required pre-build steps automatically):
 ./build.sh fteqw
 ./build.sh q2repro
 ./build.sh ioquake3
+./build.sh openarena
 ./build.sh bzflag
 ./build.sh ut99
 ```
@@ -98,7 +101,7 @@ Set `RCON_PASSWORD` in your local `.env` to configure the admin password for
 all game servers. In-game admin login commands differ by engine:
 
 - Xonotic, FTEQW, q2repro: `rcon_password <password>`
-- ioquake3: `/rconpassword <password>` then `\rcon <command>` from a client
+- ioquake3, OpenArena: `/rconpassword <password>` then `\rcon <command>` from a client
 - BZFlag: `/password <password>`
 - UT99: `adminlogin <password>`
 
