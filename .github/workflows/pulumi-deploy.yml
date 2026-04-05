@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths:
+      - "docker-containers/**"
+      - "sidecar/**"
       - "pulumi/**"
       - "launcher/**"
       - ".github/workflows/pulumi-preview.yml"
