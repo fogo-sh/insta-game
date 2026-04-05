@@ -824,9 +824,9 @@ var init_createPaginator = __esm({
       command = withCommand(command) ?? command;
       return await client.send(command, ...args);
     };
-    get = (fromObject, path2) => {
+    get = (fromObject, path) => {
       let cursor2 = fromObject;
-      const pathComponents = path2.split(".");
+      const pathComponents = path.split(".");
       for (const step of pathComponents) {
         if (!cursor2 || typeof cursor2 !== "object") {
           return void 0;
@@ -1844,12 +1844,12 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
             const password = request.password ?? "";
             auth = `${username}:${password}`;
           }
-          let path2 = request.path;
+          let path = request.path;
           if (queryString) {
-            path2 += `?${queryString}`;
+            path += `?${queryString}`;
           }
           if (request.fragment) {
-            path2 += `#${request.fragment}`;
+            path += `#${request.fragment}`;
           }
           let hostname = request.hostname ?? "";
           if (hostname[0] === "[" && hostname.endsWith("]")) {
@@ -1861,7 +1861,7 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
             headers: request.headers,
             host: hostname,
             method: request.method,
-            path: path2,
+            path,
             port: request.port,
             agent,
             auth
@@ -2144,16 +2144,16 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
             reject(err);
           };
           const queryString = querystringBuilder.buildQueryString(query || {});
-          let path2 = request.path;
+          let path = request.path;
           if (queryString) {
-            path2 += `?${queryString}`;
+            path += `?${queryString}`;
           }
           if (request.fragment) {
-            path2 += `#${request.fragment}`;
+            path += `#${request.fragment}`;
           }
           const req = session.request({
             ...request.headers,
-            [http2.constants.HTTP2_HEADER_PATH]: path2,
+            [http2.constants.HTTP2_HEADER_PATH]: path,
             [http2.constants.HTTP2_HEADER_METHOD]: method
           });
           session.ref();
@@ -2340,13 +2340,13 @@ var require_dist_cjs14 = __commonJS({
           const abortError = buildAbortError(abortSignal);
           return Promise.reject(abortError);
         }
-        let path2 = request.path;
+        let path = request.path;
         const queryString = querystringBuilder.buildQueryString(request.query || {});
         if (queryString) {
-          path2 += `?${queryString}`;
+          path += `?${queryString}`;
         }
         if (request.fragment) {
-          path2 += `#${request.fragment}`;
+          path += `#${request.fragment}`;
         }
         let auth = "";
         if (request.username != null || request.password != null) {
@@ -2355,7 +2355,7 @@ var require_dist_cjs14 = __commonJS({
           auth = `${username}:${password}@`;
         }
         const { port, method } = request;
-        const url = `${request.protocol}//${auth}${request.hostname}${port ? `:${port}` : ""}${path2}`;
+        const url = `${request.protocol}//${auth}${request.hostname}${port ? `:${port}` : ""}${path}`;
         const body = method === "GET" || method === "HEAD" ? void 0 : request.body;
         const requestOptions = {
           body,
@@ -4587,13 +4587,13 @@ function __disposeResources(env) {
   }
   return next();
 }
-function __rewriteRelativeImportExtension(path2, preserveJsx) {
-  if (typeof path2 === "string" && /^\.\.?\//.test(path2)) {
-    return path2.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function(m5, tsx, d5, ext, cm) {
+function __rewriteRelativeImportExtension(path, preserveJsx) {
+  if (typeof path === "string" && /^\.\.?\//.test(path)) {
+    return path.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function(m5, tsx, d5, ext, cm) {
       return tsx ? preserveJsx ? ".jsx" : ".js" : d5 && (!ext || !cm) ? m5 : d5 + ext + "." + cm.toLowerCase() + "js";
     });
   }
-  return path2;
+  return path;
 }
 var extendStatics, __assign, __createBinding, __setModuleDefault, ownKeys, _SuppressedError, tslib_es6_default;
 var init_tslib_es6 = __esm({
@@ -5489,11 +5489,11 @@ var init_HttpBindingProtocol = __esm({
           const opTraits = translateTraits(operationSchema.traits);
           if (opTraits.http) {
             request.method = opTraits.http[0];
-            const [path2, search] = opTraits.http[1].split("?");
+            const [path, search] = opTraits.http[1].split("?");
             if (request.path == "/") {
-              request.path = path2;
+              request.path = path;
             } else {
-              request.path += path2;
+              request.path += path;
             }
             const traitSearchParams = new URLSearchParams(search ?? "");
             Object.assign(query, Object.fromEntries(traitSearchParams));
@@ -5889,8 +5889,8 @@ var init_requestBuilder = __esm({
         return this;
       }
       p(memberName, labelValueProvider, uriLabel, isGreedyLabel) {
-        this.resolvePathStack.push((path2) => {
-          this.path = resolvedPath(path2, this.input, memberName, labelValueProvider, uriLabel, isGreedyLabel);
+        this.resolvePathStack.push((path) => {
+          this.path = resolvedPath(path, this.input, memberName, labelValueProvider, uriLabel, isGreedyLabel);
         });
         return this;
       }
@@ -6540,18 +6540,18 @@ var require_dist_cjs20 = __commonJS({
       }
     };
     var booleanEquals = (value1, value2) => value1 === value2;
-    var getAttrPathList = (path2) => {
-      const parts = path2.split(".");
+    var getAttrPathList = (path) => {
+      const parts = path.split(".");
       const pathList = [];
       for (const part of parts) {
         const squareBracketIndex = part.indexOf("[");
         if (squareBracketIndex !== -1) {
           if (part.indexOf("]") !== part.length - 1) {
-            throw new EndpointError(`Path: '${path2}' does not end with ']'`);
+            throw new EndpointError(`Path: '${path}' does not end with ']'`);
           }
           const arrayIndex = part.slice(squareBracketIndex + 1, -1);
           if (Number.isNaN(parseInt(arrayIndex))) {
-            throw new EndpointError(`Invalid array index: '${arrayIndex}' in path: '${path2}'`);
+            throw new EndpointError(`Invalid array index: '${arrayIndex}' in path: '${path}'`);
           }
           if (squareBracketIndex !== 0) {
             pathList.push(part.slice(0, squareBracketIndex));
@@ -6563,9 +6563,9 @@ var require_dist_cjs20 = __commonJS({
       }
       return pathList;
     };
-    var getAttr = (value, path2) => getAttrPathList(path2).reduce((acc, index) => {
+    var getAttr = (value, path) => getAttrPathList(path).reduce((acc, index) => {
       if (typeof acc !== "object") {
-        throw new EndpointError(`Index '${index}' in '${path2}' not found in '${JSON.stringify(value)}'`);
+        throw new EndpointError(`Index '${index}' in '${path}' not found in '${JSON.stringify(value)}'`);
       } else if (Array.isArray(acc)) {
         return acc[parseInt(index)];
       }
@@ -6584,8 +6584,8 @@ var require_dist_cjs20 = __commonJS({
             return value;
           }
           if (typeof value === "object" && "hostname" in value) {
-            const { hostname: hostname2, port, protocol: protocol2 = "", path: path2 = "", query = {} } = value;
-            const url = new URL(`${protocol2}//${hostname2}${port ? `:${port}` : ""}${path2}`);
+            const { hostname: hostname2, port, protocol: protocol2 = "", path = "", query = {} } = value;
+            const url = new URL(`${protocol2}//${hostname2}${port ? `:${port}` : ""}${path}`);
             url.search = Object.entries(query).map(([k5, v5]) => `${k5}=${v5}`).join("&");
             return url;
           }
@@ -8327,14 +8327,14 @@ var require_readFile = __commonJS({
     var promises_1 = require("node:fs/promises");
     exports2.filePromises = {};
     exports2.fileIntercept = {};
-    var readFile = (path2, options) => {
-      if (exports2.fileIntercept[path2] !== void 0) {
-        return exports2.fileIntercept[path2];
+    var readFile = (path, options) => {
+      if (exports2.fileIntercept[path] !== void 0) {
+        return exports2.fileIntercept[path];
       }
-      if (!exports2.filePromises[path2] || options?.ignoreCache) {
-        exports2.filePromises[path2] = (0, promises_1.readFile)(path2, "utf8");
+      if (!exports2.filePromises[path] || options?.ignoreCache) {
+        exports2.filePromises[path] = (0, promises_1.readFile)(path, "utf8");
       }
-      return exports2.filePromises[path2];
+      return exports2.filePromises[path];
     };
     exports2.readFile = readFile;
   }
@@ -8347,7 +8347,7 @@ var require_dist_cjs29 = __commonJS({
     var getHomeDir = require_getHomeDir();
     var getSSOTokenFilepath = require_getSSOTokenFilepath();
     var getSSOTokenFromFile = require_getSSOTokenFromFile();
-    var path2 = require("path");
+    var path = require("path");
     var types = require_dist_cjs();
     var readFile = require_readFile();
     var ENV_PROFILE = "AWS_PROFILE";
@@ -8369,9 +8369,9 @@ var require_dist_cjs29 = __commonJS({
       ...data2.default && { default: data2.default }
     });
     var ENV_CONFIG_PATH = "AWS_CONFIG_FILE";
-    var getConfigFilepath = () => process.env[ENV_CONFIG_PATH] || path2.join(getHomeDir.getHomeDir(), ".aws", "config");
+    var getConfigFilepath = () => process.env[ENV_CONFIG_PATH] || path.join(getHomeDir.getHomeDir(), ".aws", "config");
     var ENV_CREDENTIALS_PATH = "AWS_SHARED_CREDENTIALS_FILE";
-    var getCredentialsFilepath = () => process.env[ENV_CREDENTIALS_PATH] || path2.join(getHomeDir.getHomeDir(), ".aws", "credentials");
+    var getCredentialsFilepath = () => process.env[ENV_CREDENTIALS_PATH] || path.join(getHomeDir.getHomeDir(), ".aws", "credentials");
     var prefixKeyRegex = /^([\w-]+)\s(["'])?([\w-@\+\.%:/]+)\2$/;
     var profileNameBlockList = ["__proto__", "profile __proto__"];
     var parseIni = (iniData) => {
@@ -8426,11 +8426,11 @@ var require_dist_cjs29 = __commonJS({
       const relativeHomeDirPrefix = "~/";
       let resolvedFilepath = filepath;
       if (filepath.startsWith(relativeHomeDirPrefix)) {
-        resolvedFilepath = path2.join(homeDir, filepath.slice(2));
+        resolvedFilepath = path.join(homeDir, filepath.slice(2));
       }
       let resolvedConfigFilepath = configFilepath;
       if (configFilepath.startsWith(relativeHomeDirPrefix)) {
-        resolvedConfigFilepath = path2.join(homeDir, configFilepath.slice(2));
+        resolvedConfigFilepath = path.join(homeDir, configFilepath.slice(2));
       }
       const parsedFiles = await Promise.all([
         readFile.readFile(resolvedConfigFilepath, {
@@ -8469,8 +8469,8 @@ var require_dist_cjs29 = __commonJS({
       getFileRecord() {
         return readFile.fileIntercept;
       },
-      interceptFile(path3, contents) {
-        readFile.fileIntercept[path3] = Promise.resolve(contents);
+      interceptFile(path2, contents) {
+        readFile.fileIntercept[path2] = Promise.resolve(contents);
       },
       getTokenRecord() {
         return getSSOTokenFromFile.tokenIntercept;
@@ -8795,8 +8795,8 @@ var require_dist_cjs32 = __commonJS({
               return endpoint.url.href;
             }
             if ("hostname" in endpoint) {
-              const { protocol, hostname, port, path: path2 } = endpoint;
-              return `${protocol}//${hostname}${port ? ":" + port : ""}${path2}`;
+              const { protocol, hostname, port, path } = endpoint;
+              return `${protocol}//${hostname}${port ? ":" + port : ""}${path}`;
             }
           }
           return endpoint;
@@ -10748,10 +10748,10 @@ ${longDate}
 ${credentialScope}
 ${utilHexEncoding.toHex(hashedRequest)}`;
       }
-      getCanonicalPath({ path: path2 }) {
+      getCanonicalPath({ path }) {
         if (this.uriEscapePath) {
           const normalizedPathSegments = [];
-          for (const pathSegment of path2.split("/")) {
+          for (const pathSegment of path.split("/")) {
             if (pathSegment?.length === 0)
               continue;
             if (pathSegment === ".")
@@ -10762,11 +10762,11 @@ ${utilHexEncoding.toHex(hashedRequest)}`;
               normalizedPathSegments.push(pathSegment);
             }
           }
-          const normalizedPath = `${path2?.startsWith("/") ? "/" : ""}${normalizedPathSegments.join("/")}${normalizedPathSegments.length > 0 && path2?.endsWith("/") ? "/" : ""}`;
+          const normalizedPath = `${path?.startsWith("/") ? "/" : ""}${normalizedPathSegments.join("/")}${normalizedPathSegments.length > 0 && path?.endsWith("/") ? "/" : ""}`;
           const doubleEncoded = utilUriEscape.escapeUri(normalizedPath);
           return doubleEncoded.replace(/%2F/g, "/");
         }
-        return path2;
+        return path;
       }
       validateResolvedCredentials(credentials) {
         if (typeof credentials !== "object" || typeof credentials.accessKeyId !== "string" || typeof credentials.secretAccessKey !== "string") {
@@ -13374,11 +13374,11 @@ var init_SmithyRpcV2CborProtocol = __esm({
           }
         }
         const { service, operation: operation2 } = (0, import_util_middleware6.getSmithyContext)(context);
-        const path2 = `/service/${service}/operation/${operation2}`;
+        const path = `/service/${service}/operation/${operation2}`;
         if (request.path.endsWith("/")) {
-          request.path += path2.slice(1);
+          request.path += path.slice(1);
         } else {
-          request.path += path2;
+          request.path += path;
         }
         return request;
       }
@@ -21632,12 +21632,12 @@ var require_endpointResolver = __commonJS({
     var util_endpoints_1 = require_dist_cjs21();
     var util_endpoints_2 = require_dist_cjs20();
     var ruleset_1 = require_ruleset();
-    var cache5 = new util_endpoints_2.EndpointCache({
+    var cache6 = new util_endpoints_2.EndpointCache({
       size: 50,
       params: ["Endpoint", "Region", "UseDualStack", "UseFIPS"]
     });
     var defaultEndpointResolver5 = (endpointParams, context = {}) => {
-      return cache5.get(endpointParams, () => (0, util_endpoints_2.resolveEndpoint)(ruleset_1.ruleSet, {
+      return cache6.get(endpointParams, () => (0, util_endpoints_2.resolveEndpoint)(ruleset_1.ruleSet, {
         endpointParams,
         logger: context.logger
       }));
@@ -29885,12 +29885,12 @@ var require_endpointResolver2 = __commonJS({
     var util_endpoints_1 = require_dist_cjs21();
     var util_endpoints_2 = require_dist_cjs20();
     var ruleset_1 = require_ruleset2();
-    var cache5 = new util_endpoints_2.EndpointCache({
+    var cache6 = new util_endpoints_2.EndpointCache({
       size: 50,
       params: ["Endpoint", "Region", "UseDualStack", "UseFIPS"]
     });
     var defaultEndpointResolver5 = (endpointParams, context = {}) => {
-      return cache5.get(endpointParams, () => (0, util_endpoints_2.resolveEndpoint)(ruleset_1.ruleSet, {
+      return cache6.get(endpointParams, () => (0, util_endpoints_2.resolveEndpoint)(ruleset_1.ruleSet, {
         endpointParams,
         logger: context.logger
       }));
@@ -87449,15 +87449,15 @@ var require_dist_cjs55 = __commonJS({
     var querystringBuilder = require_dist_cjs12();
     function formatUrl(request) {
       const { port, query } = request;
-      let { protocol, path: path2, hostname } = request;
+      let { protocol, path, hostname } = request;
       if (protocol && protocol.slice(-1) !== ":") {
         protocol += ":";
       }
       if (port) {
         hostname += `:${port}`;
       }
-      if (path2 && path2.charAt(0) !== "/") {
-        path2 = `/${path2}`;
+      if (path && path.charAt(0) !== "/") {
+        path = `/${path}`;
       }
       let queryString = query ? querystringBuilder.buildQueryString(query) : "";
       if (queryString && queryString[0] !== "?") {
@@ -87473,7 +87473,7 @@ var require_dist_cjs55 = __commonJS({
       if (request.fragment) {
         fragment = `#${request.fragment}`;
       }
-      return `${protocol}//${auth}${hostname}${path2}${queryString}${fragment}`;
+      return `${protocol}//${auth}${hostname}${path}${queryString}${fragment}`;
     }
     exports2.formatUrl = formatUrl;
   }
@@ -99947,14 +99947,14 @@ var Response2 = class _Response {
     }
   }
   get headers() {
-    const cache5 = this[cacheKey];
-    if (cache5) {
-      if (!(cache5[2] instanceof Headers)) {
-        cache5[2] = new Headers(
-          cache5[2] || { "content-type": "text/plain; charset=UTF-8" }
+    const cache6 = this[cacheKey];
+    if (cache6) {
+      if (!(cache6[2] instanceof Headers)) {
+        cache6[2] = new Headers(
+          cache6[2] || { "content-type": "text/plain; charset=UTF-8" }
         );
       }
-      return cache5[2];
+      return cache6[2];
     }
     return this[getResponseCache]().headers;
   }
@@ -100382,6 +100382,35 @@ var EcsBackend = class {
       return { status: "offline", players: 0, ready: false };
     }
   }
+  async getCachedState(config) {
+    const c5 = config;
+    const offline = { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+    try {
+      const listRes = await ecs.send(new import_client_ecs.ListTasksCommand({ cluster: CLUSTER, serviceName: c5.serviceName }));
+      const taskArn = listRes.taskArns?.[0];
+      if (!taskArn) return offline;
+      const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
+      const task = descRes.tasks?.[0];
+      const eniId = task?.attachments?.[0]?.details?.find((d5) => d5.name === "networkInterfaceId")?.value;
+      if (!eniId) return { ...offline, status: "starting" };
+      const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
+      const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
+      if (!publicIp) return { ...offline, status: "starting" };
+      const sidecar = await getSidecarStatus(publicIp, c5.sidecarPort);
+      if (!sidecar) return { ...offline, status: "starting" };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      return {
+        status: running && ready ? "online" : "starting",
+        players: Number(sidecar.players ?? 0),
+        hostname: String(sidecar.hostname ?? ""),
+        map: String(sidecar.map ?? ""),
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+    } catch {
+      return offline;
+    }
+  }
   async stopGame(config) {
     const c5 = config;
     await setDesiredCount(c5.serviceName, 0);
@@ -100433,28 +100462,6 @@ async function restartWithConfig(ip, port, configUrl) {
 // src/backends/docker.ts
 var import_http3 = __toESM(require("http"));
 
-// src/game-definitions.ts
-var import_fs = require("fs");
-var import_path = __toESM(require("path"));
-function loadDockerGameDefinitions(repoRoot) {
-  const dockerRoot = import_path.default.join(repoRoot, "docker-containers");
-  const entries = (0, import_fs.readdirSync)(dockerRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
-  const definitions = [];
-  for (const entry of entries) {
-    const gameDir = import_path.default.join(dockerRoot, entry);
-    const dockerfilePath = import_path.default.join(gameDir, "Dockerfile");
-    const metadataPath = import_path.default.join(gameDir, "game.json");
-    try {
-      const metadata = JSON.parse((0, import_fs.readFileSync)(metadataPath, "utf8"));
-      (0, import_fs.readFileSync)(dockerfilePath, "utf8");
-      definitions.push(metadata);
-    } catch {
-      continue;
-    }
-  }
-  return definitions;
-}
-
 // src/logger.ts
 function ts() {
   return (/* @__PURE__ */ new Date()).toISOString();
@@ -100475,13 +100482,12 @@ var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 var DATA_DIR = process.env.DATA_DIR ?? "/data";
 var MAX_POLLS2 = 20;
 var POLL_INTERVAL_MS2 = 3e3;
-var RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
-function dockerRequest(method, path2, body) {
+function dockerRequest(method, path, body) {
   return new Promise((resolve, reject) => {
     const bodyStr = body ? JSON.stringify(body) : void 0;
     const req = import_http3.default.request({
       socketPath: SOCKET,
-      path: path2,
+      path,
       method,
       headers: {
         "Content-Type": "application/json",
@@ -100502,7 +100508,7 @@ function dockerRequest(method, path2, body) {
         const status = res.statusCode ?? 0;
         if (status < 200 || status >= 300) {
           const message = parsed?.message ?? text;
-          reject(new Error(`Docker API ${method} ${path2} \u2192 ${status}: ${message}`));
+          reject(new Error(`Docker API ${method} ${path} \u2192 ${status}: ${message}`));
         } else {
           resolve(parsed);
         }
@@ -100617,32 +100623,7 @@ async function restartWithConfig2(port, configUrl) {
 }
 var DockerBackend = class {
   getGames() {
-    const configs = {};
-    for (const definition of loadDockerGameDefinitions(DATA_DIR)) {
-      const environment = {
-        GAME_CMD: definition.gameCmd,
-        GAME_ARGS: definition.gameArgs ?? "",
-        GAME_QUIT_CMD: definition.gameQuitCmd ?? "quit",
-        GAME_QUIT_TIMEOUT: String(definition.gameQuitTimeout ?? 15),
-        GAME_PORT: String(definition.gamePort ?? 26e3),
-        TOKEN: SIDECAR_TOKEN2
-      };
-      if (definition.configPath) environment.CONFIG_PATH = definition.configPath;
-      if (definition.dataUrlEnv) {
-        const value = process.env[definition.dataUrlEnv];
-        if (value) environment.DATA_URL = value;
-      }
-      if (RCON_PASSWORD) environment.RCON_PASSWORD = RCON_PASSWORD;
-      configs[definition.id] = {
-        containerName: definition.containerName ?? `insta-game-${definition.id}-1`,
-        image: definition.image ?? `ghcr.io/fogo-sh/insta-game:${definition.id}`,
-        sidecarPort: definition.sidecarPort,
-        ports: definition.ports,
-        environment,
-        volumes: definition.volumes
-      };
-    }
-    return configs;
+    return JSON.parse(process.env.GAMES ?? "{}");
   }
   async getGameState(config) {
     const c5 = config;
@@ -100661,6 +100642,31 @@ var DockerBackend = class {
       return { status: running && ready ? "online" : "starting", publicIp: "localhost", players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
+    }
+  }
+  async getCachedState(config) {
+    const c5 = config;
+    const offline = { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+    try {
+      const inspect = await inspectContainer(c5.containerName);
+      if (!inspect) return offline;
+      const state2 = inspect.State;
+      if (!state2?.Running) return offline;
+      const hostPort = getHostPort(inspect, c5.sidecarPort);
+      if (!hostPort) return { ...offline, status: "starting" };
+      const sidecar = await getSidecarStatus2(hostPort);
+      if (!sidecar) return { ...offline, status: "starting" };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      return {
+        status: running && ready ? "online" : "starting",
+        players: Number(sidecar.players ?? 0),
+        hostname: String(sidecar.hostname ?? ""),
+        map: String(sidecar.map ?? ""),
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+    } catch {
+      return offline;
     }
   }
   async startGame(config, configUrl) {
@@ -100704,6 +100710,63 @@ function createBackend() {
   if (backend2 === "docker") return new DockerBackend();
   return new EcsBackend();
 }
+
+// src/cache.ts
+var POLL_INTERVAL_MS3 = 3e4;
+var GameCache = class {
+  constructor(backend2) {
+    this.backend = backend2;
+  }
+  backend;
+  cache = /* @__PURE__ */ new Map();
+  timer = null;
+  polling = false;
+  start() {
+    if (this.timer) return;
+    void this.pollAll();
+    this.timer = setInterval(() => {
+      void this.pollAll();
+    }, POLL_INTERVAL_MS3);
+  }
+  stop() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+  get(gameKey) {
+    return this.cache.get(gameKey) ?? null;
+  }
+  set(gameKey, state2) {
+    this.cache.set(gameKey, state2);
+  }
+  async pollAll() {
+    if (this.polling) return;
+    this.polling = true;
+    try {
+      const games = this.backend.getGames();
+      await Promise.all(
+        Object.entries(games).map(async ([key, config]) => {
+          try {
+            const state2 = await this.backend.getCachedState(config);
+            this.cache.set(key, state2);
+          } catch (err) {
+            log.error(`cache: poll failed for ${key}`, err);
+            this.cache.set(key, {
+              status: "offline",
+              players: 0,
+              hostname: "",
+              map: "",
+              updatedAt: /* @__PURE__ */ new Date()
+            });
+          }
+        })
+      );
+    } finally {
+      this.polling = false;
+    }
+  }
+};
 
 // node_modules/hono/dist/compose.js
 var compose = (middleware, onError, onNotFound) => {
@@ -100825,26 +100888,26 @@ var handleParsingNestedValues = (form2, key, value) => {
 };
 
 // node_modules/hono/dist/utils/url.js
-var splitPath = (path2) => {
-  const paths = path2.split("/");
+var splitPath = (path) => {
+  const paths = path.split("/");
   if (paths[0] === "") {
     paths.shift();
   }
   return paths;
 };
 var splitRoutingPath = (routePath) => {
-  const { groups, path: path2 } = extractGroupsFromPath(routePath);
-  const paths = splitPath(path2);
+  const { groups, path } = extractGroupsFromPath(routePath);
+  const paths = splitPath(path);
   return replaceGroupMarks(paths, groups);
 };
-var extractGroupsFromPath = (path2) => {
+var extractGroupsFromPath = (path) => {
   const groups = [];
-  path2 = path2.replace(/\{[^}]+\}/g, (match2, index) => {
+  path = path.replace(/\{[^}]+\}/g, (match2, index) => {
     const mark = `@${index}`;
     groups.push([mark, match2]);
     return mark;
   });
-  return { groups, path: path2 };
+  return { groups, path };
 };
 var replaceGroupMarks = (paths, groups) => {
   for (let i5 = groups.length - 1; i5 >= 0; i5--) {
@@ -100901,8 +100964,8 @@ var getPath = (request) => {
       const queryIndex = url.indexOf("?", i5);
       const hashIndex = url.indexOf("#", i5);
       const end = queryIndex === -1 ? hashIndex === -1 ? void 0 : hashIndex : hashIndex === -1 ? queryIndex : Math.min(queryIndex, hashIndex);
-      const path2 = url.slice(start, end);
-      return tryDecodeURI(path2.includes("%25") ? path2.replace(/%25/g, "%2525") : path2);
+      const path = url.slice(start, end);
+      return tryDecodeURI(path.includes("%25") ? path.replace(/%25/g, "%2525") : path);
     } else if (charCode === 63 || charCode === 35) {
       break;
     }
@@ -100919,11 +100982,11 @@ var mergePath = (base, sub, ...rest) => {
   }
   return `${base?.[0] === "/" ? "" : "/"}${base}${sub === "/" ? "" : `${base?.at(-1) === "/" ? "" : "/"}${sub?.[0] === "/" ? sub.slice(1) : sub}`}`;
 };
-var checkOptionalParameter = (path2) => {
-  if (path2.charCodeAt(path2.length - 1) !== 63 || !path2.includes(":")) {
+var checkOptionalParameter = (path) => {
+  if (path.charCodeAt(path.length - 1) !== 63 || !path.includes(":")) {
     return null;
   }
-  const segments = path2.split("/");
+  const segments = path.split("/");
   const results = [];
   let basePath = "";
   segments.forEach((segment) => {
@@ -101064,9 +101127,9 @@ var HonoRequest = class {
    */
   path;
   bodyCache = {};
-  constructor(request, path2 = "/", matchResult = [[]]) {
+  constructor(request, path = "/", matchResult = [[]]) {
     this.raw = request;
-    this.path = path2;
+    this.path = path;
     this.#matchResult = matchResult;
     this.#validatedData = {};
   }
@@ -101877,8 +101940,8 @@ var Hono = class _Hono {
         return this;
       };
     });
-    this.on = (method, path2, ...handlers) => {
-      for (const p5 of [path2].flat()) {
+    this.on = (method, path, ...handlers) => {
+      for (const p5 of [path].flat()) {
         this.#path = p5;
         for (const m5 of [method].flat()) {
           handlers.map((handler) => {
@@ -101935,8 +101998,8 @@ var Hono = class _Hono {
    * app.route("/api", app2) // GET /api/user
    * ```
    */
-  route(path2, app2) {
-    const subApp = this.basePath(path2);
+  route(path, app2) {
+    const subApp = this.basePath(path);
     app2.routes.map((r5) => {
       let handler;
       if (app2.errorHandler === errorHandler) {
@@ -101962,9 +102025,9 @@ var Hono = class _Hono {
    * const api = new Hono().basePath('/api')
    * ```
    */
-  basePath(path2) {
+  basePath(path) {
     const subApp = this.#clone();
-    subApp._basePath = mergePath(this._basePath, path2);
+    subApp._basePath = mergePath(this._basePath, path);
     return subApp;
   }
   /**
@@ -102038,7 +102101,7 @@ var Hono = class _Hono {
    * })
    * ```
    */
-  mount(path2, applicationHandler, options) {
+  mount(path, applicationHandler, options) {
     let replaceRequest;
     let optionHandler;
     if (options) {
@@ -102065,7 +102128,7 @@ var Hono = class _Hono {
       return [c5.env, executionContext];
     };
     replaceRequest ||= (() => {
-      const mergedPath = mergePath(this._basePath, path2);
+      const mergedPath = mergePath(this._basePath, path);
       const pathPrefixLength = mergedPath === "/" ? 0 : mergedPath.length;
       return (request) => {
         const url = new URL(request.url);
@@ -102080,14 +102143,14 @@ var Hono = class _Hono {
       }
       await next();
     };
-    this.#addRoute(METHOD_NAME_ALL, mergePath(path2, "*"), handler);
+    this.#addRoute(METHOD_NAME_ALL, mergePath(path, "*"), handler);
     return this;
   }
-  #addRoute(method, path2, handler) {
+  #addRoute(method, path, handler) {
     method = method.toUpperCase();
-    path2 = mergePath(this._basePath, path2);
-    const r5 = { basePath: this._basePath, path: path2, method, handler };
-    this.router.add(method, path2, [handler, r5]);
+    path = mergePath(this._basePath, path);
+    const r5 = { basePath: this._basePath, path, method, handler };
+    this.router.add(method, path, [handler, r5]);
     this.routes.push(r5);
   }
   #handleError(err, c5) {
@@ -102100,10 +102163,10 @@ var Hono = class _Hono {
     if (method === "HEAD") {
       return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
     }
-    const path2 = this.getPath(request, { env });
-    const matchResult = this.router.match(method, path2);
+    const path = this.getPath(request, { env });
+    const matchResult = this.router.match(method, path);
     const c5 = new Context(request, {
-      path: path2,
+      path,
       matchResult,
       env,
       executionCtx,
@@ -102203,15 +102266,15 @@ var Hono = class _Hono {
 
 // node_modules/hono/dist/router/reg-exp-router/matcher.js
 var emptyParam = [];
-function match(method, path2) {
+function match(method, path) {
   const matchers = this.buildAllMatchers();
-  const match2 = ((method2, path22) => {
+  const match2 = ((method2, path2) => {
     const matcher = matchers[method2] || matchers[METHOD_NAME_ALL];
-    const staticMatch = matcher[2][path22];
+    const staticMatch = matcher[2][path2];
     if (staticMatch) {
       return staticMatch;
     }
-    const match3 = path22.match(matcher[0]);
+    const match3 = path2.match(matcher[0]);
     if (!match3) {
       return [[], emptyParam];
     }
@@ -102219,7 +102282,7 @@ function match(method, path2) {
     return [matcher[1][index], match3];
   });
   this.match = match2;
-  return match2(method, path2);
+  return match2(method, path);
 }
 
 // node_modules/hono/dist/router/reg-exp-router/node.js
@@ -102334,12 +102397,12 @@ var Node = class _Node {
 var Trie = class {
   #context = { varIndex: 0 };
   #root = new Node();
-  insert(path2, index, pathErrorCheckOnly) {
+  insert(path, index, pathErrorCheckOnly) {
     const paramAssoc = [];
     const groups = [];
     for (let i5 = 0; ; ) {
       let replaced = false;
-      path2 = path2.replace(/\{[^}]+\}/g, (m5) => {
+      path = path.replace(/\{[^}]+\}/g, (m5) => {
         const mark = `@\\${i5}`;
         groups[i5] = [mark, m5];
         i5++;
@@ -102350,7 +102413,7 @@ var Trie = class {
         break;
       }
     }
-    const tokens = path2.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
+    const tokens = path.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
     for (let i5 = groups.length - 1; i5 >= 0; i5--) {
       const [mark] = groups[i5];
       for (let j5 = tokens.length - 1; j5 >= 0; j5--) {
@@ -102389,9 +102452,9 @@ var Trie = class {
 // node_modules/hono/dist/router/reg-exp-router/router.js
 var nullMatcher = [/^$/, [], /* @__PURE__ */ Object.create(null)];
 var wildcardRegExpCache = /* @__PURE__ */ Object.create(null);
-function buildWildcardRegExp(path2) {
-  return wildcardRegExpCache[path2] ??= new RegExp(
-    path2 === "*" ? "" : `^${path2.replace(
+function buildWildcardRegExp(path) {
+  return wildcardRegExpCache[path] ??= new RegExp(
+    path === "*" ? "" : `^${path.replace(
       /\/\*$|([.\\+*[^\]$()])/g,
       (_, metaChar) => metaChar ? `\\${metaChar}` : "(?:|/.*)"
     )}$`
@@ -102413,17 +102476,17 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   );
   const staticMap = /* @__PURE__ */ Object.create(null);
   for (let i5 = 0, j5 = -1, len = routesWithStaticPathFlag.length; i5 < len; i5++) {
-    const [pathErrorCheckOnly, path2, handlers] = routesWithStaticPathFlag[i5];
+    const [pathErrorCheckOnly, path, handlers] = routesWithStaticPathFlag[i5];
     if (pathErrorCheckOnly) {
-      staticMap[path2] = [handlers.map(([h5]) => [h5, /* @__PURE__ */ Object.create(null)]), emptyParam];
+      staticMap[path] = [handlers.map(([h5]) => [h5, /* @__PURE__ */ Object.create(null)]), emptyParam];
     } else {
       j5++;
     }
     let paramAssoc;
     try {
-      paramAssoc = trie.insert(path2, j5, pathErrorCheckOnly);
+      paramAssoc = trie.insert(path, j5, pathErrorCheckOnly);
     } catch (e5) {
-      throw e5 === PATH_ERROR ? new UnsupportedPathError(path2) : e5;
+      throw e5 === PATH_ERROR ? new UnsupportedPathError(path) : e5;
     }
     if (pathErrorCheckOnly) {
       continue;
@@ -102457,12 +102520,12 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   }
   return [regexp, handlerMap, staticMap];
 }
-function findMiddleware(middleware, path2) {
+function findMiddleware(middleware, path) {
   if (!middleware) {
     return void 0;
   }
   for (const k5 of Object.keys(middleware).sort((a5, b5) => b5.length - a5.length)) {
-    if (buildWildcardRegExp(k5).test(path2)) {
+    if (buildWildcardRegExp(k5).test(path)) {
       return [...middleware[k5]];
     }
   }
@@ -102476,7 +102539,7 @@ var RegExpRouter = class {
     this.#middleware = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
     this.#routes = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
   }
-  add(method, path2, handler) {
+  add(method, path, handler) {
     const middleware = this.#middleware;
     const routes = this.#routes;
     if (!middleware || !routes) {
@@ -102491,18 +102554,18 @@ var RegExpRouter = class {
         });
       });
     }
-    if (path2 === "/*") {
-      path2 = "*";
+    if (path === "/*") {
+      path = "*";
     }
-    const paramCount = (path2.match(/\/:/g) || []).length;
-    if (/\*$/.test(path2)) {
-      const re = buildWildcardRegExp(path2);
+    const paramCount = (path.match(/\/:/g) || []).length;
+    if (/\*$/.test(path)) {
+      const re = buildWildcardRegExp(path);
       if (method === METHOD_NAME_ALL) {
         Object.keys(middleware).forEach((m5) => {
-          middleware[m5][path2] ||= findMiddleware(middleware[m5], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
+          middleware[m5][path] ||= findMiddleware(middleware[m5], path) || findMiddleware(middleware[METHOD_NAME_ALL], path) || [];
         });
       } else {
-        middleware[method][path2] ||= findMiddleware(middleware[method], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
+        middleware[method][path] ||= findMiddleware(middleware[method], path) || findMiddleware(middleware[METHOD_NAME_ALL], path) || [];
       }
       Object.keys(middleware).forEach((m5) => {
         if (method === METHOD_NAME_ALL || method === m5) {
@@ -102520,15 +102583,15 @@ var RegExpRouter = class {
       });
       return;
     }
-    const paths = checkOptionalParameter(path2) || [path2];
+    const paths = checkOptionalParameter(path) || [path];
     for (let i5 = 0, len = paths.length; i5 < len; i5++) {
-      const path22 = paths[i5];
+      const path2 = paths[i5];
       Object.keys(routes).forEach((m5) => {
         if (method === METHOD_NAME_ALL || method === m5) {
-          routes[m5][path22] ||= [
-            ...findMiddleware(middleware[m5], path22) || findMiddleware(middleware[METHOD_NAME_ALL], path22) || []
+          routes[m5][path2] ||= [
+            ...findMiddleware(middleware[m5], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || []
           ];
-          routes[m5][path22].push([handler, paramCount - len + i5 + 1]);
+          routes[m5][path2].push([handler, paramCount - len + i5 + 1]);
         }
       });
     }
@@ -102547,13 +102610,13 @@ var RegExpRouter = class {
     const routes = [];
     let hasOwnRoute = method === METHOD_NAME_ALL;
     [this.#middleware, this.#routes].forEach((r5) => {
-      const ownRoute = r5[method] ? Object.keys(r5[method]).map((path2) => [path2, r5[method][path2]]) : [];
+      const ownRoute = r5[method] ? Object.keys(r5[method]).map((path) => [path, r5[method][path]]) : [];
       if (ownRoute.length !== 0) {
         hasOwnRoute ||= true;
         routes.push(...ownRoute);
       } else if (method !== METHOD_NAME_ALL) {
         routes.push(
-          ...Object.keys(r5[METHOD_NAME_ALL]).map((path2) => [path2, r5[METHOD_NAME_ALL][path2]])
+          ...Object.keys(r5[METHOD_NAME_ALL]).map((path) => [path, r5[METHOD_NAME_ALL][path]])
         );
       }
     });
@@ -102573,13 +102636,13 @@ var SmartRouter = class {
   constructor(init) {
     this.#routers = init.routers;
   }
-  add(method, path2, handler) {
+  add(method, path, handler) {
     if (!this.#routes) {
       throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
     }
-    this.#routes.push([method, path2, handler]);
+    this.#routes.push([method, path, handler]);
   }
-  match(method, path2) {
+  match(method, path) {
     if (!this.#routes) {
       throw new Error("Fatal error");
     }
@@ -102594,7 +102657,7 @@ var SmartRouter = class {
         for (let i22 = 0, len2 = routes.length; i22 < len2; i22++) {
           router.add(...routes[i22]);
         }
-        res = router.match(method, path2);
+        res = router.match(method, path);
       } catch (e5) {
         if (e5 instanceof UnsupportedPathError) {
           continue;
@@ -102644,10 +102707,10 @@ var Node2 = class _Node2 {
     }
     this.#patterns = [];
   }
-  insert(method, path2, handler) {
+  insert(method, path, handler) {
     this.#order = ++this.#order;
     let curNode = this;
-    const parts = splitRoutingPath(path2);
+    const parts = splitRoutingPath(path);
     const possibleKeys = [];
     for (let i5 = 0, len = parts.length; i5 < len; i5++) {
       const p5 = parts[i5];
@@ -102696,12 +102759,12 @@ var Node2 = class _Node2 {
       }
     }
   }
-  search(method, path2) {
+  search(method, path) {
     const handlerSets = [];
     this.#params = emptyParams;
     const curNode = this;
     let curNodes = [curNode];
-    const parts = splitPath(path2);
+    const parts = splitPath(path);
     const curNodesQueue = [];
     const len = parts.length;
     let partOffsets = null;
@@ -102743,13 +102806,13 @@ var Node2 = class _Node2 {
           if (matcher instanceof RegExp) {
             if (partOffsets === null) {
               partOffsets = new Array(len);
-              let offset = path2[0] === "/" ? 1 : 0;
+              let offset = path[0] === "/" ? 1 : 0;
               for (let p5 = 0; p5 < len; p5++) {
                 partOffsets[p5] = offset;
                 offset += parts[p5].length + 1;
               }
             }
-            const restPathString = path2.substring(partOffsets[i5]);
+            const restPathString = path.substring(partOffsets[i5]);
             const m5 = matcher.exec(restPathString);
             if (m5) {
               params[name] = m5[0];
@@ -102802,18 +102865,18 @@ var TrieRouter = class {
   constructor() {
     this.#node = new Node2();
   }
-  add(method, path2, handler) {
-    const results = checkOptionalParameter(path2);
+  add(method, path, handler) {
+    const results = checkOptionalParameter(path);
     if (results) {
       for (let i5 = 0, len = results.length; i5 < len; i5++) {
         this.#node.insert(method, results[i5], handler);
       }
       return;
     }
-    this.#node.insert(method, path2, handler);
+    this.#node.insert(method, path, handler);
   }
-  match(method, path2) {
-    return this.#node.search(method, path2);
+  match(method, path) {
+    return this.#node.search(method, path);
   }
 };
 
@@ -103603,28 +103666,56 @@ var css = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
   h1 { margin-bottom: 2rem; font-size: 1.4rem; }
-  #auth { max-width: 400px; }
-  #auth input { width: 100%; padding: .5rem; background: #222; color: #eee; border: 1px solid #444; margin-bottom: .5rem; font-family: monospace; }
-  #auth button { padding: .5rem 1rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  #auth button:disabled { opacity: .6; cursor: wait; }
-  .games { display: flex; gap: 1rem; flex-wrap: wrap; }
-  .game { background: #1a1a1a; border: 1px solid #333; padding: 1rem; min-width: 200px; }
-  .game h2 { margin-bottom: .75rem; font-size: 1rem; }
-  .status { margin-bottom: .75rem; font-size: .85rem; color: #aaa; }
-  .status.online { color: #4f4; }
-  .status.starting { color: #fa4; }
-  .status-indicator { display: none; margin-left: .5rem; color: #8cf; }
-  .status-indicator.htmx-request { display: inline; }
-  .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-  .actions button { padding: .4rem .8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  .actions button:hover { background: #444; }
-  .actions button:disabled { opacity: .6; cursor: wait; }
-  dialog { display: none; background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); }
-  dialog[open] { display: flex; flex-direction: column; }
+
+  .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .row { border: 1px solid #333; background: #1a1a1a; }
+  .row-header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.75rem 1rem; cursor: pointer; user-select: none;
+    width: 100%;
+  }
+  .row-header:hover { background: #222; }
+  .status-dot { font-size: 0.8rem; flex-shrink: 0; }
+  .game-name { font-weight: bold; min-width: 8rem; }
+  .row-meta { display: flex; gap: 1.5rem; flex: 1; color: #aaa; font-size: 0.85rem; flex-wrap: wrap; }
+  .row-meta .online { color: #4f4; }
+  .row-meta .starting { color: #fa4; }
+  .row-meta .offline { color: #666; }
+  .expand-btn {
+    background: none; border: none; color: #aaa; cursor: pointer;
+    font-family: monospace; font-size: 0.85rem; padding: 0; flex-shrink: 0;
+  }
+
+  .row-body { border-top: 1px solid #333; padding: 1rem; display: none; }
+  .row-body.open { display: block; }
+
+  .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
+  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; cursor: pointer; }
+  .connect code:hover { background: #2a2a2a; }
+  .client-link { font-size: 0.85rem; color: #aaa; }
+  .client-link a { color: #88f; text-decoration: none; }
+  .client-link a:hover { text-decoration: underline; }
+
+  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; }
+  .admin-auth input {
+    padding: 0.4rem; background: #222; color: #eee;
+    border: 1px solid #444; font-family: monospace; margin-right: 0.5rem;
+  }
+  .admin-auth button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
+  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
+  .admin-controls button:hover { background: #444; }
+
+  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; }
+  .status-frag .online { color: #4f4; }
+  .status-frag .starting { color: #fa4; }
+
+  dialog { background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); display: flex; flex-direction: column; }
   dialog::backdrop { background: rgba(0,0,0,0.7); }
-  .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: 1px solid #333; font-size: .85rem; }
+  .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-bottom: 1px solid #333; font-size: 0.85rem; }
   .dialog-header span { color: #aaa; }
-  .dialog-close { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1.2rem; font-family: monospace; padding: 0 .25rem; }
+  .dialog-close { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1.2rem; font-family: monospace; padding: 0 0.25rem; }
   .dialog-close:hover { color: #eee; }
   .log-panel { flex: 1; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; }
   .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
@@ -103632,134 +103723,173 @@ var css = `
 var initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
-  var logStreams = {};
 
-  function appendLogLine(game, text) {
-    var lines = document.getElementById("log-lines-" + game);
-    var line = document.createElement("div");
-    line.className = "log-line";
-    line.textContent = text;
-    lines.appendChild(line);
-    lines.scrollTop = lines.scrollHeight;
+  // Retrieve stored passphrase
+  function getPassphrase() {
+    return sessionStorage.getItem(SESSION_KEY) || "";
   }
 
-  function showPanel(pp) {
-    var auth = document.getElementById("auth");
-    var panel = document.getElementById("panel");
-    auth.style.display = "none";
-    panel.style.display = "";
-    htmx.process(panel);
-    // Kick off initial status fetch now that headers are set
-    panel.querySelectorAll("[data-status-poll]").forEach(function(el) {
-      htmx.trigger(el, "poll");
-    });
-  }
-
-  window.authenticate = function() {
-    var val = document.getElementById("passphrase").value;
-    var unlockButton = document.getElementById("unlock-button");
-    if (!val) return;
-    unlockButton.disabled = true;
-    unlockButton.textContent = "unlocking...";
-    sessionStorage.setItem(SESSION_KEY, val);
-    passphrase = val;
-    showPanel(val);
+  // Toggle accordion open/close
+  window.toggleRow = function(game) {
+    var body = document.getElementById("row-body-" + game);
+    var btn = document.getElementById("expand-btn-" + game);
+    var open = body.classList.toggle("open");
+    btn.textContent = open ? "[collapse \u25B2]" : "[expand \u25BC]";
   };
 
-  window.toggleLogs = function(game, button) {
-    var dialog = document.getElementById("log-dialog-" + game);
-    if (dialog.open) {
-      dialog.close();
-      if (button) {
-        button.disabled = false;
-        button.textContent = "logs";
-      }
-      return;
-    }
-    if (button) {
-      button.disabled = true;
-      button.textContent = "opening...";
-    }
-    var pp = sessionStorage.getItem(SESSION_KEY) || "";
-    if (!logStreams[game]) {
-      appendLogLine(game, "[opening log stream]");
-      var source = new EventSource("/logs?game=" + game + "&token=" + encodeURIComponent(pp));
+  // Copy connect address to clipboard
+  window.copyConnect = function(text) {
+    navigator.clipboard.writeText(text).catch(function() {});
+  };
 
-      source.onopen = function() {
-        appendLogLine(game, "[log stream open]");
-      };
-
-      source.addEventListener("log", function(event) {
-        appendLogLine(game, event.data);
+  // Admin unlock \u2014 validate passphrase then swap auth form for controls
+  window.adminUnlock = function(game) {
+    var input = document.getElementById("admin-input-" + game);
+    var btn = document.getElementById("admin-unlock-btn-" + game);
+    var val = input.value;
+    if (!val) return;
+    btn.disabled = true;
+    btn.textContent = "checking...";
+    fetch("/", { headers: { "X-Passphrase": val, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) {
+          btn.disabled = false;
+          btn.textContent = "unlock";
+          input.style.borderColor = "#f44";
+          return;
+        }
+        sessionStorage.setItem(SESSION_KEY, val);
+        showAdminControls(game, val);
+      })
+      .catch(function() {
+        btn.disabled = false;
+        btn.textContent = "unlock";
       });
+  };
 
-      source.onerror = function() {
-        appendLogLine(game, "[log stream disconnected]");
-        source.close();
-        delete logStreams[game];
-      };
+  function showAdminControls(game, pp) {
+    var section = document.getElementById("admin-section-" + game);
+    section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
+    section.innerHTML = adminControlsHtml(game);
+    htmx.process(section);
+  }
 
-      logStreams[game] = source;
+  function adminControlsHtml(game) {
+    return '<div class="admin-controls" id="admin-controls-' + game + '">' +
+      '<button hx-post="/?game=' + game + '&operation=start" hx-target="#status-result-' + game + '">start</button>' +
+      '<button hx-post="/?game=' + game + '&operation=stop" hx-target="#status-result-' + game + '">stop</button>' +
+      '<button onclick="toggleLogs(' + JSON.stringify(game) + ')" >logs</button>' +
+      '</div>' +
+      '<div id="status-result-' + game + '" class="status-frag"></div>';
+  }
+
+  // Re-apply passphrase header to all controls when already authenticated
+  function restoreAdminControls() {
+    var pp = getPassphrase();
+    if (!pp) return;
+    // Validate first
+    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
+        // Show controls for every game
+        document.querySelectorAll("[data-admin-section]").forEach(function(el) {
+          var game = el.getAttribute("data-admin-section");
+          showAdminControls(game, pp);
+        });
+      });
+  }
+
+  window.toggleLogs = function(game) {
+    var dialog = document.getElementById("log-dialog-" + game);
+    if (dialog.open) { dialog.close(); return; }
+    var pp = getPassphrase();
+    var inner = document.getElementById("log-sse-" + game);
+    if (!inner.getAttribute("sse-connect")) {
+      inner.setAttribute("hx-ext", "sse");
+      inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
+      htmx.process(inner);
+      var lines = document.getElementById("log-lines-" + game);
+      var observer = new MutationObserver(function() { lines.scrollTop = lines.scrollHeight; });
+      observer.observe(lines, { childList: true });
     }
     dialog.showModal();
-    if (button) {
-      button.disabled = false;
-      button.textContent = "logs";
-    }
   };
 
-  window.logout = function() {
-    sessionStorage.removeItem(SESSION_KEY);
-    location.reload();
-  };
-
-  // Auto-show panel if passphrase already stored
-  if (passphrase) showPanel(passphrase);
+  restoreAdminControls();
 })();
 `;
-var GameCard = ({ game }) => /* @__PURE__ */ jsxDEV("div", { class: "game", id: `game-${game}`, children: [
-  /* @__PURE__ */ jsxDEV("h2", { children: game }),
-  /* @__PURE__ */ jsxDEV(
-    "div",
-    {
-      class: "status",
-      id: `status-${game}`,
-      "data-status-poll": "true",
-      "hx-get": `/?game=${game}&operation=status`,
-      "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
-      "hx-trigger": "poll, every 10s",
-      "hx-target": `#status-${game}`,
-      children: "loading..."
-    }
-  ),
-  /* @__PURE__ */ jsxDEV("div", { class: "actions", children: [
+var StatusDot = ({ status }) => {
+  if (status === "online") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E2}" });
+  if (status === "starting") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E1}" });
+  return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u26AB" });
+};
+var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) => {
+  const metaOnline = state2.status === "online";
+  return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
     /* @__PURE__ */ jsxDEV(
-      "button",
+      "div",
       {
-        "hx-post": `/?game=${game}&operation=start`,
-        "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
-        "hx-target": `#status-${game}`,
-        "hx-indicator": `#status-indicator-${game}`,
-        "hx-disabled-elt": `#game-${game} .actions button`,
-        children: "start"
+        id: `row-header-${game}`,
+        class: "row-header",
+        "hx-get": `/status?game=${game}`,
+        "hx-trigger": "every 30s",
+        "hx-target": `#row-header-${game}`,
+        "hx-swap": "outerHTML",
+        onclick: `toggleRow('${game}')`,
+        children: [
+          /* @__PURE__ */ jsxDEV(StatusDot, { status: state2.status }),
+          /* @__PURE__ */ jsxDEV("span", { class: "game-name", children: game }),
+          /* @__PURE__ */ jsxDEV("span", { class: "row-meta", children: [
+            metaOnline && state2.hostname ? /* @__PURE__ */ jsxDEV("span", { children: state2.hostname }) : null,
+            metaOnline && state2.map ? /* @__PURE__ */ jsxDEV("span", { children: state2.map }) : null,
+            metaOnline ? /* @__PURE__ */ jsxDEV("span", { children: [
+              state2.players,
+              " player",
+              state2.players !== 1 ? "s" : ""
+            ] }) : null,
+            !metaOnline ? /* @__PURE__ */ jsxDEV("span", { class: state2.status, children: state2.status }) : null
+          ] }),
+          /* @__PURE__ */ jsxDEV("button", { class: "expand-btn", id: `expand-btn-${game}`, children: "[expand \u25BC]" })
+        ]
       }
     ),
-    /* @__PURE__ */ jsxDEV(
-      "button",
-      {
-        "hx-post": `/?game=${game}&operation=stop`,
-        "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
-        "hx-target": `#status-${game}`,
-        "hx-indicator": `#status-indicator-${game}`,
-        "hx-disabled-elt": `#game-${game} .actions button`,
-        children: "stop"
-      }
-    ),
-    /* @__PURE__ */ jsxDEV("button", { onclick: `toggleLogs('${game}', this)`, children: "logs" }),
-    /* @__PURE__ */ jsxDEV("span", { class: "status-indicator", id: `status-indicator-${game}`, children: "requesting..." })
-  ] })
-] });
+    /* @__PURE__ */ jsxDEV("div", { class: "row-body", id: `row-body-${game}`, children: [
+      /* @__PURE__ */ jsxDEV("div", { class: "row-details", children: [
+        connectAddress ? /* @__PURE__ */ jsxDEV("div", { class: "connect", children: [
+          "connect:               ",
+          /* @__PURE__ */ jsxDEV("code", { onclick: `copyConnect(${JSON.stringify(connectAddress)})`, title: "click to copy", children: connectAddress })
+        ] }) : null,
+        clientDownloadUrl ? /* @__PURE__ */ jsxDEV("div", { class: "client-link", children: /* @__PURE__ */ jsxDEV("a", { href: clientDownloadUrl, target: "_blank", rel: "noopener", children: "get client \u2197" }) }) : null
+      ] }),
+      /* @__PURE__ */ jsxDEV("div", { class: "admin-section", id: `admin-section-${game}`, "data-admin-section": game, children: /* @__PURE__ */ jsxDEV("div", { class: "admin-auth", children: [
+        /* @__PURE__ */ jsxDEV(
+          "input",
+          {
+            type: "text",
+            id: `admin-input-${game}`,
+            placeholder: "passphrase",
+            autocomplete: "off",
+            spellcheck: false,
+            style: "letter-spacing:0.15em;",
+            oninput: `this.style.borderColor=''`,
+            onkeydown: `if(event.key==='Enter')adminUnlock('${game}')`
+          }
+        ),
+        /* @__PURE__ */ jsxDEV("button", { id: `admin-unlock-btn-${game}`, onclick: `adminUnlock('${game}')`, children: "unlock" })
+      ] }) })
+    ] }),
+    /* @__PURE__ */ jsxDEV("dialog", { id: `log-dialog-${game}`, children: [
+      /* @__PURE__ */ jsxDEV("div", { class: "dialog-header", children: [
+        /* @__PURE__ */ jsxDEV("span", { children: [
+          game,
+          " \u2014 logs"
+        ] }),
+        /* @__PURE__ */ jsxDEV("button", { class: "dialog-close", onclick: `document.getElementById('log-dialog-${game}').close()`, children: "\u2715" })
+      ] }),
+      /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${game}`, class: "log-panel", "sse-swap": "log", "hx-swap": "beforeend" }) })
+    ] })
+  ] });
+};
 function renderUi(games) {
   const page = /* @__PURE__ */ jsxDEV("html", { lang: "en", children: [
     /* @__PURE__ */ jsxDEV("head", { children: [
@@ -103770,58 +103900,81 @@ function renderUi(games) {
     ] }),
     /* @__PURE__ */ jsxDEV("body", { children: [
       /* @__PURE__ */ jsxDEV("h1", { children: "insta-game" }),
-      /* @__PURE__ */ jsxDEV("div", { id: "auth", children: [
-        /* @__PURE__ */ jsxDEV(
-          "input",
-          {
-            type: "text",
-            id: "passphrase",
-            placeholder: "passphrase",
-            autocomplete: "off",
-            spellcheck: false,
-            style: "letter-spacing: 0.15em;"
-          }
-        ),
-        /* @__PURE__ */ jsxDEV("button", { id: "unlock-button", onclick: "authenticate()", children: "unlock" })
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { id: "panel", style: "display:none", children: [
-        /* @__PURE__ */ jsxDEV("div", { class: "games", children: games.map((g5) => /* @__PURE__ */ jsxDEV(GameCard, { game: g5 }, g5)) }),
-        /* @__PURE__ */ jsxDEV("br", {}),
-        /* @__PURE__ */ jsxDEV("button", { onclick: "logout()", style: "margin-top:1rem;padding:.3rem .7rem;background:#222;color:#888;border:1px solid #444;cursor:pointer;font-family:monospace;font-size:0.8rem;", children: "logout" })
-      ] }),
-      games.map((g5) => /* @__PURE__ */ jsxDEV("dialog", { id: `log-dialog-${g5}`, children: [
-        /* @__PURE__ */ jsxDEV("div", { class: "dialog-header", children: [
-          /* @__PURE__ */ jsxDEV("span", { children: [
-            g5,
-            " \u2014 logs"
-          ] }),
-          /* @__PURE__ */ jsxDEV("button", { class: "dialog-close", onclick: `document.getElementById('log-dialog-${g5}').close()`, children: "\u2715" })
-        ] }),
-        /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${g5}`, class: "log-panel" })
-      ] }, g5)),
+      /* @__PURE__ */ jsxDEV("div", { class: "accordion", children: games.map(({ key, state: state2, ui }) => /* @__PURE__ */ jsxDEV(
+        AccordionRow,
+        {
+          game: key,
+          state: state2,
+          connectAddress: ui.connectAddress,
+          clientDownloadUrl: ui.clientDownloadUrl
+        },
+        key
+      )) }),
       /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx.org@2/dist/htmx.min.js" }),
+      /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx-ext-sse@2/sse.js" }),
       /* @__PURE__ */ jsxDEV("script", { dangerouslySetInnerHTML: { __html: initScript } })
     ] })
   ] });
   return "<!DOCTYPE html>" + page.toString();
+}
+function renderRowHeader(game, state2) {
+  const metaOnline = state2.status === "online";
+  const dot = state2.status === "online" ? "\u{1F7E2}" : state2.status === "starting" ? "\u{1F7E1}" : "\u26AB";
+  const frag = /* @__PURE__ */ jsxDEV(
+    "div",
+    {
+      id: `row-header-${game}`,
+      class: "row-header",
+      "hx-get": `/status?game=${game}`,
+      "hx-trigger": "every 30s",
+      "hx-target": `#row-header-${game}`,
+      "hx-swap": "outerHTML",
+      onclick: `toggleRow('${game}')`,
+      children: [
+        /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: dot }),
+        /* @__PURE__ */ jsxDEV("span", { class: "game-name", children: game }),
+        /* @__PURE__ */ jsxDEV("span", { class: "row-meta", children: [
+          metaOnline && state2.hostname ? /* @__PURE__ */ jsxDEV("span", { children: state2.hostname }) : null,
+          metaOnline && state2.map ? /* @__PURE__ */ jsxDEV("span", { children: state2.map }) : null,
+          metaOnline ? /* @__PURE__ */ jsxDEV("span", { children: [
+            state2.players,
+            " player",
+            state2.players !== 1 ? "s" : ""
+          ] }) : null,
+          !metaOnline ? /* @__PURE__ */ jsxDEV("span", { class: state2.status, children: state2.status }) : null
+        ] }),
+        /* @__PURE__ */ jsxDEV("button", { class: "expand-btn", id: `expand-btn-${game}`, children: "[expand \u25BC]" })
+      ]
+    }
+  );
+  return frag.toString();
 }
 
 // src/app.ts
 var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
 var SIDECAR_TOKEN3 = process.env.SIDECAR_TOKEN ?? "";
+var PUBLIC_HOST = process.env.PUBLIC_HOST ?? "localhost";
 function statusFragment(state2) {
   const ip = state2.publicIp ? ` \u2014 ${state2.publicIp}` : "";
   const players = state2.players ? ` (${state2.players} players)` : "";
   return `<span class="status ${state2.status}">${state2.status}${ip}${players}</span>`;
 }
-function createApp(backend2) {
+function gameUiConfig(config) {
+  const connectPort = config.connectPort;
+  const clientDownloadUrl = config.clientDownloadUrl;
+  return {
+    connectAddress: connectPort ? `${PUBLIC_HOST}:${connectPort}` : null,
+    clientDownloadUrl: clientDownloadUrl ?? null
+  };
+}
+function createApp(backend2, cache6) {
   const app2 = new Hono2();
   app2.get("/", async (c5) => {
+    const passphrase = c5.req.header("x-passphrase") ?? "";
     const game = c5.req.query("game");
     const operation2 = c5.req.query("operation");
     if (game && operation2) {
-      const passphrase = c5.req.header("x-passphrase") ?? "";
       if (passphrase !== WEB_UI_PASSPHRASE) {
         log.warn(`web: auth failure from ${c5.req.header("x-forwarded-for") ?? "unknown"}`);
         return c5.text("unauthorized", 401);
@@ -103834,17 +103987,28 @@ function createApp(backend2) {
         log.info(`web: start ${game}`);
         state2 = await backend2.startGame(config);
         log.info(`web: start ${game} \u2192 ${state2.status}`);
+        cache6.set(game, await backend2.getCachedState(config));
       } else if (operation2 === "stop") {
         log.info(`web: stop ${game}`);
         state2 = await backend2.stopGame(config);
         log.info(`web: stop ${game} \u2192 ${state2.status}`);
+        cache6.set(game, await backend2.getCachedState(config));
       } else {
         state2 = await backend2.getGameState(config);
       }
       return c5.html(statusFragment(state2));
     }
+    if (c5.req.header("hx-request") && WEB_UI_PASSPHRASE !== "") {
+      if (passphrase !== WEB_UI_PASSPHRASE) return c5.text("unauthorized", 401);
+      return c5.text("ok");
+    }
     const games = backend2.getGames();
-    return c5.html(renderUi(Object.keys(games)));
+    const rows = Object.entries(games).map(([key, config]) => ({
+      key,
+      state: cache6.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() },
+      ui: gameUiConfig(config)
+    }));
+    return c5.html(renderUi(rows));
   });
   app2.post("/", async (c5) => {
     const passphrase = c5.req.header("x-passphrase") ?? "";
@@ -103878,15 +104042,24 @@ function createApp(backend2) {
       log.info(`web: start ${gameKey}`);
       state2 = await backend2.startGame(config);
       log.info(`web: start ${gameKey} \u2192 ${state2.status}`);
+      cache6.set(gameKey, await backend2.getCachedState(config));
     } else if (operation2 === "stop") {
       log.info(`web: stop ${gameKey}`);
       state2 = await backend2.stopGame(config);
       log.info(`web: stop ${gameKey} \u2192 ${state2.status}`);
+      cache6.set(gameKey, await backend2.getCachedState(config));
     } else {
       state2 = await backend2.getGameState(config);
     }
     if (isHtmx) return c5.html(statusFragment(state2));
     return c5.json(state2);
+  });
+  app2.get("/status", (c5) => {
+    const game = c5.req.query("game") ?? "";
+    const games = backend2.getGames();
+    if (!games[game]) return c5.text(`unknown game: ${game}`, 400);
+    const state2 = cache6.get(game) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+    return c5.html(renderRowHeader(game, state2));
   });
   app2.get("/logs", async (c5) => {
     const token = c5.req.query("token") ?? "";
@@ -103896,9 +104069,7 @@ function createApp(backend2) {
     const config = games[game];
     if (!config) return c5.text(`unknown game: ${game}`, 400);
     const state2 = await backend2.getGameState(config);
-    if (state2.status === "offline" || !state2.publicIp) {
-      return c5.text("game offline", 503);
-    }
+    if (state2.status === "offline" || !state2.publicIp) return c5.text("game offline", 503);
     const sidecarUrl = `http://${state2.publicIp}:${config.sidecarPort}/logs`;
     return streamSSE(c5, async (stream2) => {
       log.info(`logs: stream opened for ${game}`);
@@ -103911,19 +104082,13 @@ function createApp(backend2) {
         });
       } catch (error2) {
         log.info(`logs: stream closed for ${game} (connection error)`);
-        await stream2.writeSSE({
-          data: `[log proxy error: ${error2 instanceof Error ? error2.message : String(error2)}]`,
-          event: "log"
-        });
+        await stream2.writeSSE({ data: `[log proxy error: ${error2 instanceof Error ? error2.message : String(error2)}]`, event: "log" });
         await stream2.close();
         return;
       }
       if (!res.ok || !res.body) {
         log.warn(`logs: sidecar returned ${res.status} for ${game}`);
-        await stream2.writeSSE({
-          data: `[log proxy error: sidecar returned HTTP ${res.status}]`,
-          event: "log"
-        });
+        await stream2.writeSSE({ data: `[log proxy error: sidecar returned HTTP ${res.status}]`, event: "log" });
         await stream2.close();
         return;
       }
@@ -103939,9 +104104,7 @@ function createApp(backend2) {
           const lines = buf.split("\n");
           buf = lines.pop() ?? "";
           for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              await stream2.writeSSE({ data: line.slice(6), event: "log" });
-            }
+            if (line.startsWith("data: ")) await stream2.writeSSE({ data: line.slice(6), event: "log" });
           }
         }
       } catch {
@@ -103961,12 +104124,14 @@ function createApp(backend2) {
       log.info(`api: start ${game}`);
       const state2 = await backend2.startGame(config);
       log.info(`api: start ${game} \u2192 ${state2.status}`);
+      cache6.set(game, await backend2.getCachedState(config));
       return c5.json(state2);
     }
     if (operation2 === "stop") {
       log.info(`api: stop ${game}`);
       const state2 = await backend2.stopGame(config);
       log.info(`api: stop ${game} \u2192 ${state2.status}`);
+      cache6.set(game, await backend2.getCachedState(config));
       return c5.json(state2);
     }
     return c5.json(await backend2.getGameState(config));
@@ -103979,7 +104144,9 @@ function createApp(backend2) {
 var PORT = parseInt(process.env.PORT ?? "3000", 10);
 var BACKEND = process.env.BACKEND ?? "ecs";
 var backend = createBackend();
-var app = createApp(backend);
+var cache5 = new GameCache(backend);
+cache5.start();
+var app = createApp(backend, cache5);
 serve({ fetch: app.fetch, port: PORT }, (info) => {
   log.info(`launcher listening on http://localhost:${info.port} (backend: ${BACKEND})`);
   const games = Object.keys(backend.getGames());
