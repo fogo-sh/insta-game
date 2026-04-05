@@ -25,6 +25,4 @@ config:
   insta-game:customDomainHostname: games.fogo.sh
   insta-game:ioquake3DataUrl:
     secure: v1:Ru89fnc2NneVmwOe:gIi/wjCSpFIT+O/ojSezwJcn7N4H0X9cMJUJ5sBpy/s+PmM/UnRQjTRscSI14LuFWo917/xY8sQ5iOajog==
-  insta-game:smokingunsDataUrl:
-    secure: v1:C+5QulgBB3vWG1vO:Q6EFPeXkoDI1BXNaRpP1PA5qYJTIB2DJscNsgPNvmLnmMYq51+mbvoWawDYIQYwO+tbZ1ZYQ74pfSXKSMougw9PqXKJUOCzI5A==
   
