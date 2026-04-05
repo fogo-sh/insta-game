@@ -100502,6 +100502,7 @@ var SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
 var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 var DATA_DIR = process.env.DATA_DIR ?? "/data";
+var HOST_DATA_DIR = process.env.HOST_DATA_DIR ?? DATA_DIR;
 var MAX_POLLS2 = 20;
 var POLL_INTERVAL_MS2 = 3e3;
 var RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
@@ -100584,7 +100585,7 @@ async function ensureContainer(c5) {
   }
   const binds = (c5.volumes ?? []).map((v5) => {
     const [hostPath, ...rest] = v5.split(":");
-    const absHost = hostPath.startsWith("/") ? hostPath : `${DATA_DIR}/${hostPath}`;
+    const absHost = hostPath.startsWith("/") ? hostPath : `${HOST_DATA_DIR}/${hostPath}`;
     return [absHost, ...rest].join(":");
   });
   const env = Object.entries(c5.environment ?? {}).map(([k5, v5]) => `${k5}=${v5}`);

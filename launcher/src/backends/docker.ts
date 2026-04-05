@@ -8,6 +8,9 @@ const SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
 const SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 const DATA_DIR = process.env.DATA_DIR ?? "/data";
+// HOST_DATA_DIR is the repo root as seen by the Docker daemon — used for game container
+// volume bind mounts. When running inside a container this differs from DATA_DIR.
+const HOST_DATA_DIR = process.env.HOST_DATA_DIR ?? DATA_DIR;
 const MAX_POLLS = 20;
 const POLL_INTERVAL_MS = 3000;
 
@@ -108,9 +111,10 @@ async function ensureContainer(c: DockerGameConfig): Promise<void> {
   }
 
   const binds = (c.volumes ?? []).map(v => {
-    // Make relative host paths absolute using DATA_DIR
+    // Make relative host paths absolute using HOST_DATA_DIR (the host-side repo root,
+    // which may differ from DATA_DIR when the launcher runs inside a container).
     const [hostPath, ...rest] = v.split(":");
-    const absHost = hostPath.startsWith("/") ? hostPath : `${DATA_DIR}/${hostPath}`;
+    const absHost = hostPath.startsWith("/") ? hostPath : `${HOST_DATA_DIR}/${hostPath}`;
     return [absHost, ...rest].join(":");
   });
 

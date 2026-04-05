@@ -120,6 +120,7 @@ def generate(games: list[dict]) -> str:
         "    environment:",
         '      BACKEND: "docker"',
         '      DATA_DIR: "/app"',
+        '      HOST_DATA_DIR: "${PWD}"',
         '      PORT: "3000"',
         '      SIDECAR_HOST: "host.docker.internal"',
         '      WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE:-gaming}"',
