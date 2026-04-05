@@ -18,7 +18,7 @@ RUN git clone --depth 1 https://github.com/fte-team/fteqw.git /src/fteqw
 
 WORKDIR /src/fteqw/engine
 RUN make sv-rel -j"$(nproc)" \
-    && install -m 0755 release/fteqw.sv /usr/local/bin/fteqw.sv
+    && install -m 0755 "$(find release -type f -perm /111 \( -name 'fteqw.sv' -o -name 'fteqwsv' -o -name 'fteqw' \) | head -n 1)" /usr/local/bin/fteqw.sv
 
 FROM debian:bookworm-slim
 
