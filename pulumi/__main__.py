@@ -456,8 +456,9 @@ openarena = GameService(
     game_cmd="/usr/lib/ioquake3/ioq3ded",
     game_args=(
         "+set fs_basepath /usr/lib/openarena-server +set fs_homepath /opt"
-        " +set fs_game baseoa +set dedicated 2 +set net_ip 0.0.0.0"
-        " +set net_port 27960 +set sv_maxclients 8"
+        " +set com_basegame baseoa +set com_standalone 1"
+        " +set dedicated 2 +set net_ip 0.0.0.0"
+        " +set net_port 27960 +set sv_maxclients 12"
         " +set com_hunkMegs 64 +exec server.cfg"
     ),
     game_quit_cmd="quit",
