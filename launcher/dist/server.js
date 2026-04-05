@@ -103708,9 +103708,12 @@ var css = `
   .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
   .admin-controls button:hover { background: #444; }
 
-  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; }
+  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
   .status-frag .online { color: #4f4; }
   .status-frag .starting { color: #fa4; }
+  .htmx-indicator { display: none; }
+  .htmx-request .htmx-indicator { display: inline; }
+  .htmx-request.htmx-indicator { display: inline; }
 
   .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
   .log-section.open { display: block; }
@@ -103756,12 +103759,22 @@ var initScript = `
   }
 
   function adminControlsHtml(game) {
+    var indicator = "#status-result-" + game;
+    var disabledElt = "#admin-controls-" + game + " button";
     return '<div class="admin-controls" id="admin-controls-' + game + '">' +
-      '<button hx-post="/?game=' + game + '&operation=start" hx-target="#status-result-' + game + '">start</button>' +
-      '<button hx-post="/?game=' + game + '&operation=stop" hx-target="#status-result-' + game + '">stop</button>' +
+      '<button hx-post="/?game=' + game + '&operation=start"' +
+        ' hx-target="' + indicator + '"' +
+        ' hx-indicator="' + indicator + '"' +
+        ' hx-disabled-elt="' + disabledElt + '">start</button>' +
+      '<button hx-post="/?game=' + game + '&operation=stop"' +
+        ' hx-target="' + indicator + '"' +
+        ' hx-indicator="' + indicator + '"' +
+        ' hx-disabled-elt="' + disabledElt + '">stop</button>' +
       '<button onclick="toggleLogs(' + JSON.stringify(game) + ')">logs</button>' +
       '</div>' +
-      '<div id="status-result-' + game + '" class="status-frag"></div>';
+      '<div id="status-result-' + game + '" class="status-frag">' +
+        '<span class="htmx-indicator">working...</span>' +
+      '</div>';
   }
 
   // Top-level authenticate button
