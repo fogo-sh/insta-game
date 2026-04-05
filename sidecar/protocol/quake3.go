@@ -3,6 +3,7 @@ package protocol
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -43,8 +44,28 @@ func QueryQuake3(port int) (*ServerInfo, error) {
 	}
 
 	return &ServerInfo{
-		Players:  max(0, len(lines)-2),
+		Players:  countQuake3Players(lines[2:]),
 		Hostname: values["sv_hostname"],
 		Map:      values["mapname"],
 	}, nil
+}
+
+func countQuake3Players(lines []string) int {
+	players := 0
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+
+		ping, err := strconv.Atoi(fields[1])
+		switch {
+		case err == nil && ping > 0:
+			players++
+		case err != nil:
+			// Non-numeric pings like CNCT/ZMBI indicate a real client state.
+			players++
+		}
+	}
+	return players
 }

@@ -166,6 +166,47 @@ func TestCompactLines(t *testing.T) {
 	}
 }
 
+func TestQueryQuake3IgnoresBots(t *testing.T) {
+	port := startUDPServer(t, func(conn *net.UDPConn, addr *net.UDPAddr, payload []byte) {
+		if string(payload) != "\xff\xff\xff\xffgetstatus\n" {
+			t.Fatalf("unexpected query payload: %q", string(payload))
+		}
+
+		response := []byte(
+			"\xff\xff\xff\xffstatusResponse\n\\sv_hostname\\OpenArena\\mapname\\oa_dm5\n15 48 \"alice\"\n4 0 \"sarge\"\n7 63 \"bob\"\n",
+		)
+		if _, err := conn.WriteToUDP(response, addr); err != nil {
+			t.Fatalf("write response: %v", err)
+		}
+	})
+
+	info, err := QueryQuake3(port)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := &ServerInfo{
+		Players:  2,
+		Hostname: "OpenArena",
+		Map:      "oa_dm5",
+	}
+	if !reflect.DeepEqual(info, want) {
+		t.Fatalf("unexpected info: got %+v want %+v", info, want)
+	}
+}
+
+func TestCountQuake3PlayersCountsConnectingHumans(t *testing.T) {
+	got := countQuake3Players([]string{
+		"0 CNCT \"joining\"",
+		"0 0 \"sarge\"",
+		"12 55 \"alice\"",
+	})
+
+	if got != 2 {
+		t.Fatalf("unexpected player count: got %d want 2", got)
+	}
+}
+
 func TestParseUT99StatusCountsPlayersFallback(t *testing.T) {
 	values := parseUT99Status("\\servername\\Deck16\\maptitle\\DM-Deck16][\\player_0\\alice\\player_1\\bob\\final\\")
 
