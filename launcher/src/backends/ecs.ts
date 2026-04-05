@@ -1,6 +1,6 @@
 import { ECSClient, UpdateServiceCommand, ListTasksCommand, DescribeTasksCommand } from "@aws-sdk/client-ecs";
 import { EC2Client, DescribeNetworkInterfacesCommand } from "@aws-sdk/client-ec2";
-import type { Backend, GameConfig, GameState } from "../backend.js";
+import type { Backend, GameConfig, GameState, CachedGameState } from "../backend.js";
 
 const REGION = process.env.AWS_REGION ?? "ca-central-1";
 const CLUSTER = process.env.ECS_CLUSTER ?? "";
@@ -46,6 +46,36 @@ export class EcsBackend implements Backend {
       return { status: running && ready ? "online" : "starting", publicIp, players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
+    }
+  }
+
+  async getCachedState(config: GameConfig): Promise<CachedGameState> {
+    const c = config as EcsGameConfig;
+    const offline: CachedGameState = { status: "offline", players: 0, hostname: "", map: "", updatedAt: new Date() };
+    try {
+      const listRes = await ecs.send(new ListTasksCommand({ cluster: CLUSTER, serviceName: c.serviceName }));
+      const taskArn = listRes.taskArns?.[0];
+      if (!taskArn) return offline;
+      const descRes = await ecs.send(new DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
+      const task = descRes.tasks?.[0];
+      const eniId = task?.attachments?.[0]?.details?.find(d => d.name === "networkInterfaceId")?.value;
+      if (!eniId) return { ...offline, status: "starting" };
+      const eniRes = await ec2.send(new DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
+      const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
+      if (!publicIp) return { ...offline, status: "starting" };
+      const sidecar = await getSidecarStatus(publicIp, c.sidecarPort);
+      if (!sidecar) return { ...offline, status: "starting" };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      return {
+        status: running && ready ? "online" : "starting",
+        players: Number(sidecar.players ?? 0),
+        hostname: String(sidecar.hostname ?? ""),
+        map: String(sidecar.map ?? ""),
+        updatedAt: new Date(),
+      };
+    } catch {
+      return offline;
     }
   }
 

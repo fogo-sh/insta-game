@@ -1,5 +1,5 @@
 import http from "http";
-import type { Backend, GameConfig, GameState } from "../backend.js";
+import type { Backend, GameConfig, GameState, CachedGameState } from "../backend.js";
 import { loadDockerGameDefinitions } from "../game-definitions.js";
 import type { PortBinding } from "../game-definitions.js";
 import { log } from "../logger.js";
@@ -232,6 +232,32 @@ export class DockerBackend implements Backend {
       return { status: running && ready ? "online" : "starting", publicIp: "localhost", players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
+    }
+  }
+
+  async getCachedState(config: GameConfig): Promise<CachedGameState> {
+    const c = config as DockerGameConfig;
+    const offline: CachedGameState = { status: "offline", players: 0, hostname: "", map: "", updatedAt: new Date() };
+    try {
+      const inspect = await inspectContainer(c.containerName);
+      if (!inspect) return offline;
+      const state = inspect.State as Record<string, unknown>;
+      if (!state?.Running) return offline;
+      const hostPort = getHostPort(inspect, c.sidecarPort);
+      if (!hostPort) return { ...offline, status: "starting" };
+      const sidecar = await getSidecarStatus(hostPort);
+      if (!sidecar) return { ...offline, status: "starting" };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      return {
+        status: running && ready ? "online" : "starting",
+        players: Number(sidecar.players ?? 0),
+        hostname: String(sidecar.hostname ?? ""),
+        map: String(sidecar.map ?? ""),
+        updatedAt: new Date(),
+      };
+    } catch {
+      return offline;
     }
   }
 
