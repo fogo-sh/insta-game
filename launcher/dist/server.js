@@ -103665,7 +103665,12 @@ var SESSION_KEY = "insta-game-passphrase";
 var css = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
-  h1 { margin-bottom: 2rem; font-size: 1.4rem; }
+  .title-bar { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  h1 { font-size: 1.4rem; }
+  #auth-form { display: flex; align-items: center; gap: 0.5rem; }
+  #auth-form input { padding: 0.35rem 0.5rem; background: #222; color: #eee; border: 1px solid #444; font-family: monospace; font-size: 0.85rem; width: 12rem; }
+  #auth-form button { padding: 0.35rem 0.7rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; font-size: 0.85rem; }
+  #auth-status { font-size: 0.8rem; color: #aaa; }
 
   .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
 
@@ -103697,12 +103702,8 @@ var css = `
   .client-link a { color: #88f; text-decoration: none; }
   .client-link a:hover { text-decoration: underline; }
 
-  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; }
-  .admin-auth input {
-    padding: 0.4rem; background: #222; color: #eee;
-    border: 1px solid #444; font-family: monospace; margin-right: 0.5rem;
-  }
-  .admin-auth button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
+  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
+  .admin-section.unlocked { display: block; }
   .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
   .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
   .admin-controls button:hover { background: #444; }
@@ -103738,10 +103739,35 @@ var initScript = `
     navigator.clipboard.writeText(text).catch(function() {});
   };
 
-  // Admin unlock \u2014 validate passphrase then swap auth form for controls
-  window.adminUnlock = function(game) {
-    var input = document.getElementById("admin-input-" + game);
-    var btn = document.getElementById("admin-unlock-btn-" + game);
+  // Unlock all admin sections with the given passphrase
+  function unlockAll(pp) {
+    document.querySelectorAll("[data-admin-section]").forEach(function(section) {
+      var game = section.getAttribute("data-admin-section");
+      section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
+      section.innerHTML = adminControlsHtml(game);
+      section.classList.add("unlocked");
+      htmx.process(section);
+    });
+    var authForm = document.getElementById("auth-form");
+    var authStatus = document.getElementById("auth-status");
+    authForm.style.display = "none";
+    authStatus.style.display = "";
+    authStatus.textContent = "admin";
+  }
+
+  function adminControlsHtml(game) {
+    return '<div class="admin-controls" id="admin-controls-' + game + '">' +
+      '<button hx-post="/?game=' + game + '&operation=start" hx-target="#status-result-' + game + '">start</button>' +
+      '<button hx-post="/?game=' + game + '&operation=stop" hx-target="#status-result-' + game + '">stop</button>' +
+      '<button onclick="toggleLogs(' + JSON.stringify(game) + ')">logs</button>' +
+      '</div>' +
+      '<div id="status-result-' + game + '" class="status-frag"></div>';
+  }
+
+  // Top-level authenticate button
+  window.authenticate = function() {
+    var input = document.getElementById("passphrase-input");
+    var btn = document.getElementById("passphrase-btn");
     var val = input.value;
     if (!val) return;
     btn.disabled = true;
@@ -103755,7 +103781,7 @@ var initScript = `
           return;
         }
         sessionStorage.setItem(SESSION_KEY, val);
-        showAdminControls(game, val);
+        unlockAll(val);
       })
       .catch(function() {
         btn.disabled = false;
@@ -103763,35 +103789,14 @@ var initScript = `
       });
   };
 
-  function showAdminControls(game, pp) {
-    var section = document.getElementById("admin-section-" + game);
-    section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
-    section.innerHTML = adminControlsHtml(game);
-    htmx.process(section);
-  }
-
-  function adminControlsHtml(game) {
-    return '<div class="admin-controls" id="admin-controls-' + game + '">' +
-      '<button hx-post="/?game=' + game + '&operation=start" hx-target="#status-result-' + game + '">start</button>' +
-      '<button hx-post="/?game=' + game + '&operation=stop" hx-target="#status-result-' + game + '">stop</button>' +
-      '<button onclick="toggleLogs(' + JSON.stringify(game) + ')" >logs</button>' +
-      '</div>' +
-      '<div id="status-result-' + game + '" class="status-frag"></div>';
-  }
-
-  // Re-apply passphrase header to all controls when already authenticated
+  // Restore auth state on page load
   function restoreAdminControls() {
     var pp = getPassphrase();
     if (!pp) return;
-    // Validate first
     fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
       .then(function(res) {
         if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
-        // Show controls for every game
-        document.querySelectorAll("[data-admin-section]").forEach(function(el) {
-          var game = el.getAttribute("data-admin-section");
-          showAdminControls(game, pp);
-        });
+        unlockAll(pp);
       });
   }
 
@@ -103858,22 +103863,7 @@ var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) 
         ] }) : null,
         clientDownloadUrl ? /* @__PURE__ */ jsxDEV("div", { class: "client-link", children: /* @__PURE__ */ jsxDEV("a", { href: clientDownloadUrl, target: "_blank", rel: "noopener", children: "get client \u2197" }) }) : null
       ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "admin-section", id: `admin-section-${game}`, "data-admin-section": game, children: /* @__PURE__ */ jsxDEV("div", { class: "admin-auth", children: [
-        /* @__PURE__ */ jsxDEV(
-          "input",
-          {
-            type: "text",
-            id: `admin-input-${game}`,
-            placeholder: "passphrase",
-            autocomplete: "off",
-            spellcheck: false,
-            style: "letter-spacing:0.15em;",
-            oninput: `this.style.borderColor=''`,
-            onkeydown: `if(event.key==='Enter')adminUnlock('${game}')`
-          }
-        ),
-        /* @__PURE__ */ jsxDEV("button", { id: `admin-unlock-btn-${game}`, onclick: `adminUnlock('${game}')`, children: "unlock" })
-      ] }) }),
+      /* @__PURE__ */ jsxDEV("div", { class: "admin-section", id: `admin-section-${game}`, "data-admin-section": game }),
       /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${game}`, class: "log-panel", "sse-swap": "log", "hx-swap": "beforeend" }) }) })
     ] })
   ] });
@@ -103887,7 +103877,25 @@ function renderUi(games) {
       /* @__PURE__ */ jsxDEV("style", { children: css })
     ] }),
     /* @__PURE__ */ jsxDEV("body", { children: [
-      /* @__PURE__ */ jsxDEV("h1", { children: "insta-game" }),
+      /* @__PURE__ */ jsxDEV("div", { class: "title-bar", children: [
+        /* @__PURE__ */ jsxDEV("h1", { children: "insta-game" }),
+        /* @__PURE__ */ jsxDEV("form", { id: "auth-form", onsubmit: "authenticate(); return false;", children: [
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              id: "passphrase-input",
+              placeholder: "passphrase",
+              autocomplete: "off",
+              spellcheck: false,
+              style: "letter-spacing:0.15em;",
+              oninput: "this.style.borderColor=''"
+            }
+          ),
+          /* @__PURE__ */ jsxDEV("button", { id: "passphrase-btn", type: "submit", children: "unlock" })
+        ] }),
+        /* @__PURE__ */ jsxDEV("span", { id: "auth-status", style: "display:none" })
+      ] }),
       /* @__PURE__ */ jsxDEV("div", { class: "accordion", children: games.map(({ key, state: state2, ui }) => /* @__PURE__ */ jsxDEV(
         AccordionRow,
         {
