@@ -23,3 +23,5 @@ config:
   insta-game:ut99DataUrl:
     secure: v1:aYBCZzu5bM+4U/Za:1WdRtzmmfgX5dxafNQ91lJaUBBCVU0h1nPoHbpA8u2T39yaC6W4D1CnxkGBhhvpOsI4uv3jICSiCKwU=
   insta-game:customDomainHostname: games.fogo.sh
+  insta-game:ioquake3DataUrl:
+    secure: v1:Ru89fnc2NneVmwOe:gIi/wjCSpFIT+O/ojSezwJcn7N4H0X9cMJUJ5sBpy/s+PmM/UnRQjTRscSI14LuFWo917/xY8sQ5iOajog==
