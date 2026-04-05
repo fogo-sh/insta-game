@@ -103711,13 +103711,9 @@ var css = `
   .status-frag .online { color: #4f4; }
   .status-frag .starting { color: #fa4; }
 
-  dialog { background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); display: flex; flex-direction: column; }
-  dialog::backdrop { background: rgba(0,0,0,0.7); }
-  .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-bottom: 1px solid #333; font-size: 0.85rem; }
-  .dialog-header span { color: #aaa; }
-  .dialog-close { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1.2rem; font-family: monospace; padding: 0 0.25rem; }
-  .dialog-close:hover { color: #eee; }
-  .log-panel { flex: 1; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; }
+  .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
+  .log-section.open { display: block; }
+  .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
   .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
 `;
 var initScript = `
@@ -103800,19 +103796,20 @@ var initScript = `
   }
 
   window.toggleLogs = function(game) {
-    var dialog = document.getElementById("log-dialog-" + game);
-    if (dialog.open) { dialog.close(); return; }
-    var pp = getPassphrase();
-    var inner = document.getElementById("log-sse-" + game);
-    if (!inner.getAttribute("sse-connect")) {
-      inner.setAttribute("hx-ext", "sse");
-      inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
-      htmx.process(inner);
-      var lines = document.getElementById("log-lines-" + game);
-      var observer = new MutationObserver(function() { lines.scrollTop = lines.scrollHeight; });
-      observer.observe(lines, { childList: true });
+    var section = document.getElementById("log-section-" + game);
+    var isOpen = section.classList.toggle("open");
+    if (isOpen) {
+      var pp = getPassphrase();
+      var inner = document.getElementById("log-sse-" + game);
+      if (!inner.getAttribute("sse-connect")) {
+        inner.setAttribute("hx-ext", "sse");
+        inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
+        htmx.process(inner);
+        var lines = document.getElementById("log-lines-" + game);
+        var observer = new MutationObserver(function() { lines.scrollTop = lines.scrollHeight; });
+        observer.observe(lines, { childList: true });
+      }
     }
-    dialog.showModal();
   };
 
   restoreAdminControls();
@@ -103876,17 +103873,8 @@ var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) 
           }
         ),
         /* @__PURE__ */ jsxDEV("button", { id: `admin-unlock-btn-${game}`, onclick: `adminUnlock('${game}')`, children: "unlock" })
-      ] }) })
-    ] }),
-    /* @__PURE__ */ jsxDEV("dialog", { id: `log-dialog-${game}`, children: [
-      /* @__PURE__ */ jsxDEV("div", { class: "dialog-header", children: [
-        /* @__PURE__ */ jsxDEV("span", { children: [
-          game,
-          " \u2014 logs"
-        ] }),
-        /* @__PURE__ */ jsxDEV("button", { class: "dialog-close", onclick: `document.getElementById('log-dialog-${game}').close()`, children: "\u2715" })
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${game}`, class: "log-panel", "sse-swap": "log", "hx-swap": "beforeend" }) })
+      ] }) }),
+      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${game}`, class: "log-panel", "sse-swap": "log", "hx-swap": "beforeend" }) }) })
     ] })
   ] });
 };
