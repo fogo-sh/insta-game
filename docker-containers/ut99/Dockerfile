@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-bookworm AS sidecar-builder
+FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS sidecar-builder
 ARG TARGETARCH
 WORKDIR /build
 COPY sidecar/ ./

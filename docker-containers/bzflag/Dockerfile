@@ -1,4 +1,4 @@
-FROM golang:1.22-bookworm AS sidecar-builder
+FROM golang:1.26-bookworm AS sidecar-builder
 WORKDIR /build
 COPY sidecar/ ./
 RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
