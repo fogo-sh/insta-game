@@ -1,24 +1,26 @@
 services:
-  xonotic:
-    image: ghcr.io/fogo-sh/insta-game:xonotic
+  bzflag:
+    image: ghcr.io/fogo-sh/insta-game:bzflag
     build:
       context: .
-      dockerfile: docker-containers/xonotic/Dockerfile
+      dockerfile: docker-containers/bzflag/Dockerfile
       platforms:
         - linux/arm64
     ports:
-      - "127.0.0.1:26000:26000/udp"
-      - "127.0.0.1:5001:5001/tcp"
+      - "127.0.0.1:5154:5154/tcp"
+      - "127.0.0.1:5154:5154/udp"
+      - "127.0.0.1:5004:5001/tcp"
     environment:
-      GAME_CMD: "./xonotic-linux-arm64-dedicated"
-      GAME_ARGS: ""
-      GAME_QUIT_CMD: "exit"
-      GAME_QUIT_TIMEOUT: "30"
+      GAME_CMD: "/usr/games/bzfs"
+      GAME_ARGS: "-conf /opt/data/server.cfg -p 5154"
+      GAME_QUIT_CMD: "quit"
+      GAME_QUIT_TIMEOUT: "15"
+      GAME_PORT: "5154"
+      CONFIG_PATH: "/opt/data/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      # DATA_URL is optional for Xonotic — a default server.cfg is bundled.
-      # Set it to supply a custom server.cfg, e.g.:
-      # DATA_URL: "https://example.com/server.cfg=/opt/data/server.cfg"
+    volumes:
+      - ./.cache/bzflag:/opt/data
 
   fteqw:
     image: ghcr.io/fogo-sh/insta-game:fteqw
@@ -35,40 +37,13 @@ services:
       GAME_ARGS: "-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
+      GAME_PORT: "26000"
       CONFIG_PATH: "/opt/id1/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      # DATA_URL is required for FTEQW — Quake pak files are commercial and not bundled.
-      # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
       DATA_URL: "${FTEQW_DATA_URL}"
     volumes:
       - ./.cache/fteqw:/opt/id1
-
-  q2repro:
-    image: ghcr.io/fogo-sh/insta-game:q2repro
-    build:
-      context: .
-      dockerfile: docker-containers/q2repro/Dockerfile
-      platforms:
-        - linux/arm64
-    ports:
-      - "127.0.0.1:27910:27910/udp"
-      - "127.0.0.1:5003:5001/tcp"
-    environment:
-      GAME_CMD: "./q2proded"
-      GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg"
-      GAME_QUIT_CMD: "quit"
-      GAME_QUIT_TIMEOUT: "15"
-      GAME_PORT: "27910"
-      CONFIG_PATH: "/opt/baseq2/server.cfg"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      TOKEN: "abc123"
-      # DATA_URL is required for q2repro — Quake II pak files are commercial and not bundled.
-      # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
-      # Set Q2REPRO_DATA_URL in .env at the repo root (build.sh will prompt and save it for you).
-      DATA_URL: "${Q2REPRO_DATA_URL}"
-    volumes:
-      - ./.cache/q2repro:/opt/baseq2
 
   ioquake3:
     image: ghcr.io/fogo-sh/insta-game:ioquake3
@@ -89,9 +64,6 @@ services:
       CONFIG_PATH: "/opt/baseq3/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      # DATA_URL is required for ioquake3 — Quake III Arena data is commercial and not bundled.
-      # Set IOQUAKE3_DATA_URL in .env to a zip that extracts baseq3 into /opt or to
-      # semicolon-separated url=path entries.
       DATA_URL: "${IOQUAKE3_DATA_URL}"
     volumes:
       - ./.cache/ioquake3:/opt/baseq3
@@ -118,31 +90,28 @@ services:
     volumes:
       - ./.cache/openarena:/opt/baseoa
 
-  bzflag:
-    image: ghcr.io/fogo-sh/insta-game:bzflag
+  q2repro:
+    image: ghcr.io/fogo-sh/insta-game:q2repro
     build:
       context: .
-      dockerfile: docker-containers/bzflag/Dockerfile
+      dockerfile: docker-containers/q2repro/Dockerfile
       platforms:
         - linux/arm64
     ports:
-      - "127.0.0.1:5154:5154/tcp"
-      - "127.0.0.1:5154:5154/udp"
-      - "127.0.0.1:5004:5001/tcp"
+      - "127.0.0.1:27910:27910/udp"
+      - "127.0.0.1:5003:5001/tcp"
     environment:
-      GAME_CMD: "/usr/games/bzfs"
-      GAME_ARGS: "-conf /opt/data/server.cfg -p 5154"
+      GAME_CMD: "./q2proded"
+      GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
-      GAME_PORT: "5154"
-      CONFIG_PATH: "/opt/data/server.cfg"
+      GAME_PORT: "27910"
+      CONFIG_PATH: "/opt/baseq2/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      # DATA_URL is optional for BZFlag; a private random-map config is bundled.
-      # Set it to supply a custom bzfs config file.
-      # DATA_URL: "https://example.com/server.cfg=/opt/data/server.cfg"
+      DATA_URL: "${Q2REPRO_DATA_URL}"
     volumes:
-      - ./.cache/bzflag:/opt/data
+      - ./.cache/q2repro:/opt/baseq2
 
   ut99:
     image: ghcr.io/fogo-sh/insta-game:ut99
@@ -167,12 +136,29 @@ services:
       CONFIG_PATH: "/opt/data/UnrealTournament.ini"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      # DATA_URL is required for UT99 GOTY — game assets and binaries are not bundled.
-      # Set UT99_DATA_URL in .env to a zip that extracts into /opt and optionally includes
-      # data/UnrealTournament.ini.
       DATA_URL: "${UT99_DATA_URL}"
     volumes:
       - ./.cache/ut99:/opt
+
+  xonotic:
+    image: ghcr.io/fogo-sh/insta-game:xonotic
+    build:
+      context: .
+      dockerfile: docker-containers/xonotic/Dockerfile
+      platforms:
+        - linux/arm64
+    ports:
+      - "127.0.0.1:26000:26000/udp"
+      - "127.0.0.1:5001:5001/tcp"
+    environment:
+      GAME_CMD: "./xonotic-linux-arm64-dedicated"
+      GAME_ARGS: ""
+      GAME_QUIT_CMD: "exit"
+      GAME_QUIT_TIMEOUT: "30"
+      GAME_PORT: "26000"
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
+      TOKEN: "abc123"
+      DATA_URL: "${XONOTIC_DATA_URL}"
 
   launcher:
     build:
@@ -194,6 +180,7 @@ services:
       SIDECAR_TOKEN: "${SIDECAR_TOKEN:-abc123}"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       FTEQW_DATA_URL: "${FTEQW_DATA_URL:-}"
-      Q2REPRO_DATA_URL: "${Q2REPRO_DATA_URL:-}"
       IOQUAKE3_DATA_URL: "${IOQUAKE3_DATA_URL:-}"
+      Q2REPRO_DATA_URL: "${Q2REPRO_DATA_URL:-}"
       UT99_DATA_URL: "${UT99_DATA_URL:-}"
+      XONOTIC_DATA_URL: "${XONOTIC_DATA_URL:-}"
