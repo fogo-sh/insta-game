@@ -132,9 +132,8 @@ const initScript = `
         inner.setAttribute("hx-ext", "sse");
         inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
         htmx.process(inner);
-        var lines = document.getElementById("log-lines-" + game);
-        var observer = new MutationObserver(function() { lines.scrollTop = lines.scrollHeight; });
-        observer.observe(lines, { childList: true });
+        var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
+        observer.observe(inner, { childList: true });
       }
     }
   };
@@ -231,10 +230,9 @@ const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloa
 
         {/* Inline log panel */}
         <div class="log-section" id={`log-section-${game}`}>
-          {/* log-sse-* gets hx-ext="sse" + sse-connect set dynamically by toggleLogs() */}
-          <div id={`log-sse-${game}`} hx-swap="beforeend">
-            <div id={`log-lines-${game}`} class="log-panel" sse-swap="log" />
-          </div>
+          {/* log-sse-* gets hx-ext="sse" + sse-connect set dynamically by toggleLogs()
+               sse-swap and hx-swap live on the same element so htmx.process() picks them up together */}
+          <div id={`log-sse-${game}`} class="log-panel" sse-swap="log" hx-swap="beforeend" />
         </div>
       </div>
     </div>

@@ -103789,9 +103789,8 @@ var initScript = `
         inner.setAttribute("hx-ext", "sse");
         inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
         htmx.process(inner);
-        var lines = document.getElementById("log-lines-" + game);
-        var observer = new MutationObserver(function() { lines.scrollTop = lines.scrollHeight; });
-        observer.observe(lines, { childList: true });
+        var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
+        observer.observe(inner, { childList: true });
       }
     }
   };
@@ -103878,7 +103877,7 @@ var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) 
         ] }),
         /* @__PURE__ */ jsxDEV("div", { id: `status-result-${game}`, class: "status-frag", children: /* @__PURE__ */ jsxDEV("span", { class: "htmx-indicator", children: "working..." }) })
       ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, "hx-swap": "beforeend", children: /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${game}`, class: "log-panel", "sse-swap": "log" }) }) })
+      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, class: "log-panel", "sse-swap": "log", "hx-swap": "beforeend" }) })
     ] })
   ] });
 };
