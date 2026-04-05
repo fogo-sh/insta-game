@@ -103718,6 +103718,25 @@ var css = `
   .log-section.open { display: block; }
   .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
   .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
+  .term-fg1 { font-weight: bold; }
+  .term-fg2 { color: #838887; }
+  .term-fg3 { font-style: italic; }
+  .term-fg4 { text-decoration: underline; }
+  .term-fg30 { color: #666; }
+  .term-fg31 { color: #ff7070; }
+  .term-fg32 { color: #b0f986; }
+  .term-fg33 { color: #c6c502; }
+  .term-fg34 { color: #8db7e0; }
+  .term-fg35 { color: #f271fb; }
+  .term-fg36 { color: #6bf7ff; }
+  .term-fg37 { color: #eee; }
+  .term-fgi90 { color: #838887; }
+  .term-fgi91 { color: #ff3333; }
+  .term-fgi92 { color: #00ff00; }
+  .term-fgi93 { color: #fffc67; }
+  .term-fgi94 { color: #6871ff; }
+  .term-fgi95 { color: #ff76ff; }
+  .term-fgi96 { color: #60fcff; }
 `;
 var initScript = `
 (function() {
