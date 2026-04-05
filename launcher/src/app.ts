@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { Backend, GameConfig } from "./backend.js";
 import type { GameCache } from "./cache.js";
+import type { DockerGameConfig } from "./backends/docker.js";
 import { makeDiscordHandler } from "./discord.js";
 import { log } from "./logger.js";
 import { renderUi, renderRowHeader, type GameUiConfig } from "./ui.js";
@@ -21,11 +22,11 @@ function statusFragment(state: { status: string; publicIp?: string; players?: nu
 }
 
 function gameUiConfig(config: GameConfig): GameUiConfig {
-  const connectPort = config.connectPort as number | undefined;
-  const clientDownloadUrl = config.clientDownloadUrl as string | undefined;
+  const c = config as DockerGameConfig;
   return {
-    connectAddress: connectPort ? `${PUBLIC_HOST}:${connectPort}` : null,
-    clientDownloadUrl: clientDownloadUrl ?? null,
+    displayName: c.displayName ?? null,
+    connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
+    clientDownloadUrl: c.clientDownloadUrl ?? null,
   };
 }
 

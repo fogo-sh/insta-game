@@ -824,9 +824,9 @@ var init_createPaginator = __esm({
       command = withCommand(command) ?? command;
       return await client.send(command, ...args);
     };
-    get = (fromObject, path) => {
+    get = (fromObject, path2) => {
       let cursor2 = fromObject;
-      const pathComponents = path.split(".");
+      const pathComponents = path2.split(".");
       for (const step of pathComponents) {
         if (!cursor2 || typeof cursor2 !== "object") {
           return void 0;
@@ -1844,12 +1844,12 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
             const password = request.password ?? "";
             auth = `${username}:${password}`;
           }
-          let path = request.path;
+          let path2 = request.path;
           if (queryString) {
-            path += `?${queryString}`;
+            path2 += `?${queryString}`;
           }
           if (request.fragment) {
-            path += `#${request.fragment}`;
+            path2 += `#${request.fragment}`;
           }
           let hostname = request.hostname ?? "";
           if (hostname[0] === "[" && hostname.endsWith("]")) {
@@ -1861,7 +1861,7 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
             headers: request.headers,
             host: hostname,
             method: request.method,
-            path,
+            path: path2,
             port: request.port,
             agent,
             auth
@@ -2144,16 +2144,16 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
             reject(err);
           };
           const queryString = querystringBuilder.buildQueryString(query || {});
-          let path = request.path;
+          let path2 = request.path;
           if (queryString) {
-            path += `?${queryString}`;
+            path2 += `?${queryString}`;
           }
           if (request.fragment) {
-            path += `#${request.fragment}`;
+            path2 += `#${request.fragment}`;
           }
           const req = session.request({
             ...request.headers,
-            [http2.constants.HTTP2_HEADER_PATH]: path,
+            [http2.constants.HTTP2_HEADER_PATH]: path2,
             [http2.constants.HTTP2_HEADER_METHOD]: method
           });
           session.ref();
@@ -2340,13 +2340,13 @@ var require_dist_cjs14 = __commonJS({
           const abortError = buildAbortError(abortSignal);
           return Promise.reject(abortError);
         }
-        let path = request.path;
+        let path2 = request.path;
         const queryString = querystringBuilder.buildQueryString(request.query || {});
         if (queryString) {
-          path += `?${queryString}`;
+          path2 += `?${queryString}`;
         }
         if (request.fragment) {
-          path += `#${request.fragment}`;
+          path2 += `#${request.fragment}`;
         }
         let auth = "";
         if (request.username != null || request.password != null) {
@@ -2355,7 +2355,7 @@ var require_dist_cjs14 = __commonJS({
           auth = `${username}:${password}@`;
         }
         const { port, method } = request;
-        const url = `${request.protocol}//${auth}${request.hostname}${port ? `:${port}` : ""}${path}`;
+        const url = `${request.protocol}//${auth}${request.hostname}${port ? `:${port}` : ""}${path2}`;
         const body = method === "GET" || method === "HEAD" ? void 0 : request.body;
         const requestOptions = {
           body,
@@ -4587,13 +4587,13 @@ function __disposeResources(env) {
   }
   return next();
 }
-function __rewriteRelativeImportExtension(path, preserveJsx) {
-  if (typeof path === "string" && /^\.\.?\//.test(path)) {
-    return path.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function(m5, tsx, d5, ext, cm) {
+function __rewriteRelativeImportExtension(path2, preserveJsx) {
+  if (typeof path2 === "string" && /^\.\.?\//.test(path2)) {
+    return path2.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function(m5, tsx, d5, ext, cm) {
       return tsx ? preserveJsx ? ".jsx" : ".js" : d5 && (!ext || !cm) ? m5 : d5 + ext + "." + cm.toLowerCase() + "js";
     });
   }
-  return path;
+  return path2;
 }
 var extendStatics, __assign, __createBinding, __setModuleDefault, ownKeys, _SuppressedError, tslib_es6_default;
 var init_tslib_es6 = __esm({
@@ -5489,11 +5489,11 @@ var init_HttpBindingProtocol = __esm({
           const opTraits = translateTraits(operationSchema.traits);
           if (opTraits.http) {
             request.method = opTraits.http[0];
-            const [path, search] = opTraits.http[1].split("?");
+            const [path2, search] = opTraits.http[1].split("?");
             if (request.path == "/") {
-              request.path = path;
+              request.path = path2;
             } else {
-              request.path += path;
+              request.path += path2;
             }
             const traitSearchParams = new URLSearchParams(search ?? "");
             Object.assign(query, Object.fromEntries(traitSearchParams));
@@ -5889,8 +5889,8 @@ var init_requestBuilder = __esm({
         return this;
       }
       p(memberName, labelValueProvider, uriLabel, isGreedyLabel) {
-        this.resolvePathStack.push((path) => {
-          this.path = resolvedPath(path, this.input, memberName, labelValueProvider, uriLabel, isGreedyLabel);
+        this.resolvePathStack.push((path2) => {
+          this.path = resolvedPath(path2, this.input, memberName, labelValueProvider, uriLabel, isGreedyLabel);
         });
         return this;
       }
@@ -6540,18 +6540,18 @@ var require_dist_cjs20 = __commonJS({
       }
     };
     var booleanEquals = (value1, value2) => value1 === value2;
-    var getAttrPathList = (path) => {
-      const parts = path.split(".");
+    var getAttrPathList = (path2) => {
+      const parts = path2.split(".");
       const pathList = [];
       for (const part of parts) {
         const squareBracketIndex = part.indexOf("[");
         if (squareBracketIndex !== -1) {
           if (part.indexOf("]") !== part.length - 1) {
-            throw new EndpointError(`Path: '${path}' does not end with ']'`);
+            throw new EndpointError(`Path: '${path2}' does not end with ']'`);
           }
           const arrayIndex = part.slice(squareBracketIndex + 1, -1);
           if (Number.isNaN(parseInt(arrayIndex))) {
-            throw new EndpointError(`Invalid array index: '${arrayIndex}' in path: '${path}'`);
+            throw new EndpointError(`Invalid array index: '${arrayIndex}' in path: '${path2}'`);
           }
           if (squareBracketIndex !== 0) {
             pathList.push(part.slice(0, squareBracketIndex));
@@ -6563,9 +6563,9 @@ var require_dist_cjs20 = __commonJS({
       }
       return pathList;
     };
-    var getAttr = (value, path) => getAttrPathList(path).reduce((acc, index) => {
+    var getAttr = (value, path2) => getAttrPathList(path2).reduce((acc, index) => {
       if (typeof acc !== "object") {
-        throw new EndpointError(`Index '${index}' in '${path}' not found in '${JSON.stringify(value)}'`);
+        throw new EndpointError(`Index '${index}' in '${path2}' not found in '${JSON.stringify(value)}'`);
       } else if (Array.isArray(acc)) {
         return acc[parseInt(index)];
       }
@@ -6584,8 +6584,8 @@ var require_dist_cjs20 = __commonJS({
             return value;
           }
           if (typeof value === "object" && "hostname" in value) {
-            const { hostname: hostname2, port, protocol: protocol2 = "", path = "", query = {} } = value;
-            const url = new URL(`${protocol2}//${hostname2}${port ? `:${port}` : ""}${path}`);
+            const { hostname: hostname2, port, protocol: protocol2 = "", path: path2 = "", query = {} } = value;
+            const url = new URL(`${protocol2}//${hostname2}${port ? `:${port}` : ""}${path2}`);
             url.search = Object.entries(query).map(([k5, v5]) => `${k5}=${v5}`).join("&");
             return url;
           }
@@ -8327,14 +8327,14 @@ var require_readFile = __commonJS({
     var promises_1 = require("node:fs/promises");
     exports2.filePromises = {};
     exports2.fileIntercept = {};
-    var readFile = (path, options) => {
-      if (exports2.fileIntercept[path] !== void 0) {
-        return exports2.fileIntercept[path];
+    var readFile = (path2, options) => {
+      if (exports2.fileIntercept[path2] !== void 0) {
+        return exports2.fileIntercept[path2];
       }
-      if (!exports2.filePromises[path] || options?.ignoreCache) {
-        exports2.filePromises[path] = (0, promises_1.readFile)(path, "utf8");
+      if (!exports2.filePromises[path2] || options?.ignoreCache) {
+        exports2.filePromises[path2] = (0, promises_1.readFile)(path2, "utf8");
       }
-      return exports2.filePromises[path];
+      return exports2.filePromises[path2];
     };
     exports2.readFile = readFile;
   }
@@ -8347,7 +8347,7 @@ var require_dist_cjs29 = __commonJS({
     var getHomeDir = require_getHomeDir();
     var getSSOTokenFilepath = require_getSSOTokenFilepath();
     var getSSOTokenFromFile = require_getSSOTokenFromFile();
-    var path = require("path");
+    var path2 = require("path");
     var types = require_dist_cjs();
     var readFile = require_readFile();
     var ENV_PROFILE = "AWS_PROFILE";
@@ -8369,9 +8369,9 @@ var require_dist_cjs29 = __commonJS({
       ...data2.default && { default: data2.default }
     });
     var ENV_CONFIG_PATH = "AWS_CONFIG_FILE";
-    var getConfigFilepath = () => process.env[ENV_CONFIG_PATH] || path.join(getHomeDir.getHomeDir(), ".aws", "config");
+    var getConfigFilepath = () => process.env[ENV_CONFIG_PATH] || path2.join(getHomeDir.getHomeDir(), ".aws", "config");
     var ENV_CREDENTIALS_PATH = "AWS_SHARED_CREDENTIALS_FILE";
-    var getCredentialsFilepath = () => process.env[ENV_CREDENTIALS_PATH] || path.join(getHomeDir.getHomeDir(), ".aws", "credentials");
+    var getCredentialsFilepath = () => process.env[ENV_CREDENTIALS_PATH] || path2.join(getHomeDir.getHomeDir(), ".aws", "credentials");
     var prefixKeyRegex = /^([\w-]+)\s(["'])?([\w-@\+\.%:/]+)\2$/;
     var profileNameBlockList = ["__proto__", "profile __proto__"];
     var parseIni = (iniData) => {
@@ -8426,11 +8426,11 @@ var require_dist_cjs29 = __commonJS({
       const relativeHomeDirPrefix = "~/";
       let resolvedFilepath = filepath;
       if (filepath.startsWith(relativeHomeDirPrefix)) {
-        resolvedFilepath = path.join(homeDir, filepath.slice(2));
+        resolvedFilepath = path2.join(homeDir, filepath.slice(2));
       }
       let resolvedConfigFilepath = configFilepath;
       if (configFilepath.startsWith(relativeHomeDirPrefix)) {
-        resolvedConfigFilepath = path.join(homeDir, configFilepath.slice(2));
+        resolvedConfigFilepath = path2.join(homeDir, configFilepath.slice(2));
       }
       const parsedFiles = await Promise.all([
         readFile.readFile(resolvedConfigFilepath, {
@@ -8469,8 +8469,8 @@ var require_dist_cjs29 = __commonJS({
       getFileRecord() {
         return readFile.fileIntercept;
       },
-      interceptFile(path2, contents) {
-        readFile.fileIntercept[path2] = Promise.resolve(contents);
+      interceptFile(path3, contents) {
+        readFile.fileIntercept[path3] = Promise.resolve(contents);
       },
       getTokenRecord() {
         return getSSOTokenFromFile.tokenIntercept;
@@ -8795,8 +8795,8 @@ var require_dist_cjs32 = __commonJS({
               return endpoint.url.href;
             }
             if ("hostname" in endpoint) {
-              const { protocol, hostname, port, path } = endpoint;
-              return `${protocol}//${hostname}${port ? ":" + port : ""}${path}`;
+              const { protocol, hostname, port, path: path2 } = endpoint;
+              return `${protocol}//${hostname}${port ? ":" + port : ""}${path2}`;
             }
           }
           return endpoint;
@@ -10748,10 +10748,10 @@ ${longDate}
 ${credentialScope}
 ${utilHexEncoding.toHex(hashedRequest)}`;
       }
-      getCanonicalPath({ path }) {
+      getCanonicalPath({ path: path2 }) {
         if (this.uriEscapePath) {
           const normalizedPathSegments = [];
-          for (const pathSegment of path.split("/")) {
+          for (const pathSegment of path2.split("/")) {
             if (pathSegment?.length === 0)
               continue;
             if (pathSegment === ".")
@@ -10762,11 +10762,11 @@ ${utilHexEncoding.toHex(hashedRequest)}`;
               normalizedPathSegments.push(pathSegment);
             }
           }
-          const normalizedPath = `${path?.startsWith("/") ? "/" : ""}${normalizedPathSegments.join("/")}${normalizedPathSegments.length > 0 && path?.endsWith("/") ? "/" : ""}`;
+          const normalizedPath = `${path2?.startsWith("/") ? "/" : ""}${normalizedPathSegments.join("/")}${normalizedPathSegments.length > 0 && path2?.endsWith("/") ? "/" : ""}`;
           const doubleEncoded = utilUriEscape.escapeUri(normalizedPath);
           return doubleEncoded.replace(/%2F/g, "/");
         }
-        return path;
+        return path2;
       }
       validateResolvedCredentials(credentials) {
         if (typeof credentials !== "object" || typeof credentials.accessKeyId !== "string" || typeof credentials.secretAccessKey !== "string") {
@@ -13374,11 +13374,11 @@ var init_SmithyRpcV2CborProtocol = __esm({
           }
         }
         const { service, operation: operation2 } = (0, import_util_middleware6.getSmithyContext)(context);
-        const path = `/service/${service}/operation/${operation2}`;
+        const path2 = `/service/${service}/operation/${operation2}`;
         if (request.path.endsWith("/")) {
-          request.path += path.slice(1);
+          request.path += path2.slice(1);
         } else {
-          request.path += path;
+          request.path += path2;
         }
         return request;
       }
@@ -87449,15 +87449,15 @@ var require_dist_cjs55 = __commonJS({
     var querystringBuilder = require_dist_cjs12();
     function formatUrl(request) {
       const { port, query } = request;
-      let { protocol, path, hostname } = request;
+      let { protocol, path: path2, hostname } = request;
       if (protocol && protocol.slice(-1) !== ":") {
         protocol += ":";
       }
       if (port) {
         hostname += `:${port}`;
       }
-      if (path && path.charAt(0) !== "/") {
-        path = `/${path}`;
+      if (path2 && path2.charAt(0) !== "/") {
+        path2 = `/${path2}`;
       }
       let queryString = query ? querystringBuilder.buildQueryString(query) : "";
       if (queryString && queryString[0] !== "?") {
@@ -87473,7 +87473,7 @@ var require_dist_cjs55 = __commonJS({
       if (request.fragment) {
         fragment = `#${request.fragment}`;
       }
-      return `${protocol}//${auth}${hostname}${path}${queryString}${fragment}`;
+      return `${protocol}//${auth}${hostname}${path2}${queryString}${fragment}`;
     }
     exports2.formatUrl = formatUrl;
   }
@@ -100462,6 +100462,28 @@ async function restartWithConfig(ip, port, configUrl) {
 // src/backends/docker.ts
 var import_http3 = __toESM(require("http"));
 
+// src/game-definitions.ts
+var import_fs = require("fs");
+var import_path = __toESM(require("path"));
+function loadDockerGameDefinitions(repoRoot) {
+  const dockerRoot = import_path.default.join(repoRoot, "docker-containers");
+  const entries = (0, import_fs.readdirSync)(dockerRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  const definitions = [];
+  for (const entry of entries) {
+    const gameDir = import_path.default.join(dockerRoot, entry);
+    const dockerfilePath = import_path.default.join(gameDir, "Dockerfile");
+    const metadataPath = import_path.default.join(gameDir, "game.json");
+    try {
+      const metadata = JSON.parse((0, import_fs.readFileSync)(metadataPath, "utf8"));
+      (0, import_fs.readFileSync)(dockerfilePath, "utf8");
+      definitions.push(metadata);
+    } catch {
+      continue;
+    }
+  }
+  return definitions;
+}
+
 // src/logger.ts
 function ts() {
   return (/* @__PURE__ */ new Date()).toISOString();
@@ -100482,12 +100504,13 @@ var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 var DATA_DIR = process.env.DATA_DIR ?? "/data";
 var MAX_POLLS2 = 20;
 var POLL_INTERVAL_MS2 = 3e3;
-function dockerRequest(method, path, body) {
+var RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
+function dockerRequest(method, path2, body) {
   return new Promise((resolve, reject) => {
     const bodyStr = body ? JSON.stringify(body) : void 0;
     const req = import_http3.default.request({
       socketPath: SOCKET,
-      path,
+      path: path2,
       method,
       headers: {
         "Content-Type": "application/json",
@@ -100508,7 +100531,7 @@ function dockerRequest(method, path, body) {
         const status = res.statusCode ?? 0;
         if (status < 200 || status >= 300) {
           const message = parsed?.message ?? text;
-          reject(new Error(`Docker API ${method} ${path} \u2192 ${status}: ${message}`));
+          reject(new Error(`Docker API ${method} ${path2} \u2192 ${status}: ${message}`));
         } else {
           resolve(parsed);
         }
@@ -100623,7 +100646,35 @@ async function restartWithConfig2(port, configUrl) {
 }
 var DockerBackend = class {
   getGames() {
-    return JSON.parse(process.env.GAMES ?? "{}");
+    const configs = {};
+    for (const definition of loadDockerGameDefinitions(DATA_DIR)) {
+      const environment = {
+        GAME_CMD: definition.gameCmd,
+        GAME_ARGS: definition.gameArgs ?? "",
+        GAME_QUIT_CMD: definition.gameQuitCmd ?? "quit",
+        GAME_QUIT_TIMEOUT: String(definition.gameQuitTimeout ?? 15),
+        GAME_PORT: String(definition.gamePort ?? 26e3),
+        TOKEN: SIDECAR_TOKEN2
+      };
+      if (definition.configPath) environment.CONFIG_PATH = definition.configPath;
+      if (definition.dataUrlEnv) {
+        const value = process.env[definition.dataUrlEnv];
+        if (value) environment.DATA_URL = value;
+      }
+      if (RCON_PASSWORD) environment.RCON_PASSWORD = RCON_PASSWORD;
+      configs[definition.id] = {
+        containerName: definition.containerName ?? `insta-game-${definition.id}-1`,
+        image: definition.image ?? `ghcr.io/fogo-sh/insta-game:${definition.id}`,
+        displayName: definition.displayName,
+        connectPort: definition.gamePort,
+        clientDownloadUrl: definition.clientDownloadUrl,
+        sidecarPort: definition.sidecarPort,
+        ports: definition.ports,
+        environment,
+        volumes: definition.volumes
+      };
+    }
+    return configs;
   }
   async getGameState(config) {
     const c5 = config;
@@ -100888,26 +100939,26 @@ var handleParsingNestedValues = (form2, key, value) => {
 };
 
 // node_modules/hono/dist/utils/url.js
-var splitPath = (path) => {
-  const paths = path.split("/");
+var splitPath = (path2) => {
+  const paths = path2.split("/");
   if (paths[0] === "") {
     paths.shift();
   }
   return paths;
 };
 var splitRoutingPath = (routePath) => {
-  const { groups, path } = extractGroupsFromPath(routePath);
-  const paths = splitPath(path);
+  const { groups, path: path2 } = extractGroupsFromPath(routePath);
+  const paths = splitPath(path2);
   return replaceGroupMarks(paths, groups);
 };
-var extractGroupsFromPath = (path) => {
+var extractGroupsFromPath = (path2) => {
   const groups = [];
-  path = path.replace(/\{[^}]+\}/g, (match2, index) => {
+  path2 = path2.replace(/\{[^}]+\}/g, (match2, index) => {
     const mark = `@${index}`;
     groups.push([mark, match2]);
     return mark;
   });
-  return { groups, path };
+  return { groups, path: path2 };
 };
 var replaceGroupMarks = (paths, groups) => {
   for (let i5 = groups.length - 1; i5 >= 0; i5--) {
@@ -100964,8 +101015,8 @@ var getPath = (request) => {
       const queryIndex = url.indexOf("?", i5);
       const hashIndex = url.indexOf("#", i5);
       const end = queryIndex === -1 ? hashIndex === -1 ? void 0 : hashIndex : hashIndex === -1 ? queryIndex : Math.min(queryIndex, hashIndex);
-      const path = url.slice(start, end);
-      return tryDecodeURI(path.includes("%25") ? path.replace(/%25/g, "%2525") : path);
+      const path2 = url.slice(start, end);
+      return tryDecodeURI(path2.includes("%25") ? path2.replace(/%25/g, "%2525") : path2);
     } else if (charCode === 63 || charCode === 35) {
       break;
     }
@@ -100982,11 +101033,11 @@ var mergePath = (base, sub, ...rest) => {
   }
   return `${base?.[0] === "/" ? "" : "/"}${base}${sub === "/" ? "" : `${base?.at(-1) === "/" ? "" : "/"}${sub?.[0] === "/" ? sub.slice(1) : sub}`}`;
 };
-var checkOptionalParameter = (path) => {
-  if (path.charCodeAt(path.length - 1) !== 63 || !path.includes(":")) {
+var checkOptionalParameter = (path2) => {
+  if (path2.charCodeAt(path2.length - 1) !== 63 || !path2.includes(":")) {
     return null;
   }
-  const segments = path.split("/");
+  const segments = path2.split("/");
   const results = [];
   let basePath = "";
   segments.forEach((segment) => {
@@ -101127,9 +101178,9 @@ var HonoRequest = class {
    */
   path;
   bodyCache = {};
-  constructor(request, path = "/", matchResult = [[]]) {
+  constructor(request, path2 = "/", matchResult = [[]]) {
     this.raw = request;
-    this.path = path;
+    this.path = path2;
     this.#matchResult = matchResult;
     this.#validatedData = {};
   }
@@ -101940,8 +101991,8 @@ var Hono = class _Hono {
         return this;
       };
     });
-    this.on = (method, path, ...handlers) => {
-      for (const p5 of [path].flat()) {
+    this.on = (method, path2, ...handlers) => {
+      for (const p5 of [path2].flat()) {
         this.#path = p5;
         for (const m5 of [method].flat()) {
           handlers.map((handler) => {
@@ -101998,8 +102049,8 @@ var Hono = class _Hono {
    * app.route("/api", app2) // GET /api/user
    * ```
    */
-  route(path, app2) {
-    const subApp = this.basePath(path);
+  route(path2, app2) {
+    const subApp = this.basePath(path2);
     app2.routes.map((r5) => {
       let handler;
       if (app2.errorHandler === errorHandler) {
@@ -102025,9 +102076,9 @@ var Hono = class _Hono {
    * const api = new Hono().basePath('/api')
    * ```
    */
-  basePath(path) {
+  basePath(path2) {
     const subApp = this.#clone();
-    subApp._basePath = mergePath(this._basePath, path);
+    subApp._basePath = mergePath(this._basePath, path2);
     return subApp;
   }
   /**
@@ -102101,7 +102152,7 @@ var Hono = class _Hono {
    * })
    * ```
    */
-  mount(path, applicationHandler, options) {
+  mount(path2, applicationHandler, options) {
     let replaceRequest;
     let optionHandler;
     if (options) {
@@ -102128,7 +102179,7 @@ var Hono = class _Hono {
       return [c5.env, executionContext];
     };
     replaceRequest ||= (() => {
-      const mergedPath = mergePath(this._basePath, path);
+      const mergedPath = mergePath(this._basePath, path2);
       const pathPrefixLength = mergedPath === "/" ? 0 : mergedPath.length;
       return (request) => {
         const url = new URL(request.url);
@@ -102143,14 +102194,14 @@ var Hono = class _Hono {
       }
       await next();
     };
-    this.#addRoute(METHOD_NAME_ALL, mergePath(path, "*"), handler);
+    this.#addRoute(METHOD_NAME_ALL, mergePath(path2, "*"), handler);
     return this;
   }
-  #addRoute(method, path, handler) {
+  #addRoute(method, path2, handler) {
     method = method.toUpperCase();
-    path = mergePath(this._basePath, path);
-    const r5 = { basePath: this._basePath, path, method, handler };
-    this.router.add(method, path, [handler, r5]);
+    path2 = mergePath(this._basePath, path2);
+    const r5 = { basePath: this._basePath, path: path2, method, handler };
+    this.router.add(method, path2, [handler, r5]);
     this.routes.push(r5);
   }
   #handleError(err, c5) {
@@ -102163,10 +102214,10 @@ var Hono = class _Hono {
     if (method === "HEAD") {
       return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
     }
-    const path = this.getPath(request, { env });
-    const matchResult = this.router.match(method, path);
+    const path2 = this.getPath(request, { env });
+    const matchResult = this.router.match(method, path2);
     const c5 = new Context(request, {
-      path,
+      path: path2,
       matchResult,
       env,
       executionCtx,
@@ -102266,15 +102317,15 @@ var Hono = class _Hono {
 
 // node_modules/hono/dist/router/reg-exp-router/matcher.js
 var emptyParam = [];
-function match(method, path) {
+function match(method, path2) {
   const matchers = this.buildAllMatchers();
-  const match2 = ((method2, path2) => {
+  const match2 = ((method2, path22) => {
     const matcher = matchers[method2] || matchers[METHOD_NAME_ALL];
-    const staticMatch = matcher[2][path2];
+    const staticMatch = matcher[2][path22];
     if (staticMatch) {
       return staticMatch;
     }
-    const match3 = path2.match(matcher[0]);
+    const match3 = path22.match(matcher[0]);
     if (!match3) {
       return [[], emptyParam];
     }
@@ -102282,7 +102333,7 @@ function match(method, path) {
     return [matcher[1][index], match3];
   });
   this.match = match2;
-  return match2(method, path);
+  return match2(method, path2);
 }
 
 // node_modules/hono/dist/router/reg-exp-router/node.js
@@ -102397,12 +102448,12 @@ var Node = class _Node {
 var Trie = class {
   #context = { varIndex: 0 };
   #root = new Node();
-  insert(path, index, pathErrorCheckOnly) {
+  insert(path2, index, pathErrorCheckOnly) {
     const paramAssoc = [];
     const groups = [];
     for (let i5 = 0; ; ) {
       let replaced = false;
-      path = path.replace(/\{[^}]+\}/g, (m5) => {
+      path2 = path2.replace(/\{[^}]+\}/g, (m5) => {
         const mark = `@\\${i5}`;
         groups[i5] = [mark, m5];
         i5++;
@@ -102413,7 +102464,7 @@ var Trie = class {
         break;
       }
     }
-    const tokens = path.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
+    const tokens = path2.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
     for (let i5 = groups.length - 1; i5 >= 0; i5--) {
       const [mark] = groups[i5];
       for (let j5 = tokens.length - 1; j5 >= 0; j5--) {
@@ -102452,9 +102503,9 @@ var Trie = class {
 // node_modules/hono/dist/router/reg-exp-router/router.js
 var nullMatcher = [/^$/, [], /* @__PURE__ */ Object.create(null)];
 var wildcardRegExpCache = /* @__PURE__ */ Object.create(null);
-function buildWildcardRegExp(path) {
-  return wildcardRegExpCache[path] ??= new RegExp(
-    path === "*" ? "" : `^${path.replace(
+function buildWildcardRegExp(path2) {
+  return wildcardRegExpCache[path2] ??= new RegExp(
+    path2 === "*" ? "" : `^${path2.replace(
       /\/\*$|([.\\+*[^\]$()])/g,
       (_, metaChar) => metaChar ? `\\${metaChar}` : "(?:|/.*)"
     )}$`
@@ -102476,17 +102527,17 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   );
   const staticMap = /* @__PURE__ */ Object.create(null);
   for (let i5 = 0, j5 = -1, len = routesWithStaticPathFlag.length; i5 < len; i5++) {
-    const [pathErrorCheckOnly, path, handlers] = routesWithStaticPathFlag[i5];
+    const [pathErrorCheckOnly, path2, handlers] = routesWithStaticPathFlag[i5];
     if (pathErrorCheckOnly) {
-      staticMap[path] = [handlers.map(([h5]) => [h5, /* @__PURE__ */ Object.create(null)]), emptyParam];
+      staticMap[path2] = [handlers.map(([h5]) => [h5, /* @__PURE__ */ Object.create(null)]), emptyParam];
     } else {
       j5++;
     }
     let paramAssoc;
     try {
-      paramAssoc = trie.insert(path, j5, pathErrorCheckOnly);
+      paramAssoc = trie.insert(path2, j5, pathErrorCheckOnly);
     } catch (e5) {
-      throw e5 === PATH_ERROR ? new UnsupportedPathError(path) : e5;
+      throw e5 === PATH_ERROR ? new UnsupportedPathError(path2) : e5;
     }
     if (pathErrorCheckOnly) {
       continue;
@@ -102520,12 +102571,12 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   }
   return [regexp, handlerMap, staticMap];
 }
-function findMiddleware(middleware, path) {
+function findMiddleware(middleware, path2) {
   if (!middleware) {
     return void 0;
   }
   for (const k5 of Object.keys(middleware).sort((a5, b5) => b5.length - a5.length)) {
-    if (buildWildcardRegExp(k5).test(path)) {
+    if (buildWildcardRegExp(k5).test(path2)) {
       return [...middleware[k5]];
     }
   }
@@ -102539,7 +102590,7 @@ var RegExpRouter = class {
     this.#middleware = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
     this.#routes = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
   }
-  add(method, path, handler) {
+  add(method, path2, handler) {
     const middleware = this.#middleware;
     const routes = this.#routes;
     if (!middleware || !routes) {
@@ -102554,18 +102605,18 @@ var RegExpRouter = class {
         });
       });
     }
-    if (path === "/*") {
-      path = "*";
+    if (path2 === "/*") {
+      path2 = "*";
     }
-    const paramCount = (path.match(/\/:/g) || []).length;
-    if (/\*$/.test(path)) {
-      const re = buildWildcardRegExp(path);
+    const paramCount = (path2.match(/\/:/g) || []).length;
+    if (/\*$/.test(path2)) {
+      const re = buildWildcardRegExp(path2);
       if (method === METHOD_NAME_ALL) {
         Object.keys(middleware).forEach((m5) => {
-          middleware[m5][path] ||= findMiddleware(middleware[m5], path) || findMiddleware(middleware[METHOD_NAME_ALL], path) || [];
+          middleware[m5][path2] ||= findMiddleware(middleware[m5], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
         });
       } else {
-        middleware[method][path] ||= findMiddleware(middleware[method], path) || findMiddleware(middleware[METHOD_NAME_ALL], path) || [];
+        middleware[method][path2] ||= findMiddleware(middleware[method], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
       }
       Object.keys(middleware).forEach((m5) => {
         if (method === METHOD_NAME_ALL || method === m5) {
@@ -102583,15 +102634,15 @@ var RegExpRouter = class {
       });
       return;
     }
-    const paths = checkOptionalParameter(path) || [path];
+    const paths = checkOptionalParameter(path2) || [path2];
     for (let i5 = 0, len = paths.length; i5 < len; i5++) {
-      const path2 = paths[i5];
+      const path22 = paths[i5];
       Object.keys(routes).forEach((m5) => {
         if (method === METHOD_NAME_ALL || method === m5) {
-          routes[m5][path2] ||= [
-            ...findMiddleware(middleware[m5], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || []
+          routes[m5][path22] ||= [
+            ...findMiddleware(middleware[m5], path22) || findMiddleware(middleware[METHOD_NAME_ALL], path22) || []
           ];
-          routes[m5][path2].push([handler, paramCount - len + i5 + 1]);
+          routes[m5][path22].push([handler, paramCount - len + i5 + 1]);
         }
       });
     }
@@ -102610,13 +102661,13 @@ var RegExpRouter = class {
     const routes = [];
     let hasOwnRoute = method === METHOD_NAME_ALL;
     [this.#middleware, this.#routes].forEach((r5) => {
-      const ownRoute = r5[method] ? Object.keys(r5[method]).map((path) => [path, r5[method][path]]) : [];
+      const ownRoute = r5[method] ? Object.keys(r5[method]).map((path2) => [path2, r5[method][path2]]) : [];
       if (ownRoute.length !== 0) {
         hasOwnRoute ||= true;
         routes.push(...ownRoute);
       } else if (method !== METHOD_NAME_ALL) {
         routes.push(
-          ...Object.keys(r5[METHOD_NAME_ALL]).map((path) => [path, r5[METHOD_NAME_ALL][path]])
+          ...Object.keys(r5[METHOD_NAME_ALL]).map((path2) => [path2, r5[METHOD_NAME_ALL][path2]])
         );
       }
     });
@@ -102636,13 +102687,13 @@ var SmartRouter = class {
   constructor(init) {
     this.#routers = init.routers;
   }
-  add(method, path, handler) {
+  add(method, path2, handler) {
     if (!this.#routes) {
       throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
     }
-    this.#routes.push([method, path, handler]);
+    this.#routes.push([method, path2, handler]);
   }
-  match(method, path) {
+  match(method, path2) {
     if (!this.#routes) {
       throw new Error("Fatal error");
     }
@@ -102657,7 +102708,7 @@ var SmartRouter = class {
         for (let i22 = 0, len2 = routes.length; i22 < len2; i22++) {
           router.add(...routes[i22]);
         }
-        res = router.match(method, path);
+        res = router.match(method, path2);
       } catch (e5) {
         if (e5 instanceof UnsupportedPathError) {
           continue;
@@ -102707,10 +102758,10 @@ var Node2 = class _Node2 {
     }
     this.#patterns = [];
   }
-  insert(method, path, handler) {
+  insert(method, path2, handler) {
     this.#order = ++this.#order;
     let curNode = this;
-    const parts = splitRoutingPath(path);
+    const parts = splitRoutingPath(path2);
     const possibleKeys = [];
     for (let i5 = 0, len = parts.length; i5 < len; i5++) {
       const p5 = parts[i5];
@@ -102759,12 +102810,12 @@ var Node2 = class _Node2 {
       }
     }
   }
-  search(method, path) {
+  search(method, path2) {
     const handlerSets = [];
     this.#params = emptyParams;
     const curNode = this;
     let curNodes = [curNode];
-    const parts = splitPath(path);
+    const parts = splitPath(path2);
     const curNodesQueue = [];
     const len = parts.length;
     let partOffsets = null;
@@ -102806,13 +102857,13 @@ var Node2 = class _Node2 {
           if (matcher instanceof RegExp) {
             if (partOffsets === null) {
               partOffsets = new Array(len);
-              let offset = path[0] === "/" ? 1 : 0;
+              let offset = path2[0] === "/" ? 1 : 0;
               for (let p5 = 0; p5 < len; p5++) {
                 partOffsets[p5] = offset;
                 offset += parts[p5].length + 1;
               }
             }
-            const restPathString = path.substring(partOffsets[i5]);
+            const restPathString = path2.substring(partOffsets[i5]);
             const m5 = matcher.exec(restPathString);
             if (m5) {
               params[name] = m5[0];
@@ -102865,18 +102916,18 @@ var TrieRouter = class {
   constructor() {
     this.#node = new Node2();
   }
-  add(method, path, handler) {
-    const results = checkOptionalParameter(path);
+  add(method, path2, handler) {
+    const results = checkOptionalParameter(path2);
     if (results) {
       for (let i5 = 0, len = results.length; i5 < len; i5++) {
         this.#node.insert(method, results[i5], handler);
       }
       return;
     }
-    this.#node.insert(method, path, handler);
+    this.#node.insert(method, path2, handler);
   }
-  match(method, path) {
-    return this.#node.search(method, path);
+  match(method, path2) {
+    return this.#node.search(method, path2);
   }
 };
 
@@ -103831,7 +103882,7 @@ var StatusDot = ({ status }) => {
   if (status === "starting") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E1}" });
   return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u26AB" });
 };
-var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) => {
+var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDownloadUrl }) => {
   const metaOnline = state2.status === "online";
   const indicator = `#status-result-${game}`;
   return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
@@ -103847,7 +103898,7 @@ var AccordionRow = ({ game, state: state2, connectAddress, clientDownloadUrl }) 
         onclick: `toggleRow('${game}')`,
         children: [
           /* @__PURE__ */ jsxDEV(StatusDot, { status: state2.status }),
-          /* @__PURE__ */ jsxDEV("span", { class: "game-name", children: game }),
+          /* @__PURE__ */ jsxDEV("span", { class: "game-name", children: displayName ?? game }),
           /* @__PURE__ */ jsxDEV("span", { class: "row-meta", children: [
             metaOnline && state2.hostname ? /* @__PURE__ */ jsxDEV("span", { children: state2.hostname }) : null,
             metaOnline && state2.map ? /* @__PURE__ */ jsxDEV("span", { children: state2.map }) : null,
@@ -103932,6 +103983,7 @@ function renderUi(games) {
         AccordionRow,
         {
           game: key,
+          displayName: ui.displayName,
           state: state2,
           connectAddress: ui.connectAddress,
           clientDownloadUrl: ui.clientDownloadUrl
@@ -103990,11 +104042,11 @@ function statusFragment(state2) {
   return `<span class="status ${state2.status}">${state2.status}${ip}${players}</span>`;
 }
 function gameUiConfig(config) {
-  const connectPort = config.connectPort;
-  const clientDownloadUrl = config.clientDownloadUrl;
+  const c5 = config;
   return {
-    connectAddress: connectPort ? `${PUBLIC_HOST}:${connectPort}` : null,
-    clientDownloadUrl: clientDownloadUrl ?? null
+    displayName: c5.displayName ?? null,
+    connectAddress: c5.connectPort ? `${PUBLIC_HOST}:${c5.connectPort}` : null,
+    clientDownloadUrl: c5.clientDownloadUrl ?? null
   };
 }
 function createApp(backend2, cache6) {

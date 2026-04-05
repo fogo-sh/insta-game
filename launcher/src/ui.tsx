@@ -179,12 +179,13 @@ const StatusDot: FC<StatusDotProps> = ({ status }) => {
 
 interface RowProps {
   game: string;
+  displayName: string | null;
   state: CachedGameState;
   connectAddress: string | null;
   clientDownloadUrl: string | null;
 }
 
-const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloadUrl }) => {
+const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, clientDownloadUrl }) => {
   const metaOnline = state.status === "online";
   const indicator = `#status-result-${game}`;
   return (
@@ -200,7 +201,7 @@ const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloa
         onclick={`toggleRow('${game}')`}
       >
         <StatusDot status={state.status} />
-        <span class="game-name">{game}</span>
+        <span class="game-name">{displayName ?? game}</span>
         <span class="row-meta">
           {metaOnline && state.hostname ? <span>{state.hostname}</span> : null}
           {metaOnline && state.map ? <span>{state.map}</span> : null}
@@ -259,6 +260,7 @@ const AccordionRow: FC<RowProps> = ({ game, state, connectAddress, clientDownloa
 };
 
 export interface GameUiConfig {
+  displayName: string | null;
   connectAddress: string | null;
   clientDownloadUrl: string | null;
 }
@@ -296,6 +298,7 @@ export function renderUi(
             <AccordionRow
               key={key}
               game={key}
+              displayName={ui.displayName}
               state={state}
               connectAddress={ui.connectAddress}
               clientDownloadUrl={ui.clientDownloadUrl}

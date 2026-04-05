@@ -16,6 +16,9 @@ const RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
 export interface DockerGameConfig extends GameConfig {
   containerName: string;
   image: string;
+  displayName: string;
+  connectPort?: number;
+  clientDownloadUrl?: string;
   // port bindings: key is containerPort (e.g. "26000/udp"), value is host binding
   ports?: Record<string, PortBinding>;
   environment?: Record<string, string>;
@@ -201,6 +204,9 @@ export class DockerBackend implements Backend {
       configs[definition.id] = {
         containerName: definition.containerName ?? `insta-game-${definition.id}-1`,
         image: definition.image ?? `ghcr.io/fogo-sh/insta-game:${definition.id}`,
+        displayName: definition.displayName,
+        connectPort: definition.gamePort,
+        clientDownloadUrl: definition.clientDownloadUrl,
         sidecarPort: definition.sidecarPort,
         ports: definition.ports,
         environment,

@@ -5,18 +5,33 @@
   "sidecarPort": 5001,
   "gamePort": 7777,
   "ports": {
-    "7777/udp": { "hostPort": "7777" },
-    "7778/udp": { "hostPort": "7778" },
-    "7779/udp": { "hostPort": "7779" },
-    "7780/udp": { "hostPort": "7780" },
-    "7781/udp": { "hostPort": "7781" },
-    "5001/tcp": { "hostPort": "5005" }
+    "7777/udp": {
+      "hostPort": "7777"
+    },
+    "7778/udp": {
+      "hostPort": "7778"
+    },
+    "7779/udp": {
+      "hostPort": "7779"
+    },
+    "7780/udp": {
+      "hostPort": "7780"
+    },
+    "7781/udp": {
+      "hostPort": "7781"
+    },
+    "5001/tcp": {
+      "hostPort": "5005"
+    }
   },
   "gameCmd": "/usr/local/bin/start-ut99.sh",
   "gameArgs": "/opt/SystemARM64/ucc-bin-arm64 server DM-Deck16][?game=Botpack.DeathMatchPlus ini=/opt/data/UnrealTournament.ini -nohomedir",
   "gameQuitCmd": "exit",
   "gameQuitTimeout": 15,
   "configPath": "/opt/data/UnrealTournament.ini",
-  "volumes": [".cache/ut99:/opt"],
-  "dataUrlEnv": "UT99_DATA_URL"
+  "volumes": [
+    ".cache/ut99:/opt"
+  ],
+  "dataUrlEnv": "UT99_DATA_URL",
+  "clientDownloadUrl": "https://github.com/OldUnreal/UnrealTournamentPatches/releases"
 }
