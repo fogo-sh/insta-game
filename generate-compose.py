@@ -113,17 +113,20 @@ def generate(games: list[dict]) -> str:
         '      - "host.docker.internal:host-gateway"',
         "    volumes:",
         "      - /var/run/docker.sock:/var/run/docker.sock",
+        "      - ./docker-containers:/app/docker-containers:ro",
+        "      - ./.cache:/app/.cache",
         "    ports:",
         '      - "127.0.0.1:3000:3000/tcp"',
         "    environment:",
         '      BACKEND: "docker"',
-        '      DATA_DIR: "${PWD}"',
+        '      DATA_DIR: "/app"',
         '      PORT: "3000"',
         '      SIDECAR_HOST: "host.docker.internal"',
         '      WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE:-gaming}"',
         '      API_TOKEN: "${API_TOKEN:-gaming}"',
         '      SIDECAR_TOKEN: "${SIDECAR_TOKEN:-abc123}"',
         '      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"',
+        '      PUBLIC_HOST: "${PUBLIC_HOST:-localhost}"',
     ]
     for var in data_url_vars:
         launcher_lines.append(f'      {var}: "${{{var}:-}}"')
