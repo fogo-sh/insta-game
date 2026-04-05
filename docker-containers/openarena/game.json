@@ -9,7 +9,7 @@
     "5001/tcp": { "hostPort": "5007" }
   },
   "gameCmd": "/usr/games/openarena-server",
-  "gameArgs": "+set fs_homepath /opt +set dedicated 2 +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 12 +set com_hunkMegs 64 +exec server.cfg",
+  "gameArgs": "+set com_gamename OpenArena +set fs_homepath /opt +set dedicated 2 +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 12 +set com_hunkMegs 64 +exec server.cfg",
   "gameQuitCmd": "quit",
   "gameQuitTimeout": 15,
   "configPath": "/opt/baseoa/server.cfg",

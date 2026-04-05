@@ -108,7 +108,7 @@ services:
       - "127.0.0.1:5007:5001/tcp"
     environment:
       GAME_CMD: "/usr/games/openarena-server"
-      GAME_ARGS: "+set fs_homepath /opt +set dedicated 2 +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 12 +set com_hunkMegs 64 +exec server.cfg"
+      GAME_ARGS: "+set com_gamename OpenArena +set fs_homepath /opt +set dedicated 2 +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 12 +set com_hunkMegs 64 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
       GAME_PORT: "27960"
