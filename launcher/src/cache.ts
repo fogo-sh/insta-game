@@ -6,17 +6,21 @@ const POLL_INTERVAL_MS = 30_000;
 export class GameCache {
   private cache = new Map<string, CachedGameState>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  private polling = false;
 
   constructor(private readonly backend: Backend) {}
 
   start(): void {
-    // Poll immediately on startup, then every 30s
+    if (this.timer) return;
     void this.pollAll();
     this.timer = setInterval(() => { void this.pollAll(); }, POLL_INTERVAL_MS);
   }
 
   stop(): void {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
   }
 
   get(gameKey: string): CachedGameState | null {
@@ -28,23 +32,29 @@ export class GameCache {
   }
 
   private async pollAll(): Promise<void> {
-    const games = this.backend.getGames();
-    await Promise.all(
-      Object.entries(games).map(async ([key, config]) => {
-        try {
-          const state = await this.backend.getCachedState(config);
-          this.cache.set(key, state);
-        } catch (err) {
-          log.error(`cache: poll failed for ${key}`, err);
-          this.cache.set(key, {
-            status: "offline",
-            players: 0,
-            hostname: "",
-            map: "",
-            updatedAt: new Date(),
-          });
-        }
-      })
-    );
+    if (this.polling) return;
+    this.polling = true;
+    try {
+      const games = this.backend.getGames();
+      await Promise.all(
+        Object.entries(games).map(async ([key, config]) => {
+          try {
+            const state = await this.backend.getCachedState(config);
+            this.cache.set(key, state);
+          } catch (err) {
+            log.error(`cache: poll failed for ${key}`, err);
+            this.cache.set(key, {
+              status: "offline",
+              players: 0,
+              hostname: "",
+              map: "",
+              updatedAt: new Date(),
+            });
+          }
+        })
+      );
+    } finally {
+      this.polling = false;
+    }
   }
 }
