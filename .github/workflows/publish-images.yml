@@ -28,6 +28,8 @@ jobs:
       - name: Build image matrix from changed paths
         id: set-matrix
         shell: bash
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: |
           python3 <<'PY' >> "$GITHUB_OUTPUT"
           import json
