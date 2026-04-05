@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server-config>
+  <server-mode value="0" />
+  <server-name value="insta-game" />
+  <max-players value="8" />
+  <difficulty value="0" />
+  <game-mode value="3" />
+  <soccer-goals value="3" />
+  <team-choosing value="1" />
+  <owner-less value="1" />
+  <track value="lighthouse" />
+  <laps value="3" />
+  <enable-console value="true" />
+  <enable-autosave value="false" />
+  <public-server value="false" />
+  <wan-server value="false" />
+  <port value="2759" />
+</server-config>

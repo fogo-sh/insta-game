@@ -66,6 +66,9 @@ prepare_game() {
     bzflag)
       mkdir -p .cache/bzflag
       ;;
+    supertuxkart)
+      mkdir -p .cache/supertuxkart
+      ;;
     ut99)
       ensure_data_url \
         "$game_name" \

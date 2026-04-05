@@ -1,0 +1,18 @@
+{
+  "id": "supertuxkart",
+  "displayName": "SuperTuxKart",
+  "protocol": "supertuxkart",
+  "sidecarPort": 5001,
+  "gamePort": 2759,
+  "ports": {
+    "2757/udp": { "hostPort": "2757" },
+    "2759/udp": { "hostPort": "2759" },
+    "5001/tcp": { "hostPort": "5008" }
+  },
+  "gameCmd": "/opt/stk/run_game.sh",
+  "gameArgs": "--server-config=/opt/data/server_config.xml",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15,
+  "configPath": "/opt/data/server_config.xml",
+  "volumes": [".cache/supertuxkart:/opt/data"]
+}
