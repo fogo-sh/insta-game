@@ -13,6 +13,7 @@ Current AWS game services are:
 - q2repro / Quake 2 on ARM64 Fargate
 - ioquake3 / Quake 3 Arena on ARM64 Fargate
 - OpenArena on ARM64 Fargate
+- Smokin' Guns on ARM64 Fargate
 - BZFlag on ARM64 Fargate
 - UT99 GOTY on ARM64 Fargate
 
@@ -56,6 +57,7 @@ docker compose up fteqw     # run FTEQW / Quake 1 (requires DATA_URL env var —
 docker compose up q2repro   # run q2repro / Quake 2 (requires DATA_URL env var — see compose.yml)
 docker compose up ioquake3  # run ioquake3 / Quake 3 Arena (requires DATA_URL env var — see compose.yml)
 docker compose up openarena # run OpenArena
+docker compose up smokinguns # run Smokin' Guns (requires DATA_URL env var — see compose.yml)
 docker compose up bzflag    # run BZFlag
 docker compose up ut99      # run UT99 GOTY (requires DATA_URL env var — see compose.yml)
 ```
@@ -72,6 +74,7 @@ To build images locally (handles any required pre-build steps automatically):
 ./build.sh q2repro
 ./build.sh ioquake3
 ./build.sh openarena
+./build.sh smokinguns
 ./build.sh bzflag
 ./build.sh ut99
 ```
@@ -80,7 +83,7 @@ To build images locally (handles any required pre-build steps automatically):
 plus `Dockerfile`, so you do not need to edit the script when adding another
 game folder.
 
-For FTEQW, q2repro, ioquake3, and UT99, `DATA_URL` is required because commercial game assets are not bundled. In local Compose, set `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, `IOQUAKE3_DATA_URL`, or `UT99_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
+For FTEQW, q2repro, ioquake3, Smokin' Guns, and UT99, `DATA_URL` is required because game assets are not bundled. In local Compose, set `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, `IOQUAKE3_DATA_URL`, `SMOKINGUNS_DATA_URL`, or `UT99_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
 
 ```sh
 # Quake 1 — zip containing id1/pak0.pak and id1/pak1.pak
@@ -91,6 +94,9 @@ Q2REPRO_DATA_URL="https://example.com/quake2-assets.zip" docker compose up q2rep
 
 # Quake 3 Arena — zip containing baseq3/pak0.pk3 and any patch pk3 files
 IOQUAKE3_DATA_URL="https://example.com/quake3-assets.zip" docker compose up ioquake3
+
+# Smokin' Guns — official OS-independent zip containing the smokinguns directory
+SMOKINGUNS_DATA_URL="https://www.smokin-guns.org/downloads/Smokin_Guns_1.1.zip" docker compose up smokinguns
 
 # UT99 — zip containing SystemARM64/ucc-bin-arm64, Maps/, Textures/, Music/, Sounds/,
 # and optionally data/UnrealTournament.ini

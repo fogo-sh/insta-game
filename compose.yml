@@ -118,6 +118,32 @@ services:
     volumes:
       - ./.cache/openarena:/opt/baseoa
 
+  smokinguns:
+    image: ghcr.io/fogo-sh/insta-game:smokinguns
+    build:
+      context: .
+      dockerfile: docker-containers/smokinguns/Dockerfile
+      platforms:
+        - linux/arm64
+    ports:
+      - "127.0.0.1:27962:27960/udp"
+      - "127.0.0.1:5008:5001/tcp"
+    environment:
+      GAME_CMD: "/opt/smokingunsded"
+      GAME_ARGS: "+set fs_basepath /opt +set fs_homepath /opt +set com_basegame smokinguns +set com_homepath .smokinguns +set dedicated 2 +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 12 +set com_hunkMegs 128 +exec server.cfg"
+      GAME_QUIT_CMD: "quit"
+      GAME_QUIT_TIMEOUT: "15"
+      GAME_PORT: "27960"
+      CONFIG_PATH: "/opt/smokinguns/server.cfg"
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
+      TOKEN: "abc123"
+      # DATA_URL is required for Smokin' Guns — the standalone assets are not bundled.
+      # Set SMOKINGUNS_DATA_URL in .env to the official OS-independent zip so it extracts
+      # the smokinguns directory into /opt.
+      DATA_URL: "${SMOKINGUNS_DATA_URL}"
+    volumes:
+      - ./.cache/smokinguns:/opt/smokinguns
+
   bzflag:
     image: ghcr.io/fogo-sh/insta-game:bzflag
     build:
@@ -196,4 +222,5 @@ services:
       FTEQW_DATA_URL: "${FTEQW_DATA_URL:-}"
       Q2REPRO_DATA_URL: "${Q2REPRO_DATA_URL:-}"
       IOQUAKE3_DATA_URL: "${IOQUAKE3_DATA_URL:-}"
+      SMOKINGUNS_DATA_URL: "${SMOKINGUNS_DATA_URL:-}"
       UT99_DATA_URL: "${UT99_DATA_URL:-}"

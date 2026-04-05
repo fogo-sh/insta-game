@@ -1,0 +1,18 @@
+{
+  "id": "smokinguns",
+  "displayName": "Smokin' Guns",
+  "protocol": "quake3",
+  "sidecarPort": 5001,
+  "gamePort": 27960,
+  "ports": {
+    "27960/udp": { "hostPort": "27962" },
+    "5001/tcp": { "hostPort": "5008" }
+  },
+  "gameCmd": "/opt/smokingunsded",
+  "gameArgs": "+set fs_basepath /opt +set fs_homepath /opt +set com_basegame smokinguns +set com_homepath .smokinguns +set dedicated 2 +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 12 +set com_hunkMegs 128 +exec server.cfg",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15,
+  "configPath": "/opt/smokinguns/server.cfg",
+  "volumes": [".cache/smokinguns:/opt/smokinguns"],
+  "dataUrlEnv": "SMOKINGUNS_DATA_URL"
+}

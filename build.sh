@@ -63,6 +63,14 @@ prepare_game() {
         "IOQUAKE3_DATA_URL is required to run ioquake3." \
         ".cache/ioquake3"
       ;;
+    smokinguns)
+      ensure_data_url \
+        "$game_name" \
+        "SMOKINGUNS_DATA_URL" \
+        "SMOKINGUNS_DATA_URL (zip URL that extracts Smokin' Guns into /opt): " \
+        "SMOKINGUNS_DATA_URL is required to run smokinguns." \
+        ".cache/smokinguns"
+      ;;
     bzflag)
       mkdir -p .cache/bzflag
       ;;
