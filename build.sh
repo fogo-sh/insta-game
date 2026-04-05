@@ -2,8 +2,8 @@
 set -e
 
 GAME=$1
-GAME_DIRS=$(find docker-containers -mindepth 1 -maxdepth 1 -type f -name game.json -exec dirname {} \; | while read -r dir; do [ -f "$dir/Dockerfile" ] && printf '%s\n' "$dir"; done | sort)
-GAMES=$(printf '%s\n' "$GAME_DIRS" | xargs -n1 basename)
+GAME_DIRS=$(find docker-containers -mindepth 2 -maxdepth 2 -type f -name game.json -exec dirname {} \; | while read -r dir; do [ -f "$dir/Dockerfile" ] && printf '%s\n' "$dir"; done | sort)
+GAMES=$(printf '%s\n' "$GAME_DIRS" | sed '/^$/d' | xargs -r -n1 basename)
 GAME_LIST=$(printf '%s\n' "$GAMES" | paste -sd ', ' -)
 
 ensure_data_url() {
