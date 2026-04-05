@@ -10,6 +10,9 @@ const WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 const API_TOKEN = process.env.API_TOKEN ?? "";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
 const PUBLIC_HOST = process.env.PUBLIC_HOST ?? "localhost";
+// SIDECAR_HOST is the internal address used to reach sidecars from the launcher process.
+// For Docker deployments this differs from PUBLIC_HOST (host.docker.internal vs localhost).
+const SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 
 function statusFragment(state: { status: string; publicIp?: string; players?: number }): string {
   const ip = state.publicIp ? ` — ${state.publicIp}` : "";
@@ -145,10 +148,10 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     const config = games[game];
     if (!config) return c.text(`unknown game: ${game}`, 400);
 
-    const state = await backend.getGameState(config);
-    if (state.status === "offline" || !state.publicIp) return c.text("game offline", 503);
+    const cached = cache.get(game);
+    if (!cached || cached.status === "offline") return c.text("game offline", 503);
 
-    const sidecarUrl = `http://${state.publicIp}:${config.sidecarPort}/logs`;
+    const sidecarUrl = `http://${SIDECAR_HOST}:${config.sidecarPort}/logs`;
 
     return streamSSE(c, async stream => {
       log.info(`logs: stream opened for ${game}`);

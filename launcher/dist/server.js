@@ -103965,6 +103965,7 @@ var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
 var SIDECAR_TOKEN3 = process.env.SIDECAR_TOKEN ?? "";
 var PUBLIC_HOST = process.env.PUBLIC_HOST ?? "localhost";
+var SIDECAR_HOST2 = process.env.SIDECAR_HOST ?? "localhost";
 function statusFragment(state2) {
   const ip = state2.publicIp ? ` \u2014 ${state2.publicIp}` : "";
   const players = state2.players ? ` (${state2.players} players)` : "";
@@ -104078,9 +104079,9 @@ function createApp(backend2, cache6) {
     const games = backend2.getGames();
     const config = games[game];
     if (!config) return c5.text(`unknown game: ${game}`, 400);
-    const state2 = await backend2.getGameState(config);
-    if (state2.status === "offline" || !state2.publicIp) return c5.text("game offline", 503);
-    const sidecarUrl = `http://${state2.publicIp}:${config.sidecarPort}/logs`;
+    const cached = cache6.get(game);
+    if (!cached || cached.status === "offline") return c5.text("game offline", 503);
+    const sidecarUrl = `http://${SIDECAR_HOST2}:${config.sidecarPort}/logs`;
     return streamSSE(c5, async (stream2) => {
       log.info(`logs: stream opened for ${game}`);
       await stream2.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
