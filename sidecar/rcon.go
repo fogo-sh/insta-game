@@ -17,6 +17,8 @@ func configureRcon(protocol, configPath, password string) error {
 	switch protocol {
 	case "xonotic", "quake1":
 		return setConfigLine(configPath, "rcon_password", fmt.Sprintf("rcon_password %q", password))
+	case "quake3":
+		return setConfigLine(configPath, "seta rconPassword", fmt.Sprintf("seta rconPassword %q", password))
 	case "quake2":
 		return setConfigLine(configPath, "set rcon_password", fmt.Sprintf("set rcon_password %q", password))
 	case "bzflag":

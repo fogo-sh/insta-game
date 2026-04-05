@@ -32,6 +32,31 @@ func TestConfigureRconQuakeConfig(t *testing.T) {
 	}
 }
 
+func TestConfigureRconQuake3Config(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "server.cfg")
+	err := os.WriteFile(path, []byte("set sv_hostname \"test\"\nseta rconPassword \"old\"\n"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = configureRcon("quake3", path, "new-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "seta rconPassword \"new-secret\"") {
+		t.Fatalf("expected updated quake3 rcon password, got:\n%s", got)
+	}
+	if strings.Contains(got, "\"old\"") {
+		t.Fatalf("expected old password to be removed, got:\n%s", got)
+	}
+}
+
 func TestConfigureRconUT99INI(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "UnrealTournament.ini")
 	err := os.WriteFile(path, []byte("[Engine.AccessControl]\nAdminPassword=\nGamePassword=\n"), 0644)
@@ -130,6 +155,18 @@ func TestResolveProtocolFallsBackToGameCmd(t *testing.T) {
 	})
 
 	if got != "quake1" {
+		t.Fatalf("expected inferred protocol, got %q", got)
+	}
+}
+
+func TestResolveProtocolFallsBackToIoquake3GameCmd(t *testing.T) {
+	got := resolveProtocol(cfg{
+		MetadataPath: filepath.Join(t.TempDir(), "missing-game-json"),
+		ProtocolFile: filepath.Join(t.TempDir(), "missing"),
+		GameCmd:      "./ioq3ded",
+	})
+
+	if got != "quake3" {
 		t.Fatalf("expected inferred protocol, got %q", got)
 	}
 }

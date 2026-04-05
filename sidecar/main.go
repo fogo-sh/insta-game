@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -142,6 +142,8 @@ func inferProtocolFromConfig(c cfg) string {
 		return "quake1"
 	case "q2proded", "q2reproded", "q2pro":
 		return "quake2"
+	case "ioq3ded":
+		return "quake3"
 	case "start-ut99.sh", "ucc-bin-arm64":
 		return "ut99"
 	case "xonotic-linux-arm64-dedicated":
@@ -242,6 +244,8 @@ func queryServer(c cfg) *protocol.ServerInfo {
 		info, err = protocol.QueryQuake1(c.GamePort)
 	case "quake2":
 		info, err = protocol.QueryQuake2(c.GamePort)
+	case "quake3":
+		info, err = protocol.QueryQuake3(c.GamePort)
 	case "ut99":
 		info, err = protocol.QueryUT99(c.GamePort)
 	default:

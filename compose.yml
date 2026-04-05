@@ -70,6 +70,32 @@ services:
     volumes:
       - ./.cache/q2repro:/opt/baseq2
 
+  ioquake3:
+    image: ghcr.io/fogo-sh/insta-game:ioquake3
+    build:
+      context: .
+      dockerfile: docker-containers/ioquake3/Dockerfile
+      platforms:
+        - linux/arm64
+    ports:
+      - "127.0.0.1:27960:27960/udp"
+      - "127.0.0.1:5006:5001/tcp"
+    environment:
+      GAME_CMD: "./ioq3ded"
+      GAME_ARGS: "+set dedicated 2 +set fs_basepath /opt +set fs_homepath /opt +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 8 +set com_hunkMegs 64 +exec server.cfg"
+      GAME_QUIT_CMD: "quit"
+      GAME_QUIT_TIMEOUT: "15"
+      GAME_PORT: "27960"
+      CONFIG_PATH: "/opt/baseq3/server.cfg"
+      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
+      TOKEN: "abc123"
+      # DATA_URL is required for ioquake3 — Quake III Arena data is commercial and not bundled.
+      # Set IOQUAKE3_DATA_URL in .env to a zip that extracts baseq3 into /opt or to
+      # semicolon-separated url=path entries.
+      DATA_URL: "${IOQUAKE3_DATA_URL}"
+    volumes:
+      - ./.cache/ioquake3:/opt/baseq3
+
   bzflag:
     image: ghcr.io/fogo-sh/insta-game:bzflag
     build:
@@ -147,4 +173,5 @@ services:
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       FTEQW_DATA_URL: "${FTEQW_DATA_URL:-}"
       Q2REPRO_DATA_URL: "${Q2REPRO_DATA_URL:-}"
+      IOQUAKE3_DATA_URL: "${IOQUAKE3_DATA_URL:-}"
       UT99_DATA_URL: "${UT99_DATA_URL:-}"

@@ -55,6 +55,14 @@ prepare_game() {
         "Q2REPRO_DATA_URL is required to run q2repro." \
         ".cache/q2repro"
       ;;
+    ioquake3)
+      ensure_data_url \
+        "$game_name" \
+        "IOQUAKE3_DATA_URL" \
+        "IOQUAKE3_DATA_URL (zip URL or semicolon-separated url=path entries): " \
+        "IOQUAKE3_DATA_URL is required to run ioquake3." \
+        ".cache/ioquake3"
+      ;;
     bzflag)
       mkdir -p .cache/bzflag
       ;;

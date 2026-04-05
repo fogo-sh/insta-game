@@ -29,6 +29,7 @@ rcon_password = config.require_secret("rconPassword")
 q2repro_data_url = config.get_secret("q2reproDataUrl") or default_data_url
 bzflag_data_url = config.get_secret("bzflagDataUrl") or default_data_url
 ut99_data_url = config.get_secret("ut99DataUrl") or default_data_url
+ioquake3_data_url = config.get_secret("ioquake3DataUrl") or default_data_url
 region_code = aws.get_region().region
 account_id = aws.get_caller_identity().account_id
 account_suffix = account_id[-6:]
@@ -114,6 +115,12 @@ security_group = aws.ec2.SecurityGroup(
         aws.ec2.SecurityGroupIngressArgs(
             from_port=27910,
             to_port=27910,
+            protocol="udp",
+            cidr_blocks=["0.0.0.0/0"],
+        ),
+        aws.ec2.SecurityGroupIngressArgs(
+            from_port=27960,
+            to_port=27960,
             protocol="udp",
             cidr_blocks=["0.0.0.0/0"],
         ),
@@ -301,8 +308,8 @@ fteqw = GameService(
     task_role_arn=ecs_task_role.arn,
     execution_role_arn=ecs_execution_role.arn,
     sidecar_token=sidecar_token,
-    cpu=512,
-    memory=1024,
+    cpu=1024,
+    memory=2048,
     cpu_architecture="ARM64",
     data_url=fteqw_data_url,
     game_cmd="./fteqw.sv",
@@ -401,6 +408,35 @@ ut99 = GameService(
     rcon_password=rcon_password,
 )
 
+ioquake3 = GameService(
+    "ioquake3",
+    game_name="ioquake3",
+    name_prefix=regional_name("game"),
+    image="ghcr.io/fogo-sh/insta-game:ioquake3",
+    cluster_id=cluster.id,
+    cluster_name=cluster.name,
+    subnet_ids=[s.id for s in subnets],
+    security_group_id=security_group.id,
+    task_role_arn=ecs_task_role.arn,
+    execution_role_arn=ecs_execution_role.arn,
+    sidecar_token=sidecar_token,
+    cpu=512,
+    memory=1024,
+    cpu_architecture="ARM64",
+    data_url=ioquake3_data_url,
+    game_port=27960,
+    game_cmd="./ioq3ded",
+    game_args=(
+        "+set dedicated 2 +set fs_basepath /opt +set fs_homepath /opt"
+        " +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 8"
+        " +set com_hunkMegs 64 +exec server.cfg"
+    ),
+    game_quit_cmd="quit",
+    game_quit_timeout=15,
+    config_path="/opt/baseq3/server.cfg",
+    rcon_password=rcon_password,
+)
+
 # ---- Lambda ----
 
 launcher = aws.lambda_.Function(
@@ -425,6 +461,7 @@ launcher = aws.lambda_.Function(
             discord_app_id,
             bzflag.service_name,
             ut99.service_name,
+            ioquake3.service_name,
         ).apply(
             lambda args: {
                 "SIDECAR_TOKEN": args[0],
@@ -454,6 +491,10 @@ launcher = aws.lambda_.Function(
                         },
                         "ut99": {
                             "serviceName": args[11],
+                            "sidecarPort": 5001,
+                        },
+                        "ioquake3": {
+                            "serviceName": args[12],
                             "sidecarPort": 5001,
                         },
                     }

@@ -7,6 +7,14 @@
 
 These modes are separate. Use the Pulumi workflow for AWS, or use `docker compose` for local/self-hosted runs. You do not need Docker Compose for the AWS deployment path.
 
+Current AWS game services are:
+- Xonotic on ARM64 Fargate
+- FTEQW / Quake 1 on ARM64 Fargate with 1024 CPU and 2048 MiB memory
+- q2repro / Quake 2 on ARM64 Fargate
+- ioquake3 / Quake 3 Arena on ARM64 Fargate
+- BZFlag on ARM64 Fargate
+- UT99 GOTY on ARM64 Fargate
+
 ## Repository Layout
 
 - `pulumi/`: AWS infrastructure in Python, managed with `uv`
@@ -43,6 +51,7 @@ From the repo root:
 docker compose up xonotic   # run Xonotic
 docker compose up fteqw     # run FTEQW / Quake 1 (requires DATA_URL env var — see compose.yml)
 docker compose up q2repro   # run q2repro / Quake 2 (requires DATA_URL env var — see compose.yml)
+docker compose up ioquake3  # run ioquake3 / Quake 3 Arena (requires DATA_URL env var — see compose.yml)
 docker compose up bzflag    # run BZFlag
 docker compose up ut99      # run UT99 GOTY (requires DATA_URL env var — see compose.yml)
 ```
@@ -57,6 +66,7 @@ To build images locally (handles any required pre-build steps automatically):
 ./build.sh xonotic
 ./build.sh fteqw
 ./build.sh q2repro
+./build.sh ioquake3
 ./build.sh bzflag
 ./build.sh ut99
 ```
@@ -65,7 +75,7 @@ To build images locally (handles any required pre-build steps automatically):
 plus `Dockerfile`, so you do not need to edit the script when adding another
 game folder.
 
-For FTEQW, q2repro, and UT99, `DATA_URL` is required because commercial game assets are not bundled. In local Compose, set `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, or `UT99_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
+For FTEQW, q2repro, ioquake3, and UT99, `DATA_URL` is required because commercial game assets are not bundled. In local Compose, set `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, `IOQUAKE3_DATA_URL`, or `UT99_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
 
 ```sh
 # Quake 1 — zip containing id1/pak0.pak and id1/pak1.pak
@@ -73,6 +83,9 @@ FTEQW_DATA_URL="https://example.com/quake-assets.zip=/opt/" docker compose up ft
 
 # Quake 2 — zip containing baseq2/pak0.pak etc.
 Q2REPRO_DATA_URL="https://example.com/quake2-assets.zip" docker compose up q2repro
+
+# Quake 3 Arena — zip containing baseq3/pak0.pk3 and any patch pk3 files
+IOQUAKE3_DATA_URL="https://example.com/quake3-assets.zip" docker compose up ioquake3
 
 # UT99 — zip containing SystemARM64/ucc-bin-arm64, Maps/, Textures/, Music/, Sounds/,
 # and optionally data/UnrealTournament.ini
@@ -85,6 +98,7 @@ Set `RCON_PASSWORD` in your local `.env` to configure the admin password for
 all game servers. In-game admin login commands differ by engine:
 
 - Xonotic, FTEQW, q2repro: `rcon_password <password>`
+- ioquake3: `/rconpassword <password>` then `\rcon <command>` from a client
 - BZFlag: `/password <password>`
 - UT99: `adminlogin <password>`
 
@@ -209,6 +223,7 @@ uv run pulumi config set defaultDataUrl <data-url>
 uv run pulumi config set xonoticDataUrl <xonotic-data-url>
 uv run pulumi config set fteqwDataUrl <quake1-data-url>
 uv run pulumi config set q2reproDataUrl <quake2-data-url>
+uv run pulumi config set ioquake3DataUrl <quake3-data-url>
 uv run pulumi config set bzflagDataUrl <bzflag-config-url>
 uv run pulumi config set ut99DataUrl <ut99-zip-url>
 
@@ -221,7 +236,7 @@ uv run pulumi config set customDomainHostname <games-hostname>
 uv run pulumi config set enableCustomDomain false
 ```
 
-`xonoticDataUrl`, `fteqwDataUrl`, `q2reproDataUrl`, `bzflagDataUrl`, and `ut99DataUrl` override `defaultDataUrl` for those services.
+`xonoticDataUrl`, `fteqwDataUrl`, `q2reproDataUrl`, `ioquake3DataUrl`, `bzflagDataUrl`, and `ut99DataUrl` override `defaultDataUrl` for those services.
 Each value is passed to the container as `DATA_URL` and accepts one or more
 `url=path` pairs separated by `;`. Each entry is downloaded at container
 startup, zip files are extracted to the given path, and raw files are written
