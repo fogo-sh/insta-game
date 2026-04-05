@@ -8,7 +8,7 @@ if (!APP_ID || !BOT_TOKEN) {
 
 const GAME_CHOICES = [
   { name: "Xonotic", value: "xonotic" },
-  { name: "QSS-M (Quake 1)", value: "qssm" },
+  { name: "FTEQW (Quake 1)", value: "fteqw" },
   { name: "q2repro (Quake 2)", value: "q2repro" },
   { name: "BZFlag", value: "bzflag" },
   { name: "UT99 GOTY", value: "ut99" },

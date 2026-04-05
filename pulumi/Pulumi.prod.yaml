@@ -16,7 +16,7 @@ config:
     secure: v1:XQmItKi4V8zQE8pB:zWEfUAuwgvub5bW15OQ1CfoLBbH3QegCbPRcTldCHnc6wjY=
   insta-game:monthlyBudgetLimitUsd: "20"
   insta-game:enableCustomDomain: "true"
-  insta-game:qssmDataUrl:
+  insta-game:fteqwDataUrl:
     secure: v1:PFja3p6haLZHB7Sm:IxhdIXhD7pMtLmIAGxiXlJwYaayrfeMqBu+iQ3rJm5ZhTAwcBFEAc4ALzdzEsY6Dfahe
   insta-game:q2reproDataUrl:
     secure: v1:ntzXn0d+LJjmbDmh:e9JTDufU5ZDqQpQ49trY5UQSWbTC7bkD/xz3zRPpyVuL6cQAg4oP2nJEYqgS9Cs2iI5VqF+HYvFjEnU48g==

@@ -69,9 +69,9 @@ jobs:
                   "prep": "cd ./docker-containers/xonotic && make download && make clean",
               },
               {
-                  "image": "qssm",
-                  "dockerfile": "docker-containers/qssm/Dockerfile",
-                  "watch_paths": ["docker-containers/qssm/"],
+                  "image": "fteqw",
+                  "dockerfile": "docker-containers/fteqw/Dockerfile",
+                  "watch_paths": ["docker-containers/fteqw/"],
               },
               {
                   "image": "q2repro",

@@ -5,7 +5,7 @@ GAME=$1
 
 if [ -z "$GAME" ]; then
   echo "Usage: $0 <game>"
-  echo "  Games: xonotic, qssm, q2repro, bzflag, ut99, launcher, all"
+  echo "  Games: xonotic, fteqw, q2repro, bzflag, ut99, launcher, all"
   exit 1
 fi
 
@@ -14,12 +14,12 @@ case "$GAME" in
     echo "==> Building all services..."
     "$0" launcher
     "$0" xonotic
-    "$0" qssm
+    "$0" fteqw
     "$0" q2repro
     "$0" bzflag
     "$0" ut99
     echo "==> Creating game containers (stopped)..."
-    docker compose up --no-start xonotic qssm q2repro bzflag ut99
+    docker compose up --no-start xonotic fteqw q2repro bzflag ut99
     echo "==> All builds complete."
     exit 0
     ;;
@@ -41,28 +41,28 @@ case "$GAME" in
     echo "==> Building xonotic image..."
     docker compose build xonotic
     ;;
-  qssm)
+  fteqw)
     # Load saved DATA_URL from .env if present
     if [ -f .env ]; then
       . ./.env
     fi
 
-    if [ -z "$QSSM_DATA_URL" ]; then
-      printf "QSSM_DATA_URL (semicolon-separated url=path entries): "
-      read -r QSSM_DATA_URL
-      if [ -z "$QSSM_DATA_URL" ]; then
-        echo "QSSM_DATA_URL is required to build QSS-M."
+    if [ -z "$FTEQW_DATA_URL" ]; then
+      printf "FTEQW_DATA_URL (semicolon-separated url=path entries): "
+      read -r FTEQW_DATA_URL
+      if [ -z "$FTEQW_DATA_URL" ]; then
+        echo "FTEQW_DATA_URL is required to build FTEQW."
         exit 1
       fi
-      echo "QSSM_DATA_URL=$QSSM_DATA_URL" >> .env
-      echo "==> Saved QSSM_DATA_URL to .env"
+      echo "FTEQW_DATA_URL=$FTEQW_DATA_URL" >> .env
+      echo "==> Saved FTEQW_DATA_URL to .env"
     else
-      echo "==> Using saved QSSM_DATA_URL from .env"
+      echo "==> Using saved FTEQW_DATA_URL from .env"
     fi
 
-    mkdir -p .cache/qssm
-    echo "==> Building qssm image..."
-    docker compose build qssm
+    mkdir -p .cache/fteqw
+    echo "==> Building fteqw image..."
+    docker compose build fteqw
     ;;
   q2repro)
     if [ -f .env ]; then
@@ -115,7 +115,7 @@ case "$GAME" in
     ;;
   *)
     echo "Unknown game: $GAME"
-    echo "  Games: xonotic, qssm, q2repro, bzflag, ut99, launcher, all"
+    echo "  Games: xonotic, fteqw, q2repro, bzflag, ut99, launcher, all"
     exit 1
     ;;
 esac

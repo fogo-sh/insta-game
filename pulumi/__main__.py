@@ -24,7 +24,7 @@ custom_domain_hostname = (
 cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get_secret("defaultDataUrl")
 xonotic_data_url = config.get_secret("xonoticDataUrl") or default_data_url
-qss_m_data_url = config.get_secret("qssmDataUrl") or default_data_url
+fteqw_data_url = config.get_secret("fteqwDataUrl") or default_data_url
 rcon_password = config.require_secret("rconPassword")
 q2repro_data_url = config.get_secret("q2reproDataUrl") or default_data_url
 bzflag_data_url = config.get_secret("bzflagDataUrl") or default_data_url
@@ -290,11 +290,11 @@ xonotic = GameService(
     rcon_password=rcon_password,
 )
 
-qssm = GameService(
-    "qssm-arm",
-    game_name="qssm-arm",
+fteqw = GameService(
+    "fteqw-arm",
+    game_name="fteqw-arm",
     name_prefix=regional_name("game"),
-    image="ghcr.io/fogo-sh/insta-game:qssm",
+    image="ghcr.io/fogo-sh/insta-game:fteqw",
     cluster_id=cluster.id,
     cluster_name=cluster.name,
     subnet_ids=[s.id for s in subnets],
@@ -305,10 +305,10 @@ qssm = GameService(
     cpu=512,
     memory=1024,
     cpu_architecture="ARM64",
-    data_url=qss_m_data_url,
+    data_url=fteqw_data_url,
     protocol="quake1",
-    game_cmd="./qssm",
-    game_args="-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg",
+    game_cmd="./fteqw.sv",
+    game_args="-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg",
     game_quit_cmd="quit",
     game_quit_timeout=15,
     config_path="/opt/id1/server.cfg",
@@ -421,7 +421,7 @@ launcher = aws.lambda_.Function(
             sidecar_token,
             xonotic.service_name,
             cluster.name,
-            qssm.service_name,
+            fteqw.service_name,
             q2repro.service_name,
             web_ui_passphrase,
             api_token,
@@ -445,7 +445,7 @@ launcher = aws.lambda_.Function(
                             "serviceName": args[1],
                             "sidecarPort": 5001,
                         },
-                        "qssm": {
+                        "fteqw": {
                             "serviceName": args[3],
                             "sidecarPort": 5001,
                         },

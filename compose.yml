@@ -21,11 +21,11 @@ services:
       # Set it to supply a custom server.cfg, e.g.:
       # DATA_URL: "https://example.com/server.cfg=/opt/data/server.cfg"
 
-  qssm:
-    image: ghcr.io/fogo-sh/insta-game:qssm
+  fteqw:
+    image: ghcr.io/fogo-sh/insta-game:fteqw
     build:
       context: .
-      dockerfile: docker-containers/qssm/Dockerfile
+      dockerfile: docker-containers/fteqw/Dockerfile
       platforms:
         - linux/arm64
     ports:
@@ -33,19 +33,18 @@ services:
       - "127.0.0.1:5001:5001/tcp"
     environment:
       PROTOCOL: "quake1"
-      GAME_CMD: "./qssm"
-      GAME_ARGS: "-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg"
+      GAME_CMD: "./fteqw.sv"
+      GAME_ARGS: "-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
       CONFIG_PATH: "/opt/id1/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      # DATA_URL is required for QSS-M — Quake pak files are commercial and not bundled.
+      # DATA_URL is required for FTEQW — Quake pak files are commercial and not bundled.
       # Format: semicolon-separated url=path entries. Zips are extracted, raw files are written directly.
-      # Set QSSM_DATA_URL in .env at the repo root (build.sh will prompt and save it for you).
-      DATA_URL: "${QSSM_DATA_URL}"
+      DATA_URL: "${FTEQW_DATA_URL}"
     volumes:
-      - ./.cache/qssm:/opt/id1
+      - ./.cache/fteqw:/opt/id1
 
   q2repro:
     image: ghcr.io/fogo-sh/insta-game:q2repro
@@ -169,9 +168,9 @@ services:
               "TOKEN": "${SIDECAR_TOKEN:-abc123}"
             }
           },
-          "qssm": {
-            "containerName": "insta-game-qssm-1",
-            "image": "ghcr.io/fogo-sh/insta-game:qssm",
+          "fteqw": {
+            "containerName": "insta-game-fteqw-1",
+            "image": "ghcr.io/fogo-sh/insta-game:fteqw",
             "sidecarPort": 5001,
             "ports": {
               "26000/udp": {"hostPort": "26000"},
@@ -179,15 +178,15 @@ services:
             },
             "environment": {
               "PROTOCOL": "quake1",
-              "GAME_CMD": "./qssm",
-              "GAME_ARGS": "-dedicated 12 -basedir /opt -game id1 -port 26000 +exec server.cfg",
+              "GAME_CMD": "./fteqw.sv",
+              "GAME_ARGS": "-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg",
               "GAME_QUIT_CMD": "quit",
               "GAME_QUIT_TIMEOUT": "15",
               "CONFIG_PATH": "/opt/id1/server.cfg",
               "TOKEN": "${SIDECAR_TOKEN:-abc123}",
-              "DATA_URL": "${QSSM_DATA_URL:-}"
+              "DATA_URL": "${FTEQW_DATA_URL:-}"
             },
-            "volumes": [".cache/qssm:/opt/id1"]
+            "volumes": [".cache/fteqw:/opt/id1"]
           },
           "q2repro": {
             "containerName": "insta-game-q2repro-1",

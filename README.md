@@ -13,7 +13,7 @@ These modes are separate. Use the Pulumi workflow for AWS, or use `docker compos
 - `launcher/`: Hono app with two backends: Lambda handler for AWS, Docker API backend for self-hosted Compose
 - `sidecar/`: Go sidecar binary — HTTP control API and process manager for game containers
 - `docker-containers/xonotic/`: Xonotic server image (ARM64), built from source via the Xonotic git repo
-- `docker-containers/qssm/`: QSS-M Quake 1 server image and local build scripts
+- `docker-containers/fteqw/`: FTEQW Quake 1 server image and local build scripts
 - `docker-containers/q2repro/`: q2repro Quake 2 server image and local build scripts
 - `docker-containers/bzflag/`: BZFlag server image and local build scripts
 - `docker-containers/ut99/`: Unreal Tournament GOTY server image and local build scripts
@@ -27,7 +27,7 @@ From the repo root:
 
 ```sh
 docker compose up xonotic   # run Xonotic
-docker compose up qssm      # run QSS-M / Quake 1 (requires DATA_URL env var — see compose.yml)
+docker compose up fteqw     # run FTEQW / Quake 1 (requires DATA_URL env var — see compose.yml)
 docker compose up q2repro   # run q2repro / Quake 2 (requires DATA_URL env var — see compose.yml)
 docker compose up bzflag    # run BZFlag
 docker compose up ut99      # run UT99 GOTY (requires DATA_URL env var — see compose.yml)
@@ -41,17 +41,17 @@ To build images locally (handles any required pre-build steps automatically):
 
 ```sh
 ./build.sh xonotic
-./build.sh qssm
+./build.sh fteqw
 ./build.sh q2repro
 ./build.sh bzflag
 ./build.sh ut99
 ```
 
-For QSS-M, q2repro, and UT99, `DATA_URL` is required because commercial game assets are not bundled. In local Compose, set `QSSM_DATA_URL`, `Q2REPRO_DATA_URL`, or `UT99_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
+For FTEQW, q2repro, and UT99, `DATA_URL` is required because commercial game assets are not bundled. In local Compose, set `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, or `UT99_DATA_URL` in `.env`; `build.sh` will prompt for and save these values automatically. Each value can contain one or more `;`-separated `url=path` entries. Each entry is either a zip (extracted to `path`) or a raw file (written to `path`). You can also supply just a URL with no `=path` and the sidecar will extract to the default game directory:
 
 ```sh
 # Quake 1 — zip containing id1/pak0.pak and id1/pak1.pak
-QSSM_DATA_URL="https://example.com/quake-assets.zip=/opt/" docker compose up qssm
+FTEQW_DATA_URL="https://example.com/quake-assets.zip=/opt/" docker compose up fteqw
 
 # Quake 2 — zip containing baseq2/pak0.pak etc.
 Q2REPRO_DATA_URL="https://example.com/quake2-assets.zip" docker compose up q2repro
@@ -66,7 +66,7 @@ Downloaded data is cached in `.cache/<game>/` and reused on subsequent runs — 
 Set `RCON_PASSWORD` in your local `.env` to configure the admin password for
 all game servers. In-game admin login commands differ by engine:
 
-- Xonotic, QSS-M, q2repro: `rcon_password <password>`
+- Xonotic, FTEQW, q2repro: `rcon_password <password>`
 - BZFlag: `/password <password>`
 - UT99: `adminlogin <password>`
 
@@ -153,7 +153,7 @@ uv run pulumi config set defaultDataUrl <data-url>
 
 # Per-game DATA_URL overrides
 uv run pulumi config set xonoticDataUrl <xonotic-data-url>
-uv run pulumi config set qssmDataUrl <quake1-data-url>
+uv run pulumi config set fteqwDataUrl <quake1-data-url>
 uv run pulumi config set q2reproDataUrl <quake2-data-url>
 uv run pulumi config set bzflagDataUrl <bzflag-config-url>
 uv run pulumi config set ut99DataUrl <ut99-zip-url>
@@ -167,7 +167,7 @@ uv run pulumi config set customDomainHostname <games-hostname>
 uv run pulumi config set enableCustomDomain false
 ```
 
-`xonoticDataUrl`, `qssmDataUrl`, `q2reproDataUrl`, `bzflagDataUrl`, and `ut99DataUrl` override `defaultDataUrl` for those services.
+`xonoticDataUrl`, `fteqwDataUrl`, `q2reproDataUrl`, `bzflagDataUrl`, and `ut99DataUrl` override `defaultDataUrl` for those services.
 Each value is passed to the container as `DATA_URL` and accepts one or more
 `url=path` pairs separated by `;`. Each entry is downloaded at container
 startup, zip files are extracted to the given path, and raw files are written
@@ -265,7 +265,7 @@ curl -H "x-passphrase: <passphrase>" "<prod_url>/?game=xonotic&operation=stop"
 
 # JSON API routes
 curl -H "x-api-token: <api-token>" "<prod_url>/api?game=xonotic"
-curl -H "x-api-token: <api-token>" "<prod_url>/api?game=qssm&operation=start"
+curl -H "x-api-token: <api-token>" "<prod_url>/api?game=fteqw&operation=start"
 curl -H "x-api-token: <api-token>" "<prod_url>/api?game=q2repro&operation=stop"
 
 # Log stream proxy for a running game (SSE)

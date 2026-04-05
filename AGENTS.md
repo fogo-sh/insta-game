@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-`pulumi/` contains AWS infrastructure code in Python. `pulumi/__main__.py` defines the stack, and `pulumi/game_service.py` holds the reusable ECS game service component. `launcher/` contains the TypeScript Hono app (Lambda + Docker), Discord command registration script, and bundled output in `launcher/dist/`. `sidecar/` contains the Go sidecar binary source and protocol query implementations in `sidecar/protocol/`. `docker-containers/xonotic/`, `docker-containers/qssm/`, `docker-containers/q2repro/`, and `docker-containers/bzflag/` contain the game image builds and local shell scripts. There is no dedicated `tests/` directory yet; validation is mostly command-based.
+`pulumi/` contains AWS infrastructure code in Python. `pulumi/__main__.py` defines the stack, and `pulumi/game_service.py` holds the reusable ECS game service component. `launcher/` contains the TypeScript Hono app (Lambda + Docker), Discord command registration script, and bundled output in `launcher/dist/`. `sidecar/` contains the Go sidecar binary source and protocol query implementations in `sidecar/protocol/`. `docker-containers/xonotic/`, `docker-containers/fteqw/`, `docker-containers/q2repro/`, and `docker-containers/bzflag/` contain the game image builds and local shell scripts. There is no dedicated `tests/` directory yet; validation is mostly command-based.
 
 ## Build, Test, and Development Commands
 From `pulumi/`:
@@ -33,7 +33,7 @@ npm run build:docker   # Docker bundle (dist/server.js)
 npm run register       # register Discord slash commands
 ```
 
-From `docker-containers/xonotic/`, `docker-containers/qssm/`, `docker-containers/q2repro/`, or `docker-containers/bzflag/`:
+From `docker-containers/xonotic/`, `docker-containers/fteqw/`, `docker-containers/q2repro/`, or `docker-containers/bzflag/`:
 
 ```sh
 make download   # fetch required game assets when applicable

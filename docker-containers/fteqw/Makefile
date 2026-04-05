@@ -1,7 +1,7 @@
 all: build
 
 UV_PROJECT=../../pulumi
-RUFF_TARGETS=../../pulumi ../../lambda
+RUFF_TARGETS=../../pulumi
 
 download:
 	./download.sh
