@@ -11,7 +11,7 @@
     "5001/tcp": { "hostPort": "5001" }
   },
   "gameCmd": "./fteqw.sv",
-  "gameArgs": "-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg",
+  "gameArgs": "-dedicated 12 -nohome -basedir /opt -game id1 -game omicron -port 26000 +exec server.cfg",
   "gameQuitCmd": "quit",
   "gameQuitTimeout": 15,
   "configPath": "/opt/id1/server.cfg",
