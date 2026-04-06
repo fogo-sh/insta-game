@@ -25,6 +25,7 @@ custom_domain_hostname = (
 cidr_block = config.get("cidrBlock") or "172.16.0.0/16"
 default_data_url = config.get_secret("defaultDataUrl")
 rcon_password = config.require_secret("rconPassword")
+launcher_reserved_concurrency = config.get_int("launcherReservedConcurrency")
 region_code = aws.get_region().region
 account_id = aws.get_caller_identity().account_id
 account_suffix = account_id[-6:]
@@ -366,7 +367,6 @@ launcher = aws.lambda_.Function(
     runtime="nodejs22.x",
     handler="index.handler",
     timeout=120,
-    reserved_concurrent_executions=5,
     role=lambda_role.arn,
     code=pulumi.FileArchive("../launcher/dist"),
     environment=aws.lambda_.FunctionEnvironmentArgs(
@@ -392,6 +392,7 @@ launcher = aws.lambda_.Function(
             }
         ),
     ),
+    reserved_concurrent_executions=launcher_reserved_concurrency,
 )
 
 # ---- Budget guardrail ----
