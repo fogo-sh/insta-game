@@ -108321,7 +108321,6 @@ var EcsBackend = class {
       if (!taskArn) return { status: "offline", players: 0, ready: false };
       const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
       const task = descRes.tasks?.[0];
-      const taskRunning = task?.lastStatus === "RUNNING";
       const eniId = task?.attachments?.[0]?.details?.find((d5) => d5.name === "networkInterfaceId")?.value;
       if (!eniId) return { status: "starting", players: 0, ready: false };
       const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
@@ -108345,7 +108344,6 @@ var EcsBackend = class {
       if (!taskArn) return offline;
       const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
       const task = descRes.tasks?.[0];
-      const taskRunning = task?.lastStatus === "RUNNING";
       const eniId = task?.attachments?.[0]?.details?.find((d5) => d5.name === "networkInterfaceId")?.value;
       if (!eniId) return { ...offline, status: "starting" };
       const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
@@ -111506,6 +111504,36 @@ var css = `
   .term-fgi94 { color: #6871ff; }
   .term-fgi95 { color: #ff76ff; }
   .term-fgi96 { color: #60fcff; }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    .title-bar { gap: 0.75rem; margin-bottom: 1rem; }
+    #auth-form { width: 100%; }
+    #auth-form input { width: 100%; min-width: 0; }
+
+    .row-header {
+      gap: 0.75rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      padding: 0.75rem;
+    }
+    .game-name { min-width: 0; }
+    .row-meta { width: 100%; gap: 0.5rem 1rem; }
+    .expand-btn { margin-left: auto; }
+
+    .row-body { padding: 0.75rem; }
+    .row-details { gap: 0.75rem; margin-bottom: 0.75rem; }
+    .connect { width: 100%; }
+    .connect code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+
+    .admin-controls { gap: 0.75rem; }
+    .admin-controls button {
+      flex: 1 1 5.5rem;
+      min-height: 2.75rem;
+    }
+
+    .log-panel { height: 220px; padding: 0.5rem; }
+  }
 `;
 
 // node_modules/hono/dist/jsx/constants.js
