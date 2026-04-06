@@ -1,169 +1,277 @@
 /** @jsxImportSource hono/jsx */
 import type { FC } from "hono/jsx";
+import type { CachedGameState } from "./backend.js";
 
 const SESSION_KEY = "insta-game-passphrase";
 
 const css = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
-  h1 { margin-bottom: 2rem; font-size: 1.4rem; }
-  #auth { max-width: 400px; }
-  #auth input { width: 100%; padding: .5rem; background: #222; color: #eee; border: 1px solid #444; margin-bottom: .5rem; font-family: monospace; }
-  #auth button { padding: .5rem 1rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  #auth button:disabled { opacity: .6; cursor: wait; }
-  .games { display: flex; gap: 1rem; flex-wrap: wrap; }
-  .game { background: #1a1a1a; border: 1px solid #333; padding: 1rem; min-width: 200px; }
-  .game h2 { margin-bottom: .75rem; font-size: 1rem; }
-  .status { margin-bottom: .75rem; font-size: .85rem; color: #aaa; }
-  .status.online { color: #4f4; }
-  .status.starting { color: #fa4; }
-  .status-indicator { display: none; margin-left: .5rem; color: #8cf; }
-  .status-indicator.htmx-request { display: inline; }
-  .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-  .actions button { padding: .4rem .8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  .actions button:hover { background: #444; }
-  .actions button:disabled { opacity: .6; cursor: wait; }
-  dialog { display: none; background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); }
-  dialog[open] { display: flex; flex-direction: column; }
-  dialog::backdrop { background: rgba(0,0,0,0.7); }
-  .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: 1px solid #333; font-size: .85rem; }
-  .dialog-header span { color: #aaa; }
-  .dialog-close { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1.2rem; font-family: monospace; padding: 0 .25rem; }
-  .dialog-close:hover { color: #eee; }
-  .log-panel { flex: 1; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; }
+  .title-bar { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  h1 { font-size: 1.4rem; }
+  #auth-form { display: flex; align-items: center; gap: 0.5rem; }
+  #auth-form input { padding: 0.35rem 0.5rem; background: #222; color: #eee; border: 1px solid #444; font-family: monospace; font-size: 0.85rem; width: 12rem; }
+  #auth-form button { padding: 0.35rem 0.7rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; font-size: 0.85rem; }
+  #auth-status { font-size: 0.8rem; color: #aaa; }
+
+  .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .row { border: 1px solid #333; background: #1a1a1a; }
+  .row-header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.75rem 1rem; cursor: pointer; user-select: none;
+    width: 100%;
+  }
+  .row-header:hover { background: #222; }
+  .status-dot { font-size: 0.8rem; flex-shrink: 0; }
+  .game-name { font-weight: bold; min-width: 8rem; }
+  .row-meta { display: flex; gap: 1.5rem; flex: 1; color: #aaa; font-size: 0.85rem; flex-wrap: wrap; }
+  .row-meta .online { color: #4f4; }
+  .row-meta .starting { color: #fa4; }
+  .row-meta .offline { color: #666; }
+  .expand-btn {
+    background: none; border: none; color: #aaa; cursor: pointer;
+    font-family: monospace; font-size: 0.85rem; padding: 0; flex-shrink: 0;
+  }
+
+  .row-body { border-top: 1px solid #333; padding: 1rem; display: none; }
+  .row-body.open { display: block; }
+
+  .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
+  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; cursor: pointer; }
+  .connect code:hover { background: #2a2a2a; }
+  .client-link { font-size: 0.85rem; color: #aaa; }
+  .client-link a { color: #88f; text-decoration: none; }
+  .client-link a:hover { text-decoration: underline; }
+
+  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
+  .admin-section.unlocked { display: block; }
+  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
+  .admin-controls button:hover { background: #444; }
+
+  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
+  .status-frag .online { color: #4f4; }
+  .status-frag .starting { color: #fa4; }
+  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+  .htmx-request .htmx-indicator { opacity: 1; }
+
+  .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
+  .log-section.open { display: block; }
+  .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
   .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
+  .term-fg1 { font-weight: bold; }
+  .term-fg2 { color: #838887; }
+  .term-fg3 { font-style: italic; }
+  .term-fg4 { text-decoration: underline; }
+  .term-fg30 { color: #666; }
+  .term-fg31 { color: #ff7070; }
+  .term-fg32 { color: #b0f986; }
+  .term-fg33 { color: #c6c502; }
+  .term-fg34 { color: #8db7e0; }
+  .term-fg35 { color: #f271fb; }
+  .term-fg36 { color: #6bf7ff; }
+  .term-fg37 { color: #eee; }
+  .term-fgi90 { color: #838887; }
+  .term-fgi91 { color: #ff3333; }
+  .term-fgi92 { color: #00ff00; }
+  .term-fgi93 { color: #fffc67; }
+  .term-fgi94 { color: #6871ff; }
+  .term-fgi95 { color: #ff76ff; }
+  .term-fgi96 { color: #60fcff; }
 `;
 
-// Small inline script — runs once on page load
 const initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
-  var logStreams = {};
 
-  function appendLogLine(game, text) {
-    var lines = document.getElementById("log-lines-" + game);
-    var line = document.createElement("div");
-    line.className = "log-line";
-    line.textContent = text;
-    lines.appendChild(line);
-    lines.scrollTop = lines.scrollHeight;
+  function getPassphrase() {
+    return sessionStorage.getItem(SESSION_KEY) || "";
   }
 
-  function showPanel(pp) {
-    var auth = document.getElementById("auth");
-    var panel = document.getElementById("panel");
-    auth.style.display = "none";
-    panel.style.display = "";
-    htmx.process(panel);
-    // Kick off initial status fetch now that headers are set
-    panel.querySelectorAll("[data-status-poll]").forEach(function(el) {
-      htmx.trigger(el, "poll");
+  // Toggle accordion open/close
+  window.toggleRow = function(game) {
+    var body = document.getElementById("row-body-" + game);
+    var btn = document.getElementById("expand-btn-" + game);
+    var open = body.classList.toggle("open");
+    btn.textContent = open ? "[collapse ▲]" : "[expand ▼]";
+  };
+
+  // Copy connect address to clipboard
+  window.copyConnect = function(text) {
+    navigator.clipboard.writeText(text).catch(function() {});
+  };
+
+  // Unlock all admin sections — set hx-headers then show them
+  function unlockAll(pp) {
+    document.querySelectorAll(".admin-section").forEach(function(section) {
+      section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
+      section.classList.add("unlocked");
+      htmx.process(section);
     });
+    document.getElementById("auth-form").style.display = "none";
+    var status = document.getElementById("auth-status");
+    status.style.display = "";
+    status.textContent = "admin";
   }
 
+  // Top-level authenticate
   window.authenticate = function() {
-    var val = document.getElementById("passphrase").value;
-    var unlockButton = document.getElementById("unlock-button");
+    var input = document.getElementById("passphrase-input");
+    var btn = document.getElementById("passphrase-btn");
+    var val = input.value;
     if (!val) return;
-    unlockButton.disabled = true;
-    unlockButton.textContent = "unlocking...";
-    sessionStorage.setItem(SESSION_KEY, val);
-    passphrase = val;
-    showPanel(val);
-  };
-
-  window.toggleLogs = function(game, button) {
-    var dialog = document.getElementById("log-dialog-" + game);
-    if (dialog.open) {
-      dialog.close();
-      if (button) {
-        button.disabled = false;
-        button.textContent = "logs";
-      }
-      return;
-    }
-    if (button) {
-      button.disabled = true;
-      button.textContent = "opening...";
-    }
-    var pp = sessionStorage.getItem(SESSION_KEY) || "";
-    if (!logStreams[game]) {
-      appendLogLine(game, "[opening log stream]");
-      var source = new EventSource("/logs?game=" + game + "&token=" + encodeURIComponent(pp));
-
-      source.onopen = function() {
-        appendLogLine(game, "[log stream open]");
-      };
-
-      source.addEventListener("log", function(event) {
-        appendLogLine(game, event.data);
+    btn.disabled = true;
+    btn.textContent = "checking...";
+    fetch("/", { headers: { "X-Passphrase": val, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) {
+          btn.disabled = false;
+          btn.textContent = "unlock";
+          input.style.borderColor = "#f44";
+          return;
+        }
+        sessionStorage.setItem(SESSION_KEY, val);
+        unlockAll(val);
+      })
+      .catch(function() {
+        btn.disabled = false;
+        btn.textContent = "unlock";
       });
+  };
 
-      source.onerror = function() {
-        appendLogLine(game, "[log stream disconnected]");
-        source.close();
-        delete logStreams[game];
-      };
-
-      logStreams[game] = source;
-    }
-    dialog.showModal();
-    if (button) {
-      button.disabled = false;
-      button.textContent = "logs";
+  // Toggle inline log panel open/closed
+  window.toggleLogs = function(game) {
+    var section = document.getElementById("log-section-" + game);
+    var isOpen = section.classList.toggle("open");
+    if (isOpen) {
+      var pp = getPassphrase();
+      var inner = document.getElementById("log-sse-" + game);
+      if (!inner.getAttribute("sse-connect")) {
+        inner.setAttribute("hx-ext", "sse");
+        inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
+        htmx.process(inner);
+        var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
+        observer.observe(inner, { childList: true });
+      }
     }
   };
 
-  window.logout = function() {
-    sessionStorage.removeItem(SESSION_KEY);
-    location.reload();
-  };
-
-  // Auto-show panel if passphrase already stored
-  if (passphrase) showPanel(passphrase);
+  // Restore auth on page load
+  (function() {
+    var pp = getPassphrase();
+    if (!pp) return;
+    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
+        unlockAll(pp);
+      });
+  })();
 })();
 `;
 
-interface GameCardProps {
+interface StatusDotProps { status: string }
+const StatusDot: FC<StatusDotProps> = ({ status }) => {
+  if (status === "online") return <span class="status-dot">🟢</span>;
+  if (status === "starting") return <span class="status-dot">🟡</span>;
+  return <span class="status-dot">⚫</span>;
+};
+
+interface RowProps {
   game: string;
+  displayName: string | null;
+  state: CachedGameState;
+  connectAddress: string | null;
+  clientDownloadUrl: string | null;
+  startBlocked: boolean;
 }
 
-const GameCard: FC<GameCardProps> = ({ game }) => (
-  <div class="game" id={`game-${game}`}>
-    <h2>{game}</h2>
-    {/* Status fragment — htmx polls every 10s; initial fetch triggered from showPanel() */}
-    <div class="status" id={`status-${game}`}
-      data-status-poll="true"
-      hx-get={`/?game=${game}&operation=status`}
-      hx-headers={`js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`}
-      hx-trigger="poll, every 10s"
-      hx-target={`#status-${game}`}
-    >
-      loading...
-    </div>
-    <div class="actions">
-      <button
-        hx-post={`/?game=${game}&operation=start`}
-        hx-headers={`js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`}
-        hx-target={`#status-${game}`}
-        hx-indicator={`#status-indicator-${game}`}
-        hx-disabled-elt={`#game-${game} .actions button`}
-      >start</button>
-      <button
-        hx-post={`/?game=${game}&operation=stop`}
-        hx-headers={`js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`}
-        hx-target={`#status-${game}`}
-        hx-indicator={`#status-indicator-${game}`}
-        hx-disabled-elt={`#game-${game} .actions button`}
-      >stop</button>
-      <button onclick={`toggleLogs('${game}', this)`}>logs</button>
-      <span class="status-indicator" id={`status-indicator-${game}`}>requesting...</span>
-    </div>
-  </div>
-);
+const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, clientDownloadUrl, startBlocked }) => {
+  const metaOnline = state.status === "online";
+  const indicator = `#status-result-${game}`;
+  return (
+    <div class="row" id={`row-${game}`}>
+      {/* Collapsed header — always visible, auto-refreshed by htmx every 30s */}
+      <div
+        id={`row-header-${game}`}
+        class="row-header"
+        hx-get={`/status?game=${game}`}
+        hx-trigger="every 5s"
+        hx-target={`#row-header-${game}`}
+        hx-swap="outerHTML"
+        onclick={`toggleRow('${game}')`}
+      >
+        <StatusDot status={state.status} />
+        <span class="game-name">{displayName ?? game}</span>
+        <span class="row-meta">
+          {metaOnline && state.hostname ? <span>{state.hostname}</span> : null}
+          {metaOnline && state.map ? <span>{state.map}</span> : null}
+          {metaOnline ? <span>{state.players} player{state.players !== 1 ? "s" : ""}</span> : null}
+          {!metaOnline ? <span class={state.status}>{state.status}</span> : null}
+        </span>
+        <button class="expand-btn" id={`expand-btn-${game}`}>[expand ▼]</button>
+      </div>
 
-export function renderUi(games: string[]): string {
+      {/* Expanded body */}
+      <div class="row-body" id={`row-body-${game}`}>
+        <div class="row-details">
+          {connectAddress ? (
+            <div class="connect">
+              connect: <code onclick={`copyConnect(${JSON.stringify(connectAddress)})`} title="click to copy">{connectAddress}</code>
+            </div>
+          ) : null}
+          {clientDownloadUrl ? (
+            <div class="client-link">
+              <a href={clientDownloadUrl} target="_blank" rel="noopener">get client ↗</a>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Admin controls — rendered in HTML, hidden until unlockAll() runs */}
+        <div class="admin-section" id={`admin-section-${game}`}>
+          <div class="admin-controls">
+            <button
+              hx-post={`/?game=${game}&operation=start`}
+              hx-target={indicator}
+              hx-indicator={indicator}
+              hx-disabled-elt="this"
+              disabled={startBlocked || undefined}
+              title={startBlocked ? "a conflicting game is already running on the same port" : undefined}
+            >start</button>
+            <button
+              hx-post={`/?game=${game}&operation=stop`}
+              hx-target={indicator}
+              hx-indicator={indicator}
+              hx-disabled-elt="this"
+            >stop</button>
+            <button type="button" onclick={`toggleLogs('${game}')`}>logs</button>
+          </div>
+          <div id={`status-result-${game}`} class="status-frag">
+            <span class="htmx-indicator">working...</span>
+          </div>
+        </div>
+
+        {/* Inline log panel */}
+        <div class="log-section" id={`log-section-${game}`}>
+          {/* log-sse-* gets hx-ext="sse" + sse-connect set dynamically by toggleLogs()
+               sse-swap and hx-swap live on the same element so htmx.process() picks them up together */}
+          <div id={`log-sse-${game}`} class="log-panel" sse-swap="log" hx-swap="beforeend" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export interface GameUiConfig {
+  displayName: string | null;
+  connectAddress: string | null;
+  clientDownloadUrl: string | null;
+  startBlocked: boolean;
+}
+
+export function renderUi(
+  games: Array<{ key: string; state: CachedGameState; ui: GameUiConfig }>
+): string {
   const page = (
     <html lang="en">
       <head>
@@ -173,45 +281,70 @@ export function renderUi(games: string[]): string {
         <style>{css}</style>
       </head>
       <body>
-        <h1>insta-game</h1>
-
-        <div id="auth">
-          {/* type="text" + autocomplete="off" avoids 1Password false-positive */}
-          <input
-            type="text"
-            id="passphrase"
-            placeholder="passphrase"
-            autocomplete="off"
-            spellcheck={false}
-            style="letter-spacing: 0.15em;"
-          />
-          <button id="unlock-button" onclick="authenticate()">unlock</button>
+        <div class="title-bar">
+          <h1>insta-game</h1>
+          <form id="auth-form" onsubmit="authenticate(); return false;">
+            <input
+              type="text"
+              id="passphrase-input"
+              placeholder="passphrase"
+              autocomplete="off"
+              spellcheck={false}
+              style="letter-spacing:0.15em;"
+              oninput="this.style.borderColor=''"
+            />
+            <button id="passphrase-btn" type="submit">unlock</button>
+          </form>
+          <span id="auth-status" style="display:none" />
         </div>
-
-        <div id="panel" style="display:none">
-          <div class="games">
-            {games.map(g => <GameCard key={g} game={g} />)}
-          </div>
-          <br />
-          <button onclick="logout()" style="margin-top:1rem;padding:.3rem .7rem;background:#222;color:#888;border:1px solid #444;cursor:pointer;font-family:monospace;font-size:0.8rem;">logout</button>
+        <div class="accordion">
+          {games.map(({ key, state, ui }) => (
+            <AccordionRow
+              key={key}
+              game={key}
+              displayName={ui.displayName}
+              state={state}
+              connectAddress={ui.connectAddress}
+              clientDownloadUrl={ui.clientDownloadUrl}
+              startBlocked={ui.startBlocked}
+            />
+          ))}
         </div>
-
-        {/* Log dialogs — one per game, opened by toggleLogs() */}
-        {games.map(g => (
-          <dialog id={`log-dialog-${g}`} key={g}>
-            <div class="dialog-header">
-              <span>{g} — logs</span>
-              <button class="dialog-close" onclick={`document.getElementById('log-dialog-${g}').close()`}>✕</button>
-            </div>
-            <div id={`log-lines-${g}`} class="log-panel" />
-          </dialog>
-        ))}
-
         <script src="https://unpkg.com/htmx.org@2/dist/htmx.min.js" />
+        <script src="https://unpkg.com/htmx-ext-sse@2/sse.js" />
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </body>
     </html>
   );
-
   return "<!DOCTYPE html>" + page.toString();
+}
+
+export function renderRowHeader(
+  game: string,
+  state: CachedGameState
+): string {
+  const metaOnline = state.status === "online";
+  const dot = state.status === "online" ? "🟢" : state.status === "starting" ? "🟡" : "⚫";
+  const frag = (
+    <div
+      id={`row-header-${game}`}
+      class="row-header"
+      hx-get={`/status?game=${game}`}
+      hx-trigger="every 5s"
+      hx-target={`#row-header-${game}`}
+      hx-swap="outerHTML"
+      onclick={`toggleRow('${game}')`}
+    >
+      <span class="status-dot">{dot}</span>
+      <span class="game-name">{game}</span>
+      <span class="row-meta">
+        {metaOnline && state.hostname ? <span>{state.hostname}</span> : null}
+        {metaOnline && state.map ? <span>{state.map}</span> : null}
+        {metaOnline ? <span>{state.players} player{state.players !== 1 ? "s" : ""}</span> : null}
+        {!metaOnline ? <span class={state.status}>{state.status}</span> : null}
+      </span>
+      <button class="expand-btn" id={`expand-btn-${game}`}>[expand ▼]</button>
+    </div>
+  );
+  return frag.toString();
 }

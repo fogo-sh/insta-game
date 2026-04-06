@@ -1,5 +1,5 @@
 import http from "http";
-import type { Backend, GameConfig, GameState } from "../backend.js";
+import type { Backend, GameConfig, GameState, CachedGameState } from "../backend.js";
 import { loadDockerGameDefinitions } from "../game-definitions.js";
 import type { PortBinding } from "../game-definitions.js";
 import { log } from "../logger.js";
@@ -8,6 +8,9 @@ const SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
 const SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 const DATA_DIR = process.env.DATA_DIR ?? "/data";
+// HOST_DATA_DIR is the repo root as seen by the Docker daemon — used for game container
+// volume bind mounts. When running inside a container this differs from DATA_DIR.
+const HOST_DATA_DIR = process.env.HOST_DATA_DIR ?? DATA_DIR;
 const MAX_POLLS = 20;
 const POLL_INTERVAL_MS = 3000;
 
@@ -16,6 +19,9 @@ const RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
 export interface DockerGameConfig extends GameConfig {
   containerName: string;
   image: string;
+  displayName: string;
+  connectPort?: number;
+  clientDownloadUrl?: string;
   // port bindings: key is containerPort (e.g. "26000/udp"), value is host binding
   ports?: Record<string, PortBinding>;
   environment?: Record<string, string>;
@@ -79,10 +85,29 @@ function pullImage(image: string): Promise<void> {
   });
 }
 
-// Ensure the container exists, creating it (and pulling the image) if needed
+// Remove a container (must be stopped first, or use force)
+async function removeContainer(name: string): Promise<void> {
+  await dockerRequest("DELETE", `/containers/${encodeURIComponent(name)}?force=true`);
+}
+
+// Ensure the container exists with the correct config, recreating it if stale
 async function ensureContainer(c: DockerGameConfig): Promise<void> {
   const existing = await inspectContainer(c.containerName);
-  if (existing) return;
+  if (existing) {
+    // Check if the image matches — if not, container is stale and needs recreating
+    const existingImage = (existing.Config as Record<string, unknown>)?.Image as string ?? "";
+    const expectedBinds = (c.volumes ?? []).map(v => {
+      const [hostPath, ...rest] = v.split(":");
+      const absHost = hostPath.startsWith("/") ? hostPath : `${HOST_DATA_DIR}/${hostPath}`;
+      return [absHost, ...rest].join(":");
+    });
+    const existingBinds: string[] = ((existing.HostConfig as Record<string, unknown>)?.Binds as string[]) ?? [];
+    const bindsMatch = expectedBinds.every(b => existingBinds.includes(b));
+    const imageMatches = existingImage === c.image || existingImage.startsWith(c.image + "@");
+    if (imageMatches && bindsMatch) return;
+    log.info(`docker: removing stale container ${c.containerName} (image or mounts changed)`);
+    await removeContainer(c.containerName);
+  }
 
   log.info(`docker: image pull ${c.image}`);
   await pullImage(c.image);
@@ -105,9 +130,10 @@ async function ensureContainer(c: DockerGameConfig): Promise<void> {
   }
 
   const binds = (c.volumes ?? []).map(v => {
-    // Make relative host paths absolute using DATA_DIR
+    // Make relative host paths absolute using HOST_DATA_DIR (the host-side repo root,
+    // which may differ from DATA_DIR when the launcher runs inside a container).
     const [hostPath, ...rest] = v.split(":");
-    const absHost = hostPath.startsWith("/") ? hostPath : `${DATA_DIR}/${hostPath}`;
+    const absHost = hostPath.startsWith("/") ? hostPath : `${HOST_DATA_DIR}/${hostPath}`;
     return [absHost, ...rest].join(":");
   });
 
@@ -201,6 +227,9 @@ export class DockerBackend implements Backend {
       configs[definition.id] = {
         containerName: definition.containerName ?? `insta-game-${definition.id}-1`,
         image: definition.image ?? `ghcr.io/fogo-sh/insta-game:${definition.id}`,
+        displayName: definition.displayName,
+        connectPort: definition.gamePort,
+        clientDownloadUrl: definition.clientDownloadUrl,
         sidecarPort: definition.sidecarPort,
         ports: definition.ports,
         environment,
@@ -232,6 +261,32 @@ export class DockerBackend implements Backend {
       return { status: running && ready ? "online" : "starting", publicIp: "localhost", players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
+    }
+  }
+
+  async getCachedState(config: GameConfig): Promise<CachedGameState> {
+    const c = config as DockerGameConfig;
+    const offline: CachedGameState = { status: "offline", players: 0, hostname: "", map: "", updatedAt: new Date() };
+    try {
+      const inspect = await inspectContainer(c.containerName);
+      if (!inspect) return offline;
+      const state = inspect.State as Record<string, unknown>;
+      if (!state?.Running) return offline;
+      const hostPort = getHostPort(inspect, c.sidecarPort);
+      if (!hostPort) return { ...offline, status: "starting" };
+      const sidecar = await getSidecarStatus(hostPort);
+      if (!sidecar) return { ...offline, status: "starting" };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      return {
+        status: running && ready ? "online" : "starting",
+        players: Number(sidecar.players ?? 0),
+        hostname: String(sidecar.hostname ?? ""),
+        map: String(sidecar.map ?? ""),
+        updatedAt: new Date(),
+      };
+    } catch {
+      return offline;
     }
   }
 

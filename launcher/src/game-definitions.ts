@@ -22,6 +22,7 @@ export interface DockerGameDefinition {
   dataUrlEnv?: string;
   image?: string;
   containerName?: string;
+  clientDownloadUrl?: string;
 }
 
 export function loadDockerGameDefinitions(repoRoot: string): DockerGameDefinition[] {

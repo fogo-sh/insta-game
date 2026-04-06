@@ -108,12 +108,11 @@ func TestQueryBZFlag(t *testing.T) {
 			t.Fatalf("read player request: %v", err)
 		}
 
-		if _, err := conn.Write([]byte{0x00, 0x08}); err != nil {
-			t.Fatalf("write response header: %v", err)
-		}
-
+		// Real server sends 8 bytes total: msglen(2) + msgcode(2) + msglen2(2) + players(2)
 		response := make([]byte, 8)
+		binary.BigEndian.PutUint16(response[0:2], 0x0004)
 		binary.BigEndian.PutUint16(response[2:4], 0x7170)
+		binary.BigEndian.PutUint16(response[4:6], 0x0008)
 		binary.BigEndian.PutUint16(response[6:8], 7)
 		if _, err := conn.Write(response); err != nil {
 			t.Fatalf("write player response: %v", err)

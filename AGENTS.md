@@ -42,5 +42,16 @@ make build      # build the local Docker image
 make run        # run the local container
 ```
 
+## Generated Files
+
+`compose.yml` is generated from `docker-containers/*/game.json` metadata. Do not edit it by hand.
+
+```sh
+python3 generate-compose.py          # regenerate compose.yml
+python3 generate-compose.py --check  # verify compose.yml is up to date
+```
+
+Run the generator after adding or modifying any `game.json` file.
+
 ## Coding Style & Naming Conventions
 Use 4-space indentation in Python. Keep code straightforward and avoid unnecessary abstraction. Format and lint Python with Ruff via the `pulumi/` UV project. AWS resource names should follow the current stack convention: regional resources include the region code, and global IAM-style resources include both region and account suffix. Keep Pulumi logical resource names stable unless replacement is intended.

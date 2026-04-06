@@ -1,10 +1,11 @@
 module github.com/fogo-sh/insta-game/sidecar
 
-go 1.22
+go 1.26
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.41.4
+	github.com/buildkite/terminal-to-html/v3 v3.16.8
 )
 
 require (

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	terminal "github.com/buildkite/terminal-to-html/v3"
 	"github.com/fogo-sh/insta-game/sidecar/protocol"
 )
 
@@ -448,6 +450,16 @@ players:  %d%s
 	}
 }
 
+// bareAnsi matches ANSI-like sequences that are missing the ESC byte (e.g. q2repro output)
+var bareAnsi = regexp.MustCompile(`\[[\d;]*m`)
+
+// toHTML converts a single log line from ANSI escape codes to HTML.
+// Bare bracket sequences (missing ESC) are stripped first.
+func toHTML(line string) string {
+	line = bareAnsi.ReplaceAllString(line, "")
+	return strings.TrimRight(string(terminal.Render([]byte(line))), "\n")
+}
+
 func logsHandler(c cfg) http.HandlerFunc {
 	return authorize(c.Token, func(w http.ResponseWriter, r *http.Request) {
 		flusher, ok := w.(http.Flusher)
@@ -462,7 +474,7 @@ func logsHandler(c cfg) http.HandlerFunc {
 
 		// Flush existing buffered lines first.
 		for _, line := range gameLogs.Lines() {
-			fmt.Fprintf(w, "data: %s\n\n", line)
+			fmt.Fprintf(w, "data: %s\n\n", toHTML(line))
 		}
 		flusher.Flush()
 
@@ -476,7 +488,7 @@ func logsHandler(c cfg) http.HandlerFunc {
 				if !ok {
 					return
 				}
-				fmt.Fprintf(w, "data: %s\n\n", line)
+				fmt.Fprintf(w, "data: %s\n\n", toHTML(line))
 				flusher.Flush()
 			case <-r.Context().Done():
 				return

@@ -44,20 +44,16 @@ func QueryBZFlag(port int) (*ServerInfo, error) {
 		return nil, err
 	}
 
-	header := make([]byte, 2)
-	if _, err := io.ReadFull(conn, header); err != nil {
+	// Response is 8 bytes: msglen(2) + msgcode(2) + msglen2(2) + players(2)
+	reply := make([]byte, 8)
+	if _, err := io.ReadFull(conn, reply); err != nil {
 		return nil, err
 	}
-
-	payload := make([]byte, 8)
-	if _, err := io.ReadFull(conn, payload); err != nil {
-		return nil, err
-	}
-	if binary.BigEndian.Uint16(payload[2:4]) != 0x7170 {
-		return nil, fmt.Errorf("unexpected bzflag player reply")
+	if binary.BigEndian.Uint16(reply[2:4]) != 0x7170 {
+		return nil, fmt.Errorf("unexpected bzflag player reply: %x", reply)
 	}
 
 	return &ServerInfo{
-		Players: int(binary.BigEndian.Uint16(payload[6:8])),
+		Players: int(binary.BigEndian.Uint16(reply[6:8])),
 	}, nil
 }
