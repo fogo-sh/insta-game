@@ -3,15 +3,6 @@ WORKDIR /build
 COPY sidecar/ ./
 RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
 
-FROM debian:bookworm-slim AS omicron-downloader
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates wget unzip \
-    && rm -rf /var/lib/apt/lists/*
-RUN wget -O /tmp/obots.zip \
-    "https://s3.amazonaws.com/neogeographica-downloads/mods/obots/obots102-fixed.zip" \
-    && unzip /tmp/obots.zip -d /opt \
-    && rm /tmp/obots.zip
-
 FROM debian:bookworm-slim AS fteqw-builder
 
 WORKDIR /src
@@ -29,6 +20,20 @@ WORKDIR /src/fteqw/engine
 RUN make sv-rel -j"$(nproc)" \
     && install -m 0755 release/fteqw-sv /usr/local/bin/fteqw.sv
 
+FROM debian:bookworm-slim AS frikbot-downloader
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates wget unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# FrikBot X++ — includes waypoints for DM1-6 and QC source.
+# Uses standard QCC field names (no anonymous fields), so its prebuilt
+# progs.dat is compatible with FTE without recompilation.
+RUN wget -O /tmp/fbxpp.zip \
+    "https://s3.amazonaws.com/neogeographica-downloads/mods/fbxpp/fbx%2B%2B.zip" \
+    && mkdir -p /opt/frikbot \
+    && unzip /tmp/fbxpp.zip -d /opt/frikbot \
+    && rm -rf /tmp/fbxpp.zip /opt/frikbot/qc_src
+
 FROM debian:bookworm-slim
 
 WORKDIR /opt
@@ -41,7 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 COPY --from=fteqw-builder /usr/local/bin/fteqw.sv /opt/fteqw.sv
-COPY --from=omicron-downloader /opt/omicron /opt/omicron
+COPY --from=frikbot-downloader /opt/frikbot /opt/frikbot
 
 COPY docker-containers/fteqw/game.json /opt/game.json
 COPY docker-containers/fteqw/server.cfg /opt/default-server.cfg
