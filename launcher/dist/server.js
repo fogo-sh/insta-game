@@ -108321,17 +108321,18 @@ var EcsBackend = class {
       if (!taskArn) return { status: "offline", players: 0, ready: false };
       const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
       const task = descRes.tasks?.[0];
+      const taskRunning = task?.lastStatus === "RUNNING";
       const eniId = task?.attachments?.[0]?.details?.find((d5) => d5.name === "networkInterfaceId")?.value;
       if (!eniId) return { status: "starting", players: 0, ready: false };
       const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
       const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
       if (!publicIp) return { status: "starting", players: 0, ready: false };
       const sidecar = await getSidecarStatus(publicIp, c5.sidecarPort);
-      if (!sidecar) return { status: "starting", publicIp, players: 0, ready: false };
+      if (!sidecar) return { status: taskRunning ? "online" : "starting", publicIp, players: 0, ready: false };
       const running = Boolean(sidecar.running);
       const ready = Boolean(sidecar.ready);
       const players = Number(sidecar.players ?? 0);
-      return { status: running ? "online" : "starting", publicIp, players, ready };
+      return { status: running || taskRunning ? "online" : "starting", publicIp, players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
     }
@@ -108345,16 +108346,17 @@ var EcsBackend = class {
       if (!taskArn) return offline;
       const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
       const task = descRes.tasks?.[0];
+      const taskRunning = task?.lastStatus === "RUNNING";
       const eniId = task?.attachments?.[0]?.details?.find((d5) => d5.name === "networkInterfaceId")?.value;
       if (!eniId) return { ...offline, status: "starting" };
       const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
       const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
       if (!publicIp) return { ...offline, status: "starting" };
       const sidecar = await getSidecarStatus(publicIp, c5.sidecarPort);
-      if (!sidecar) return { ...offline, status: "starting" };
+      if (!sidecar) return { ...offline, publicIp, status: taskRunning ? "online" : "starting" };
       const running = Boolean(sidecar.running);
       return {
-        status: running ? "online" : "starting",
+        status: running || taskRunning ? "online" : "starting",
         publicIp,
         players: Number(sidecar.players ?? 0),
         hostname: String(sidecar.hostname ?? ""),
