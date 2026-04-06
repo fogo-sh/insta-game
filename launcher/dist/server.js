@@ -111151,6 +111151,361 @@ function formatState(gameName, state2) {
   return parts.join(" \u2014 ");
 }
 
+// src/ui-shared.ts
+var SESSION_KEY = "insta-game-passphrase";
+function rowHeaderId(game) {
+  return `row-header-${game}`;
+}
+function rowBodyId(game) {
+  return `row-body-${game}`;
+}
+function expandButtonId(game) {
+  return `expand-btn-${game}`;
+}
+function logSectionId(game) {
+  return `log-section-${game}`;
+}
+function logPanelId(game) {
+  return `log-sse-${game}`;
+}
+function escapeHtml(text) {
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+function statusDot(status) {
+  if (status === "online") return "\u{1F7E2}";
+  if (status === "starting") return "\u{1F7E1}";
+  return "\u26AB";
+}
+function renderRowHeaderContent(label, game, state2) {
+  const meta2 = [];
+  if (state2.status === "online" && state2.hostname) meta2.push(`<span>${escapeHtml(state2.hostname)}</span>`);
+  if (state2.status === "online" && state2.map) meta2.push(`<span>${escapeHtml(state2.map)}</span>`);
+  if (state2.status === "online") meta2.push(`<span>${state2.players} player${state2.players !== 1 ? "s" : ""}</span>`);
+  if (state2.status !== "online") meta2.push(`<span class="${state2.status}">${state2.status}</span>`);
+  return [
+    `<span class="status-dot">${statusDot(state2.status)}</span>`,
+    `<span class="game-name">${escapeHtml(label)}</span>`,
+    `<span class="row-meta">${meta2.join("")}</span>`,
+    `<button class="expand-btn" id="${expandButtonId(game)}">[expand \u25BC]</button>`
+  ].join("");
+}
+
+// src/ui-client.ts
+var initScript = `
+(function() {
+  var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
+  var STATUS_POLL_INTERVAL_MS = 10000;
+  var STATUS_RETRY_INTERVAL_MS = 30000;
+  var LOG_POLL_INTERVAL_MS = 5000;
+  var LOG_RETRY_INTERVAL_MS = 15000;
+  var POLL_PAUSE_AFTER_ADMIN_MS = 15000;
+  var suspendPollingUntil = 0;
+
+  function getPassphrase() {
+    return sessionStorage.getItem(SESSION_KEY) || "";
+  }
+
+  function statusDot(status) {
+    if (status === "online") return "\u{1F7E2}";
+    if (status === "starting") return "\u{1F7E1}";
+    return "\u26AB";
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
+
+  function renderRowHeader(label, game, state) {
+    var meta = [];
+    if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
+    if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
+    if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
+    if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
+    return ""
+      + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
+      + "<span class=\\"game-name\\">" + escapeHtml(label) + "</span>"
+      + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
+      + "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">[expand \u25BC]</button>";
+  }
+
+  function syncExpandButton(game) {
+    var body = document.getElementById("row-body-" + game);
+    var btn = document.getElementById("expand-btn-" + game);
+    if (!body || !btn) return;
+    btn.textContent = body.classList.contains("open") ? "[collapse \u25B2]" : "[expand \u25BC]";
+  }
+
+  function refreshStatuses() {
+    if (Date.now() < suspendPollingUntil) {
+      window.setTimeout(refreshStatuses, Math.max(1000, suspendPollingUntil - Date.now()));
+      return;
+    }
+    var retryDelay = STATUS_POLL_INTERVAL_MS;
+    fetch("/status")
+      .then(function(res) {
+        if (!res.ok) {
+          var error = new Error("HTTP " + res.status);
+          error.status = res.status;
+          throw error;
+        }
+        return res.json();
+      })
+      .then(function(payload) {
+        Object.entries(payload).forEach(function(entry) {
+          var game = entry[0];
+          var state = entry[1];
+          var header = document.getElementById("row-header-" + game);
+          if (!header) return;
+          var label = header.getAttribute("data-label") || game;
+          header.innerHTML = renderRowHeader(label, game, state);
+          syncExpandButton(game);
+        });
+      })
+      .catch(function(error) {
+        if (error.status === 429) retryDelay = STATUS_RETRY_INTERVAL_MS;
+      })
+      .finally(function() {
+        var delay = retryDelay;
+        if (Date.now() < suspendPollingUntil) {
+          delay = Math.max(1000, suspendPollingUntil - Date.now());
+        }
+        window.setTimeout(refreshStatuses, delay);
+      });
+  }
+
+  function appendLogLines(inner, lines) {
+    lines.forEach(function(line) {
+      var div = document.createElement("div");
+      div.className = "log-line";
+      div.textContent = line;
+      inner.appendChild(div);
+    });
+    inner.scrollTop = inner.scrollHeight;
+  }
+
+  function pollLogs(game, inner) {
+    if (inner.getAttribute("data-log-mode") !== "poll") return;
+    if (inner.getAttribute("data-log-open") !== "1") return;
+    if (Date.now() < suspendPollingUntil) {
+      window.setTimeout(function() { pollLogs(game, inner); }, Math.max(1000, suspendPollingUntil - Date.now()));
+      return;
+    }
+    var pp = getPassphrase();
+    var cursor = inner.getAttribute("data-log-cursor") || "";
+    var url = inner.getAttribute("data-log-url");
+    var retryDelay = LOG_POLL_INTERVAL_MS;
+    if (!url) return;
+    var sep = url.indexOf("?") >= 0 ? "&" : "?";
+    fetch(url + sep + "token=" + encodeURIComponent(pp) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""))
+      .then(function(res) {
+        if (!res.ok) {
+          var error = new Error("HTTP " + res.status);
+          error.status = res.status;
+          throw error;
+        }
+        return res.json();
+      })
+      .then(function(payload) {
+        if (Array.isArray(payload.lines) && payload.lines.length > 0) {
+          appendLogLines(inner, payload.lines);
+        }
+        if (payload.cursor) inner.setAttribute("data-log-cursor", payload.cursor);
+      })
+      .catch(function(error) {
+        if (error.status === 429) retryDelay = LOG_RETRY_INTERVAL_MS;
+        if (error.status !== 429) {
+          appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
+        }
+      })
+      .finally(function() {
+        if (inner.getAttribute("data-log-open") === "1") {
+          var delay = retryDelay;
+          if (Date.now() < suspendPollingUntil) {
+            delay = Math.max(1000, suspendPollingUntil - Date.now());
+          }
+          window.setTimeout(function() { pollLogs(game, inner); }, delay);
+        }
+      });
+  }
+
+  window.toggleRow = function(game) {
+    var body = document.getElementById("row-body-" + game);
+    var btn = document.getElementById("expand-btn-" + game);
+    if (!body || !btn) return;
+    var open = body.classList.toggle("open");
+    btn.textContent = open ? "[collapse \u25B2]" : "[expand \u25BC]";
+  };
+
+  window.copyConnect = function(text) {
+    navigator.clipboard.writeText(text).catch(function() {});
+  };
+
+  function unlockAll(pp) {
+    document.querySelectorAll(".admin-section").forEach(function(section) {
+      section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
+      section.classList.add("unlocked");
+      htmx.process(section);
+    });
+    var authForm = document.getElementById("auth-form");
+    var status = document.getElementById("auth-status");
+    if (!authForm || !status) return;
+    authForm.style.display = "none";
+    status.style.display = "";
+    status.textContent = "admin";
+  }
+
+  document.addEventListener("click", function(event) {
+    var target = event.target;
+    if (!(target instanceof Element)) return;
+    if (!target.closest("[data-admin-action]")) return;
+    suspendPollingUntil = Date.now() + POLL_PAUSE_AFTER_ADMIN_MS;
+  });
+
+  window.authenticate = function() {
+    var input = document.getElementById("passphrase-input");
+    var btn = document.getElementById("passphrase-btn");
+    if (!(input instanceof HTMLInputElement) || !(btn instanceof HTMLButtonElement)) return;
+    var val = input.value;
+    if (!val) return;
+    btn.disabled = true;
+    btn.textContent = "checking...";
+    fetch("/", { headers: { "X-Passphrase": val, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) {
+          btn.disabled = false;
+          btn.textContent = "unlock";
+          input.style.borderColor = "#f44";
+          return;
+        }
+        sessionStorage.setItem(SESSION_KEY, val);
+        unlockAll(val);
+      })
+      .catch(function() {
+        btn.disabled = false;
+        btn.textContent = "unlock";
+      });
+  };
+
+  window.toggleLogs = function(game) {
+    var section = document.getElementById("log-section-" + game);
+    var inner = document.getElementById("log-sse-" + game);
+    if (!section || !inner) return;
+    var isOpen = section.classList.toggle("open");
+    inner.setAttribute("data-log-open", isOpen ? "1" : "0");
+    if (isOpen) {
+      if (inner.getAttribute("data-log-mode") === "poll") {
+        if (!inner.getAttribute("data-log-started")) {
+          inner.setAttribute("data-log-started", "1");
+          appendLogLines(inner, ["[connecting to " + game + " logs]"]);
+          pollLogs(game, inner);
+        }
+      } else if (!inner.getAttribute("sse-connect")) {
+        var pp = getPassphrase();
+        var baseUrl = inner.getAttribute("data-log-url");
+        var separator = baseUrl && baseUrl.indexOf("?") >= 0 ? "&" : "?";
+        inner.setAttribute("hx-ext", "sse");
+        inner.setAttribute("sse-connect", (baseUrl || "/logs?game=" + game) + separator + "token=" + encodeURIComponent(pp));
+        htmx.process(inner);
+        var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
+        observer.observe(inner, { childList: true });
+      }
+    }
+  };
+
+  (function() {
+    refreshStatuses();
+    var pp = getPassphrase();
+    if (!pp) return;
+    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
+        unlockAll(pp);
+      });
+  })();
+})();
+`;
+
+// src/ui-styles.ts
+var css = `
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
+  .title-bar { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  h1 { font-size: 1.4rem; }
+  #auth-form { display: flex; align-items: center; gap: 0.5rem; }
+  #auth-form input { padding: 0.35rem 0.5rem; background: #222; color: #eee; border: 1px solid #444; font-family: monospace; font-size: 0.85rem; width: 12rem; }
+  #auth-form button { padding: 0.35rem 0.7rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; font-size: 0.85rem; }
+  #auth-status { font-size: 0.8rem; color: #aaa; }
+
+  .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .row { border: 1px solid #333; background: #1a1a1a; }
+  .row-header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.75rem 1rem; cursor: pointer; user-select: none;
+    width: 100%;
+  }
+  .row-header:hover { background: #222; }
+  .status-dot { font-size: 0.8rem; flex-shrink: 0; }
+  .game-name { font-weight: bold; min-width: 8rem; }
+  .row-meta { display: flex; gap: 1.5rem; flex: 1; color: #aaa; font-size: 0.85rem; flex-wrap: wrap; }
+  .row-meta .online { color: #4f4; }
+  .row-meta .starting { color: #fa4; }
+  .row-meta .offline { color: #666; }
+  .expand-btn {
+    background: none; border: none; color: #aaa; cursor: pointer;
+    font-family: monospace; font-size: 0.85rem; padding: 0; flex-shrink: 0;
+  }
+
+  .row-body { border-top: 1px solid #333; padding: 1rem; display: none; }
+  .row-body.open { display: block; }
+
+  .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
+  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; cursor: pointer; }
+  .connect code:hover { background: #2a2a2a; }
+  .client-link { font-size: 0.85rem; color: #aaa; }
+  .client-link a { color: #88f; text-decoration: none; }
+  .client-link a:hover { text-decoration: underline; }
+
+  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
+  .admin-section.unlocked { display: block; }
+  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
+  .admin-controls button:hover { background: #444; }
+
+  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
+  .status-frag .online { color: #4f4; }
+  .status-frag .starting { color: #fa4; }
+  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+  .htmx-request .htmx-indicator { opacity: 1; }
+
+  .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
+  .log-section.open { display: block; }
+  .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
+  .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
+  .term-fg1 { font-weight: bold; }
+  .term-fg2 { color: #838887; }
+  .term-fg3 { font-style: italic; }
+  .term-fg4 { text-decoration: underline; }
+  .term-fg30 { color: #666; }
+  .term-fg31 { color: #ff7070; }
+  .term-fg32 { color: #b0f986; }
+  .term-fg33 { color: #c6c502; }
+  .term-fg34 { color: #8db7e0; }
+  .term-fg35 { color: #f271fb; }
+  .term-fg36 { color: #6bf7ff; }
+  .term-fg37 { color: #eee; }
+  .term-fgi90 { color: #838887; }
+  .term-fgi91 { color: #ff3333; }
+  .term-fgi92 { color: #00ff00; }
+  .term-fgi93 { color: #fffc67; }
+  .term-fgi94 { color: #6871ff; }
+  .term-fgi95 { color: #ff76ff; }
+  .term-fgi96 { color: #60fcff; }
+`;
+
 // node_modules/hono/dist/jsx/constants.js
 var DOM_RENDERER = /* @__PURE__ */ Symbol("RENDERER");
 var DOM_ERROR_HANDLER = /* @__PURE__ */ Symbol("ERROR_HANDLER");
@@ -111683,353 +112038,22 @@ function jsxDEV(tag2, props, key) {
   return node;
 }
 
-// src/ui.tsx
-var SESSION_KEY = "insta-game-passphrase";
-var css = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
-  .title-bar { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
-  h1 { font-size: 1.4rem; }
-  #auth-form { display: flex; align-items: center; gap: 0.5rem; }
-  #auth-form input { padding: 0.35rem 0.5rem; background: #222; color: #eee; border: 1px solid #444; font-family: monospace; font-size: 0.85rem; width: 12rem; }
-  #auth-form button { padding: 0.35rem 0.7rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; font-size: 0.85rem; }
-  #auth-status { font-size: 0.8rem; color: #aaa; }
-
-  .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
-
-  .row { border: 1px solid #333; background: #1a1a1a; }
-  .row-header {
-    display: flex; align-items: center; gap: 1rem;
-    padding: 0.75rem 1rem; cursor: pointer; user-select: none;
-    width: 100%;
-  }
-  .row-header:hover { background: #222; }
-  .status-dot { font-size: 0.8rem; flex-shrink: 0; }
-  .game-name { font-weight: bold; min-width: 8rem; }
-  .row-meta { display: flex; gap: 1.5rem; flex: 1; color: #aaa; font-size: 0.85rem; flex-wrap: wrap; }
-  .row-meta .online { color: #4f4; }
-  .row-meta .starting { color: #fa4; }
-  .row-meta .offline { color: #666; }
-  .expand-btn {
-    background: none; border: none; color: #aaa; cursor: pointer;
-    font-family: monospace; font-size: 0.85rem; padding: 0; flex-shrink: 0;
-  }
-
-  .row-body { border-top: 1px solid #333; padding: 1rem; display: none; }
-  .row-body.open { display: block; }
-
-  .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
-  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; cursor: pointer; }
-  .connect code:hover { background: #2a2a2a; }
-  .client-link { font-size: 0.85rem; color: #aaa; }
-  .client-link a { color: #88f; text-decoration: none; }
-  .client-link a:hover { text-decoration: underline; }
-
-  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
-  .admin-section.unlocked { display: block; }
-  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-  .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  .admin-controls button:hover { background: #444; }
-
-  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
-  .status-frag .online { color: #4f4; }
-  .status-frag .starting { color: #fa4; }
-  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
-  .htmx-request .htmx-indicator { opacity: 1; }
-
-  .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
-  .log-section.open { display: block; }
-  .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
-  .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
-  .term-fg1 { font-weight: bold; }
-  .term-fg2 { color: #838887; }
-  .term-fg3 { font-style: italic; }
-  .term-fg4 { text-decoration: underline; }
-  .term-fg30 { color: #666; }
-  .term-fg31 { color: #ff7070; }
-  .term-fg32 { color: #b0f986; }
-  .term-fg33 { color: #c6c502; }
-  .term-fg34 { color: #8db7e0; }
-  .term-fg35 { color: #f271fb; }
-  .term-fg36 { color: #6bf7ff; }
-  .term-fg37 { color: #eee; }
-  .term-fgi90 { color: #838887; }
-  .term-fgi91 { color: #ff3333; }
-  .term-fgi92 { color: #00ff00; }
-  .term-fgi93 { color: #fffc67; }
-  .term-fgi94 { color: #6871ff; }
-  .term-fgi95 { color: #ff76ff; }
-  .term-fgi96 { color: #60fcff; }
-`;
-var initScript = `
-(function() {
-  var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var STATUS_POLL_INTERVAL_MS = 10000;
-  var STATUS_RETRY_INTERVAL_MS = 30000;
-  var LOG_POLL_INTERVAL_MS = 5000;
-  var LOG_RETRY_INTERVAL_MS = 15000;
-  var POLL_PAUSE_AFTER_ADMIN_MS = 15000;
-  var suspendPollingUntil = 0;
-
-  function getPassphrase() {
-    return sessionStorage.getItem(SESSION_KEY) || "";
-  }
-
-  function statusDot(status) {
-    if (status === "online") return "\u{1F7E2}";
-    if (status === "starting") return "\u{1F7E1}";
-    return "\u26AB";
-  }
-
-  function escapeHtml(text) {
-    return String(text)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
-  }
-
-  function renderRowHeader(game, state) {
-    var meta = [];
-    if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
-    if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
-    if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
-    if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
-    return ""
-      + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
-      + "<span class=\\"game-name\\">" + escapeHtml(game) + "</span>"
-      + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
-      + "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">" + "[expand \u25BC]" + "</button>";
-  }
-
-  function syncExpandButton(game) {
-    var body = document.getElementById("row-body-" + game);
-    var btn = document.getElementById("expand-btn-" + game);
-    if (!body || !btn) return;
-    btn.textContent = body.classList.contains("open") ? "[collapse \u25B2]" : "[expand \u25BC]";
-  }
-
-  function refreshStatuses() {
-    if (Date.now() < suspendPollingUntil) {
-      window.setTimeout(refreshStatuses, Math.max(1000, suspendPollingUntil - Date.now()));
-      return;
-    }
-    var retryDelay = STATUS_POLL_INTERVAL_MS;
-    fetch("/status")
-      .then(function(res) {
-        if (!res.ok) {
-          var error = new Error("HTTP " + res.status);
-          error.status = res.status;
-          throw error;
-        }
-        return res.json();
-      })
-      .then(function(payload) {
-        Object.entries(payload).forEach(function(entry) {
-          var game = entry[0];
-          var state = entry[1];
-          var header = document.getElementById("row-header-" + game);
-          if (!header) return;
-          header.innerHTML = renderRowHeader(game, state);
-          syncExpandButton(game);
-        });
-      })
-      .catch(function(error) {
-        if (error.status === 429) retryDelay = STATUS_RETRY_INTERVAL_MS;
-      })
-      .finally(function() {
-        var delay = retryDelay;
-        if (Date.now() < suspendPollingUntil) {
-          delay = Math.max(1000, suspendPollingUntil - Date.now());
-        }
-        window.setTimeout(refreshStatuses, delay);
-      });
-  }
-
-  function appendLogLines(inner, lines) {
-    lines.forEach(function(line) {
-      var div = document.createElement("div");
-      div.className = "log-line";
-      div.textContent = line;
-      inner.appendChild(div);
-    });
-    inner.scrollTop = inner.scrollHeight;
-  }
-
-  function pollLogs(game, inner) {
-    if (inner.getAttribute("data-log-mode") !== "poll") return;
-    if (inner.getAttribute("data-log-open") !== "1") return;
-    if (Date.now() < suspendPollingUntil) {
-      window.setTimeout(function() { pollLogs(game, inner); }, Math.max(1000, suspendPollingUntil - Date.now()));
-      return;
-    }
-    var pp = getPassphrase();
-    var cursor = inner.getAttribute("data-log-cursor") || "";
-    var url = inner.getAttribute("data-log-url");
-    var retryDelay = LOG_POLL_INTERVAL_MS;
-    if (!url) return;
-    var sep = url.indexOf("?") >= 0 ? "&" : "?";
-    fetch(url + sep + "token=" + encodeURIComponent(pp) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""))
-      .then(function(res) {
-        if (!res.ok) {
-          var error = new Error("HTTP " + res.status);
-          error.status = res.status;
-          throw error;
-        }
-        return res.json();
-      })
-      .then(function(payload) {
-        if (Array.isArray(payload.lines) && payload.lines.length > 0) {
-          appendLogLines(inner, payload.lines);
-        }
-        if (payload.cursor) inner.setAttribute("data-log-cursor", payload.cursor);
-      })
-      .catch(function(error) {
-        if (error.status === 429) retryDelay = LOG_RETRY_INTERVAL_MS;
-        if (error.status !== 429) {
-          appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
-        }
-      })
-      .finally(function() {
-        if (inner.getAttribute("data-log-open") === "1") {
-          var delay = retryDelay;
-          if (Date.now() < suspendPollingUntil) {
-            delay = Math.max(1000, suspendPollingUntil - Date.now());
-          }
-          window.setTimeout(function() { pollLogs(game, inner); }, delay);
-        }
-      });
-  }
-
-  // Toggle accordion open/close
-  window.toggleRow = function(game) {
-    var body = document.getElementById("row-body-" + game);
-    var btn = document.getElementById("expand-btn-" + game);
-    var open = body.classList.toggle("open");
-    btn.textContent = open ? "[collapse \u25B2]" : "[expand \u25BC]";
-  };
-
-  // Copy connect address to clipboard
-  window.copyConnect = function(text) {
-    navigator.clipboard.writeText(text).catch(function() {});
-  };
-
-  // Unlock all admin sections \u2014 set hx-headers then show them
-  function unlockAll(pp) {
-    document.querySelectorAll(".admin-section").forEach(function(section) {
-      section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
-      section.classList.add("unlocked");
-      htmx.process(section);
-    });
-    document.getElementById("auth-form").style.display = "none";
-    var status = document.getElementById("auth-status");
-    status.style.display = "";
-    status.textContent = "admin";
-  }
-
-  document.addEventListener("click", function(event) {
-    var target = event.target;
-    if (!(target instanceof Element)) return;
-    if (!target.closest("[data-admin-action]")) return;
-    suspendPollingUntil = Date.now() + POLL_PAUSE_AFTER_ADMIN_MS;
-  });
-
-  // Top-level authenticate
-  window.authenticate = function() {
-    var input = document.getElementById("passphrase-input");
-    var btn = document.getElementById("passphrase-btn");
-    var val = input.value;
-    if (!val) return;
-    btn.disabled = true;
-    btn.textContent = "checking...";
-    fetch("/", { headers: { "X-Passphrase": val, "HX-Request": "true" } })
-      .then(function(res) {
-        if (res.status === 401) {
-          btn.disabled = false;
-          btn.textContent = "unlock";
-          input.style.borderColor = "#f44";
-          return;
-        }
-        sessionStorage.setItem(SESSION_KEY, val);
-        unlockAll(val);
-      })
-      .catch(function() {
-        btn.disabled = false;
-        btn.textContent = "unlock";
-      });
-  };
-
-  // Toggle inline log panel open/closed
-  window.toggleLogs = function(game) {
-    var section = document.getElementById("log-section-" + game);
-    var inner = document.getElementById("log-sse-" + game);
-    var isOpen = section.classList.toggle("open");
-    inner.setAttribute("data-log-open", isOpen ? "1" : "0");
-    if (isOpen) {
-      if (inner.getAttribute("data-log-mode") === "poll") {
-        if (!inner.getAttribute("data-log-started")) {
-          inner.setAttribute("data-log-started", "1");
-          appendLogLines(inner, ["[connecting to " + game + " logs]"]);
-          pollLogs(game, inner);
-        }
-      } else if (!inner.getAttribute("sse-connect")) {
-        var pp = getPassphrase();
-        var baseUrl = inner.getAttribute("data-log-url");
-        var separator = baseUrl && baseUrl.indexOf("?") >= 0 ? "&" : "?";
-        inner.setAttribute("hx-ext", "sse");
-        inner.setAttribute("sse-connect", (baseUrl || "/logs?game=" + game) + separator + "token=" + encodeURIComponent(pp));
-        htmx.process(inner);
-        var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
-        observer.observe(inner, { childList: true });
-      }
-    }
-  };
-
-  // Restore auth on page load
-  (function() {
-    refreshStatuses();
-    var pp = getPassphrase();
-    if (!pp) return;
-    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
-      .then(function(res) {
-        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
-        unlockAll(pp);
-      });
-  })();
-})();
-`;
-var StatusDot = ({ status }) => {
-  if (status === "online") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E2}" });
-  if (status === "starting") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E1}" });
-  return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u26AB" });
-};
+// src/ui-render.tsx
 var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDownloadUrl, startBlocked, logsEnabled, logMode, logUrl }) => {
-  const metaOnline = state2.status === "online";
+  const label = displayName ?? game;
   const indicator = `#status-result-${game}`;
   return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
     /* @__PURE__ */ jsxDEV(
       "div",
       {
-        id: `row-header-${game}`,
+        id: rowHeaderId(game),
         class: "row-header",
+        "data-label": label,
         onclick: `toggleRow('${game}')`,
-        children: [
-          /* @__PURE__ */ jsxDEV(StatusDot, { status: state2.status }),
-          /* @__PURE__ */ jsxDEV("span", { class: "game-name", children: displayName ?? game }),
-          /* @__PURE__ */ jsxDEV("span", { class: "row-meta", children: [
-            metaOnline && state2.hostname ? /* @__PURE__ */ jsxDEV("span", { children: state2.hostname }) : null,
-            metaOnline && state2.map ? /* @__PURE__ */ jsxDEV("span", { children: state2.map }) : null,
-            metaOnline ? /* @__PURE__ */ jsxDEV("span", { children: [
-              state2.players,
-              " player",
-              state2.players !== 1 ? "s" : ""
-            ] }) : null,
-            !metaOnline ? /* @__PURE__ */ jsxDEV("span", { class: state2.status, children: state2.status }) : null
-          ] }),
-          /* @__PURE__ */ jsxDEV("button", { class: "expand-btn", id: `expand-btn-${game}`, children: "[expand \u25BC]" })
-        ]
+        dangerouslySetInnerHTML: { __html: renderRowHeaderContent(label, game, state2) }
       }
     ),
-    /* @__PURE__ */ jsxDEV("div", { class: "row-body", id: `row-body-${game}`, children: [
+    /* @__PURE__ */ jsxDEV("div", { class: "row-body", id: rowBodyId(game), children: [
       /* @__PURE__ */ jsxDEV("div", { class: "row-details", children: [
         connectAddress ? /* @__PURE__ */ jsxDEV("div", { class: "connect", children: [
           "connect: ",
@@ -112067,10 +112091,10 @@ var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDo
         ] }),
         /* @__PURE__ */ jsxDEV("div", { id: `status-result-${game}`, class: "status-frag", children: /* @__PURE__ */ jsxDEV("span", { class: "htmx-indicator", children: "working..." }) })
       ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV(
+      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: logSectionId(game), children: /* @__PURE__ */ jsxDEV(
         "div",
         {
-          id: `log-sse-${game}`,
+          id: logPanelId(game),
           class: "log-panel",
           "data-log-mode": logMode,
           "data-log-open": "0",
