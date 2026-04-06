@@ -7,6 +7,7 @@ export class GameCache {
   private cache = new Map<string, CachedGameState>();
   private timer: ReturnType<typeof setInterval> | null = null;
   private polling = false;
+  private lastPolledAt = 0;
 
   constructor(private readonly backend: Backend) {}
 
@@ -31,6 +32,11 @@ export class GameCache {
     this.cache.set(gameKey, state);
   }
 
+  async refreshIfStale(maxAgeMs = POLL_INTERVAL_MS): Promise<void> {
+    if (Date.now() - this.lastPolledAt <= maxAgeMs) return;
+    await this.pollAll();
+  }
+
   private async pollAll(): Promise<void> {
     if (this.polling) return;
     this.polling = true;
@@ -53,6 +59,7 @@ export class GameCache {
           }
         })
       );
+      this.lastPolledAt = Date.now();
     } finally {
       this.polling = false;
     }

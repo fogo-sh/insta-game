@@ -5,7 +5,6 @@ import { createApp } from "./app.js";
 
 const backend = createBackend();
 const cache = new GameCache(backend);
-cache.start();
 const app = createApp(backend, cache);
 
 export const handler = streamHandle(app);

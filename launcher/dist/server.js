@@ -108734,6 +108734,7 @@ var GameCache = class {
   cache = /* @__PURE__ */ new Map();
   timer = null;
   polling = false;
+  lastPolledAt = 0;
   start() {
     if (this.timer) return;
     void this.pollAll();
@@ -108752,6 +108753,10 @@ var GameCache = class {
   }
   set(gameKey, state2) {
     this.cache.set(gameKey, state2);
+  }
+  async refreshIfStale(maxAgeMs = POLL_INTERVAL_MS2) {
+    if (Date.now() - this.lastPolledAt <= maxAgeMs) return;
+    await this.pollAll();
   }
   async pollAll() {
     if (this.polling) return;
@@ -108775,6 +108780,7 @@ var GameCache = class {
           }
         })
       );
+      this.lastPolledAt = Date.now();
     } finally {
       this.polling = false;
     }
@@ -112220,6 +112226,7 @@ function createApp(backend2, cache6) {
       if (passphrase !== WEB_UI_PASSPHRASE) return c5.text("unauthorized", 401);
       return c5.text("ok");
     }
+    await cache6.refreshIfStale();
     const games = backend2.getGames();
     const occupied = occupiedHostPorts(games, cache6);
     const rows = Object.entries(games).map(([key, config]) => {
@@ -112276,7 +112283,8 @@ function createApp(backend2, cache6) {
     if (isHtmx) return c5.html(statusFragment(state2));
     return c5.json(state2);
   });
-  app2.get("/status", (c5) => {
+  app2.get("/status", async (c5) => {
+    await cache6.refreshIfStale();
     const games = backend2.getGames();
     const states = Object.fromEntries(
       Object.keys(games).map((game) => [

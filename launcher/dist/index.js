@@ -1195,6 +1195,7 @@ var GameCache = class {
   cache = /* @__PURE__ */ new Map();
   timer = null;
   polling = false;
+  lastPolledAt = 0;
   start() {
     if (this.timer) return;
     void this.pollAll();
@@ -1213,6 +1214,10 @@ var GameCache = class {
   }
   set(gameKey, state) {
     this.cache.set(gameKey, state);
+  }
+  async refreshIfStale(maxAgeMs = POLL_INTERVAL_MS2) {
+    if (Date.now() - this.lastPolledAt <= maxAgeMs) return;
+    await this.pollAll();
   }
   async pollAll() {
     if (this.polling) return;
@@ -1236,6 +1241,7 @@ var GameCache = class {
           }
         })
       );
+      this.lastPolledAt = Date.now();
     } finally {
       this.polling = false;
     }
@@ -4681,6 +4687,7 @@ function createApp(backend2, cache2) {
       if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
       return c.text("ok");
     }
+    await cache2.refreshIfStale();
     const games = backend2.getGames();
     const occupied = occupiedHostPorts(games, cache2);
     const rows = Object.entries(games).map(([key, config]) => {
@@ -4737,7 +4744,8 @@ function createApp(backend2, cache2) {
     if (isHtmx) return c.html(statusFragment(state));
     return c.json(state);
   });
-  app2.get("/status", (c) => {
+  app2.get("/status", async (c) => {
+    await cache2.refreshIfStale();
     const games = backend2.getGames();
     const states = Object.fromEntries(
       Object.keys(games).map((game) => [
@@ -4845,7 +4853,6 @@ function createApp(backend2, cache2) {
 // src/index.ts
 var backend = createBackend();
 var cache = new GameCache(backend);
-cache.start();
 var app = createApp(backend, cache);
 var handler = streamHandle(app);
 // Annotate the CommonJS export names for ESM import in node:

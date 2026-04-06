@@ -132,6 +132,7 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     }
 
     // Render public page
+    await cache.refreshIfStale();
     const games = backend.getGames();
     const occupied = occupiedHostPorts(games, cache);
     const rows = Object.entries(games).map(([key, config]) => {
@@ -196,7 +197,8 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
   });
 
   // Batched status endpoint — returns cached state for every game in one response.
-  app.get("/status", c => {
+  app.get("/status", async c => {
+    await cache.refreshIfStale();
     const games = backend.getGames();
     const states = Object.fromEntries(
       Object.keys(games).map(game => [
