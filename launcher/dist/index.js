@@ -799,6 +799,36 @@ var EcsBackend = class {
       return { status: "offline", players: 0, ready: false };
     }
   }
+  async getCachedState(config) {
+    const c = config;
+    const offline = { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+    try {
+      const listRes = await ecs.send(new import_client_ecs.ListTasksCommand({ cluster: CLUSTER, serviceName: c.serviceName }));
+      const taskArn = listRes.taskArns?.[0];
+      if (!taskArn) return offline;
+      const descRes = await ecs.send(new import_client_ecs.DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
+      const task = descRes.tasks?.[0];
+      const eniId = task?.attachments?.[0]?.details?.find((d) => d.name === "networkInterfaceId")?.value;
+      if (!eniId) return { ...offline, status: "starting" };
+      const eniRes = await ec2.send(new import_client_ec2.DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
+      const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
+      if (!publicIp) return { ...offline, status: "starting" };
+      const sidecar = await getSidecarStatus(publicIp, c.sidecarPort);
+      if (!sidecar) return { ...offline, status: "starting" };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      return {
+        status: running && ready ? "online" : "starting",
+        publicIp,
+        players: Number(sidecar.players ?? 0),
+        hostname: String(sidecar.hostname ?? ""),
+        map: String(sidecar.map ?? ""),
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+    } catch {
+      return offline;
+    }
+  }
   async stopGame(config) {
     const c = config;
     await setDesiredCount(c.serviceName, 0);
@@ -890,6 +920,7 @@ var SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
 var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
 var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 var DATA_DIR = process.env.DATA_DIR ?? "/data";
+var HOST_DATA_DIR = process.env.HOST_DATA_DIR ?? DATA_DIR;
 var MAX_POLLS2 = 20;
 var POLL_INTERVAL_MS2 = 3e3;
 var RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
@@ -952,9 +983,25 @@ function pullImage(image) {
     req.end();
   });
 }
+async function removeContainer(name) {
+  await dockerRequest("DELETE", `/containers/${encodeURIComponent(name)}?force=true`);
+}
 async function ensureContainer(c) {
   const existing = await inspectContainer(c.containerName);
-  if (existing) return;
+  if (existing) {
+    const existingImage = existing.Config?.Image ?? "";
+    const expectedBinds = (c.volumes ?? []).map((v) => {
+      const [hostPath, ...rest] = v.split(":");
+      const absHost = hostPath.startsWith("/") ? hostPath : `${HOST_DATA_DIR}/${hostPath}`;
+      return [absHost, ...rest].join(":");
+    });
+    const existingBinds = existing.HostConfig?.Binds ?? [];
+    const bindsMatch = expectedBinds.every((b) => existingBinds.includes(b));
+    const imageMatches = existingImage === c.image || existingImage.startsWith(c.image + "@");
+    if (imageMatches && bindsMatch) return;
+    log.info(`docker: removing stale container ${c.containerName} (image or mounts changed)`);
+    await removeContainer(c.containerName);
+  }
   log.info(`docker: image pull ${c.image}`);
   await pullImage(c.image);
   log.info(`docker: pulled ${c.image}`);
@@ -972,7 +1019,7 @@ async function ensureContainer(c) {
   }
   const binds = (c.volumes ?? []).map((v) => {
     const [hostPath, ...rest] = v.split(":");
-    const absHost = hostPath.startsWith("/") ? hostPath : `${DATA_DIR}/${hostPath}`;
+    const absHost = hostPath.startsWith("/") ? hostPath : `${HOST_DATA_DIR}/${hostPath}`;
     return [absHost, ...rest].join(":");
   });
   const env = Object.entries(c.environment ?? {}).map(([k, v]) => `${k}=${v}`);
@@ -1053,6 +1100,9 @@ var DockerBackend = class {
       configs[definition.id] = {
         containerName: definition.containerName ?? `insta-game-${definition.id}-1`,
         image: definition.image ?? `ghcr.io/fogo-sh/insta-game:${definition.id}`,
+        displayName: definition.displayName,
+        connectPort: definition.gamePort,
+        clientDownloadUrl: definition.clientDownloadUrl,
         sidecarPort: definition.sidecarPort,
         ports: definition.ports,
         environment,
@@ -1078,6 +1128,31 @@ var DockerBackend = class {
       return { status: running && ready ? "online" : "starting", publicIp: "localhost", players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
+    }
+  }
+  async getCachedState(config) {
+    const c = config;
+    const offline = { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+    try {
+      const inspect = await inspectContainer(c.containerName);
+      if (!inspect) return offline;
+      const state = inspect.State;
+      if (!state?.Running) return offline;
+      const hostPort = getHostPort(inspect, c.sidecarPort);
+      if (!hostPort) return { ...offline, status: "starting" };
+      const sidecar = await getSidecarStatus2(hostPort);
+      if (!sidecar) return { ...offline, status: "starting" };
+      const running = Boolean(sidecar.running);
+      const ready = Boolean(sidecar.ready);
+      return {
+        status: running && ready ? "online" : "starting",
+        players: Number(sidecar.players ?? 0),
+        hostname: String(sidecar.hostname ?? ""),
+        map: String(sidecar.map ?? ""),
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+    } catch {
+      return offline;
     }
   }
   async startGame(config, configUrl) {
@@ -1121,6 +1196,63 @@ function createBackend() {
   if (backend2 === "docker") return new DockerBackend();
   return new EcsBackend();
 }
+
+// src/cache.ts
+var POLL_INTERVAL_MS3 = 5e3;
+var GameCache = class {
+  constructor(backend2) {
+    this.backend = backend2;
+  }
+  backend;
+  cache = /* @__PURE__ */ new Map();
+  timer = null;
+  polling = false;
+  start() {
+    if (this.timer) return;
+    void this.pollAll();
+    this.timer = setInterval(() => {
+      void this.pollAll();
+    }, POLL_INTERVAL_MS3);
+  }
+  stop() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+  get(gameKey) {
+    return this.cache.get(gameKey) ?? null;
+  }
+  set(gameKey, state) {
+    this.cache.set(gameKey, state);
+  }
+  async pollAll() {
+    if (this.polling) return;
+    this.polling = true;
+    try {
+      const games = this.backend.getGames();
+      await Promise.all(
+        Object.entries(games).map(async ([key, config]) => {
+          try {
+            const state = await this.backend.getCachedState(config);
+            this.cache.set(key, state);
+          } catch (err) {
+            log.error(`cache: poll failed for ${key}`, err);
+            this.cache.set(key, {
+              status: "offline",
+              players: 0,
+              hostname: "",
+              map: "",
+              updatedAt: /* @__PURE__ */ new Date()
+            });
+          }
+        })
+      );
+    } finally {
+      this.polling = false;
+    }
+  }
+};
 
 // node_modules/hono/dist/compose.js
 var compose = (middleware, onError, onNotFound) => {
@@ -3398,6 +3530,9 @@ var streamSSE = (c, cb, onError) => {
   return c.newResponse(stream2.responseReadable);
 };
 
+// src/app.ts
+var import_client_cloudwatch_logs = require("@aws-sdk/client-cloudwatch-logs");
+
 // src/discord.ts
 var import_discord_interactions = __toESM(require_dist());
 var DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY ?? "";
@@ -4019,164 +4154,354 @@ var SESSION_KEY = "insta-game-passphrase";
 var css = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
-  h1 { margin-bottom: 2rem; font-size: 1.4rem; }
-  #auth { max-width: 400px; }
-  #auth input { width: 100%; padding: .5rem; background: #222; color: #eee; border: 1px solid #444; margin-bottom: .5rem; font-family: monospace; }
-  #auth button { padding: .5rem 1rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  #auth button:disabled { opacity: .6; cursor: wait; }
-  .games { display: flex; gap: 1rem; flex-wrap: wrap; }
-  .game { background: #1a1a1a; border: 1px solid #333; padding: 1rem; min-width: 200px; }
-  .game h2 { margin-bottom: .75rem; font-size: 1rem; }
-  .status { margin-bottom: .75rem; font-size: .85rem; color: #aaa; }
-  .status.online { color: #4f4; }
-  .status.starting { color: #fa4; }
-  .status-indicator { display: none; margin-left: .5rem; color: #8cf; }
-  .status-indicator.htmx-request { display: inline; }
-  .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-  .actions button { padding: .4rem .8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  .actions button:hover { background: #444; }
-  .actions button:disabled { opacity: .6; cursor: wait; }
-  dialog { display: none; background: #111; color: #eee; border: 1px solid #444; padding: 0; width: calc(100vw - 4rem); max-width: 960px; height: calc(100vh - 4rem); }
-  dialog[open] { display: flex; flex-direction: column; }
-  dialog::backdrop { background: rgba(0,0,0,0.7); }
-  .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: 1px solid #333; font-size: .85rem; }
-  .dialog-header span { color: #aaa; }
-  .dialog-close { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1.2rem; font-family: monospace; padding: 0 .25rem; }
-  .dialog-close:hover { color: #eee; }
-  .log-panel { flex: 1; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; }
+  .title-bar { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  h1 { font-size: 1.4rem; }
+  #auth-form { display: flex; align-items: center; gap: 0.5rem; }
+  #auth-form input { padding: 0.35rem 0.5rem; background: #222; color: #eee; border: 1px solid #444; font-family: monospace; font-size: 0.85rem; width: 12rem; }
+  #auth-form button { padding: 0.35rem 0.7rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; font-size: 0.85rem; }
+  #auth-status { font-size: 0.8rem; color: #aaa; }
+
+  .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .row { border: 1px solid #333; background: #1a1a1a; }
+  .row-header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.75rem 1rem; cursor: pointer; user-select: none;
+    width: 100%;
+  }
+  .row-header:hover { background: #222; }
+  .status-dot { font-size: 0.8rem; flex-shrink: 0; }
+  .game-name { font-weight: bold; min-width: 8rem; }
+  .row-meta { display: flex; gap: 1.5rem; flex: 1; color: #aaa; font-size: 0.85rem; flex-wrap: wrap; }
+  .row-meta .online { color: #4f4; }
+  .row-meta .starting { color: #fa4; }
+  .row-meta .offline { color: #666; }
+  .expand-btn {
+    background: none; border: none; color: #aaa; cursor: pointer;
+    font-family: monospace; font-size: 0.85rem; padding: 0; flex-shrink: 0;
+  }
+
+  .row-body { border-top: 1px solid #333; padding: 1rem; display: none; }
+  .row-body.open { display: block; }
+
+  .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
+  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; cursor: pointer; }
+  .connect code:hover { background: #2a2a2a; }
+  .client-link { font-size: 0.85rem; color: #aaa; }
+  .client-link a { color: #88f; text-decoration: none; }
+  .client-link a:hover { text-decoration: underline; }
+
+  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
+  .admin-section.unlocked { display: block; }
+  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
+  .admin-controls button:hover { background: #444; }
+
+  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
+  .status-frag .online { color: #4f4; }
+  .status-frag .starting { color: #fa4; }
+  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+  .htmx-request .htmx-indicator { opacity: 1; }
+
+  .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
+  .log-section.open { display: block; }
+  .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
   .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
+  .term-fg1 { font-weight: bold; }
+  .term-fg2 { color: #838887; }
+  .term-fg3 { font-style: italic; }
+  .term-fg4 { text-decoration: underline; }
+  .term-fg30 { color: #666; }
+  .term-fg31 { color: #ff7070; }
+  .term-fg32 { color: #b0f986; }
+  .term-fg33 { color: #c6c502; }
+  .term-fg34 { color: #8db7e0; }
+  .term-fg35 { color: #f271fb; }
+  .term-fg36 { color: #6bf7ff; }
+  .term-fg37 { color: #eee; }
+  .term-fgi90 { color: #838887; }
+  .term-fgi91 { color: #ff3333; }
+  .term-fgi92 { color: #00ff00; }
+  .term-fgi93 { color: #fffc67; }
+  .term-fgi94 { color: #6871ff; }
+  .term-fgi95 { color: #ff76ff; }
+  .term-fgi96 { color: #60fcff; }
 `;
 var initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var passphrase = sessionStorage.getItem(SESSION_KEY) || "";
-  var logStreams = {};
+  var STATUS_POLL_INTERVAL_MS = 5000;
 
-  function appendLogLine(game, text) {
-    var lines = document.getElementById("log-lines-" + game);
-    var line = document.createElement("div");
-    line.className = "log-line";
-    line.textContent = text;
-    lines.appendChild(line);
-    lines.scrollTop = lines.scrollHeight;
+  function getPassphrase() {
+    return sessionStorage.getItem(SESSION_KEY) || "";
   }
 
-  function showPanel(pp) {
-    var auth = document.getElementById("auth");
-    var panel = document.getElementById("panel");
-    auth.style.display = "none";
-    panel.style.display = "";
-    htmx.process(panel);
-    // Kick off initial status fetch now that headers are set
-    panel.querySelectorAll("[data-status-poll]").forEach(function(el) {
-      htmx.trigger(el, "poll");
+  function statusDot(status) {
+    if (status === "online") return "\u{1F7E2}";
+    if (status === "starting") return "\u{1F7E1}";
+    return "\u26AB";
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
+
+  function renderRowHeader(game, state) {
+    var meta = [];
+    if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
+    if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
+    if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
+    if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
+    return ""
+      + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
+      + "<span class=\\"game-name\\">" + escapeHtml(game) + "</span>"
+      + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
+      + "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">" + "[expand \u25BC]" + "</button>";
+  }
+
+  function syncExpandButton(game) {
+    var body = document.getElementById("row-body-" + game);
+    var btn = document.getElementById("expand-btn-" + game);
+    if (!body || !btn) return;
+    btn.textContent = body.classList.contains("open") ? "[collapse \u25B2]" : "[expand \u25BC]";
+  }
+
+  function refreshStatuses() {
+    fetch("/status")
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(payload) {
+        Object.entries(payload).forEach(function(entry) {
+          var game = entry[0];
+          var state = entry[1];
+          var header = document.getElementById("row-header-" + game);
+          if (!header) return;
+          header.innerHTML = renderRowHeader(game, state);
+          syncExpandButton(game);
+        });
+      })
+      .catch(function() {});
+    window.setTimeout(refreshStatuses, STATUS_POLL_INTERVAL_MS);
+  }
+
+  function appendLogLines(inner, lines) {
+    lines.forEach(function(line) {
+      var div = document.createElement("div");
+      div.className = "log-line";
+      div.textContent = line;
+      inner.appendChild(div);
     });
+    inner.scrollTop = inner.scrollHeight;
   }
 
-  window.authenticate = function() {
-    var val = document.getElementById("passphrase").value;
-    var unlockButton = document.getElementById("unlock-button");
-    if (!val) return;
-    unlockButton.disabled = true;
-    unlockButton.textContent = "unlocking...";
-    sessionStorage.setItem(SESSION_KEY, val);
-    passphrase = val;
-    showPanel(val);
-  };
-
-  window.toggleLogs = function(game, button) {
-    var dialog = document.getElementById("log-dialog-" + game);
-    if (dialog.open) {
-      dialog.close();
-      if (button) {
-        button.disabled = false;
-        button.textContent = "logs";
-      }
-      return;
-    }
-    if (button) {
-      button.disabled = true;
-      button.textContent = "opening...";
-    }
-    var pp = sessionStorage.getItem(SESSION_KEY) || "";
-    if (!logStreams[game]) {
-      appendLogLine(game, "[opening log stream]");
-      var source = new EventSource("/logs?game=" + game + "&token=" + encodeURIComponent(pp));
-
-      source.onopen = function() {
-        appendLogLine(game, "[log stream open]");
-      };
-
-      source.addEventListener("log", function(event) {
-        appendLogLine(game, event.data);
+  function pollLogs(game, inner) {
+    if (inner.getAttribute("data-log-mode") !== "poll") return;
+    if (inner.getAttribute("data-log-open") !== "1") return;
+    var pp = getPassphrase();
+    var cursor = inner.getAttribute("data-log-cursor") || "";
+    var url = inner.getAttribute("data-log-url");
+    if (!url) return;
+    var sep = url.indexOf("?") >= 0 ? "&" : "?";
+    fetch(url + sep + "token=" + encodeURIComponent(pp) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""))
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(payload) {
+        if (Array.isArray(payload.lines) && payload.lines.length > 0) {
+          appendLogLines(inner, payload.lines);
+        }
+        if (payload.cursor) inner.setAttribute("data-log-cursor", payload.cursor);
+      })
+      .catch(function(error) {
+        appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
+      })
+      .finally(function() {
+        if (inner.getAttribute("data-log-open") === "1") {
+          window.setTimeout(function() { pollLogs(game, inner); }, 2000);
+        }
       });
+  }
 
-      source.onerror = function() {
-        appendLogLine(game, "[log stream disconnected]");
-        source.close();
-        delete logStreams[game];
-      };
+  // Toggle accordion open/close
+  window.toggleRow = function(game) {
+    var body = document.getElementById("row-body-" + game);
+    var btn = document.getElementById("expand-btn-" + game);
+    var open = body.classList.toggle("open");
+    btn.textContent = open ? "[collapse \u25B2]" : "[expand \u25BC]";
+  };
 
-      logStreams[game] = source;
-    }
-    dialog.showModal();
-    if (button) {
-      button.disabled = false;
-      button.textContent = "logs";
+  // Copy connect address to clipboard
+  window.copyConnect = function(text) {
+    navigator.clipboard.writeText(text).catch(function() {});
+  };
+
+  // Unlock all admin sections \u2014 set hx-headers then show them
+  function unlockAll(pp) {
+    document.querySelectorAll(".admin-section").forEach(function(section) {
+      section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
+      section.classList.add("unlocked");
+      htmx.process(section);
+    });
+    document.getElementById("auth-form").style.display = "none";
+    var status = document.getElementById("auth-status");
+    status.style.display = "";
+    status.textContent = "admin";
+  }
+
+  // Top-level authenticate
+  window.authenticate = function() {
+    var input = document.getElementById("passphrase-input");
+    var btn = document.getElementById("passphrase-btn");
+    var val = input.value;
+    if (!val) return;
+    btn.disabled = true;
+    btn.textContent = "checking...";
+    fetch("/", { headers: { "X-Passphrase": val, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) {
+          btn.disabled = false;
+          btn.textContent = "unlock";
+          input.style.borderColor = "#f44";
+          return;
+        }
+        sessionStorage.setItem(SESSION_KEY, val);
+        unlockAll(val);
+      })
+      .catch(function() {
+        btn.disabled = false;
+        btn.textContent = "unlock";
+      });
+  };
+
+  // Toggle inline log panel open/closed
+  window.toggleLogs = function(game) {
+    var section = document.getElementById("log-section-" + game);
+    var inner = document.getElementById("log-sse-" + game);
+    var isOpen = section.classList.toggle("open");
+    inner.setAttribute("data-log-open", isOpen ? "1" : "0");
+    if (isOpen) {
+      if (inner.getAttribute("data-log-mode") === "poll") {
+        if (!inner.getAttribute("data-log-started")) {
+          inner.setAttribute("data-log-started", "1");
+          appendLogLines(inner, ["[connecting to " + game + " logs]"]);
+          pollLogs(game, inner);
+        }
+      } else if (!inner.getAttribute("sse-connect")) {
+        var pp = getPassphrase();
+        var baseUrl = inner.getAttribute("data-log-url");
+        var separator = baseUrl && baseUrl.indexOf("?") >= 0 ? "&" : "?";
+        inner.setAttribute("hx-ext", "sse");
+        inner.setAttribute("sse-connect", (baseUrl || "/logs?game=" + game) + separator + "token=" + encodeURIComponent(pp));
+        htmx.process(inner);
+        var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
+        observer.observe(inner, { childList: true });
+      }
     }
   };
 
-  window.logout = function() {
-    sessionStorage.removeItem(SESSION_KEY);
-    location.reload();
-  };
-
-  // Auto-show panel if passphrase already stored
-  if (passphrase) showPanel(passphrase);
+  // Restore auth on page load
+  (function() {
+    refreshStatuses();
+    var pp = getPassphrase();
+    if (!pp) return;
+    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
+      .then(function(res) {
+        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
+        unlockAll(pp);
+      });
+  })();
 })();
 `;
-var GameCard = ({ game }) => /* @__PURE__ */ jsxDEV("div", { class: "game", id: `game-${game}`, children: [
-  /* @__PURE__ */ jsxDEV("h2", { children: game }),
-  /* @__PURE__ */ jsxDEV(
-    "div",
-    {
-      class: "status",
-      id: `status-${game}`,
-      "data-status-poll": "true",
-      "hx-get": `/?game=${game}&operation=status`,
-      "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
-      "hx-trigger": "poll, every 10s",
-      "hx-target": `#status-${game}`,
-      children: "loading..."
-    }
-  ),
-  /* @__PURE__ */ jsxDEV("div", { class: "actions", children: [
+var StatusDot = ({ status }) => {
+  if (status === "online") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E2}" });
+  if (status === "starting") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E1}" });
+  return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u26AB" });
+};
+var AccordionRow = ({ game, displayName, state, connectAddress, clientDownloadUrl, startBlocked, logsEnabled, logMode, logUrl }) => {
+  const metaOnline = state.status === "online";
+  const indicator = `#status-result-${game}`;
+  return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
     /* @__PURE__ */ jsxDEV(
-      "button",
+      "div",
       {
-        "hx-post": `/?game=${game}&operation=start`,
-        "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
-        "hx-target": `#status-${game}`,
-        "hx-indicator": `#status-indicator-${game}`,
-        "hx-disabled-elt": `#game-${game} .actions button`,
-        children: "start"
+        id: `row-header-${game}`,
+        class: "row-header",
+        onclick: `toggleRow('${game}')`,
+        children: [
+          /* @__PURE__ */ jsxDEV(StatusDot, { status: state.status }),
+          /* @__PURE__ */ jsxDEV("span", { class: "game-name", children: displayName ?? game }),
+          /* @__PURE__ */ jsxDEV("span", { class: "row-meta", children: [
+            metaOnline && state.hostname ? /* @__PURE__ */ jsxDEV("span", { children: state.hostname }) : null,
+            metaOnline && state.map ? /* @__PURE__ */ jsxDEV("span", { children: state.map }) : null,
+            metaOnline ? /* @__PURE__ */ jsxDEV("span", { children: [
+              state.players,
+              " player",
+              state.players !== 1 ? "s" : ""
+            ] }) : null,
+            !metaOnline ? /* @__PURE__ */ jsxDEV("span", { class: state.status, children: state.status }) : null
+          ] }),
+          /* @__PURE__ */ jsxDEV("button", { class: "expand-btn", id: `expand-btn-${game}`, children: "[expand \u25BC]" })
+        ]
       }
     ),
-    /* @__PURE__ */ jsxDEV(
-      "button",
-      {
-        "hx-post": `/?game=${game}&operation=stop`,
-        "hx-headers": `js:{"X-Passphrase": sessionStorage.getItem(${JSON.stringify(SESSION_KEY)}) || ""}`,
-        "hx-target": `#status-${game}`,
-        "hx-indicator": `#status-indicator-${game}`,
-        "hx-disabled-elt": `#game-${game} .actions button`,
-        children: "stop"
-      }
-    ),
-    /* @__PURE__ */ jsxDEV("button", { onclick: `toggleLogs('${game}', this)`, children: "logs" }),
-    /* @__PURE__ */ jsxDEV("span", { class: "status-indicator", id: `status-indicator-${game}`, children: "requesting..." })
-  ] })
-] });
+    /* @__PURE__ */ jsxDEV("div", { class: "row-body", id: `row-body-${game}`, children: [
+      /* @__PURE__ */ jsxDEV("div", { class: "row-details", children: [
+        connectAddress ? /* @__PURE__ */ jsxDEV("div", { class: "connect", children: [
+          "connect: ",
+          /* @__PURE__ */ jsxDEV("code", { onclick: `copyConnect(${JSON.stringify(connectAddress)})`, title: "click to copy", children: connectAddress })
+        ] }) : null,
+        clientDownloadUrl ? /* @__PURE__ */ jsxDEV("div", { class: "client-link", children: /* @__PURE__ */ jsxDEV("a", { href: clientDownloadUrl, target: "_blank", rel: "noopener", children: "get client \u2197" }) }) : null
+      ] }),
+      /* @__PURE__ */ jsxDEV("div", { class: "admin-section", id: `admin-section-${game}`, children: [
+        /* @__PURE__ */ jsxDEV("div", { class: "admin-controls", children: [
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              "hx-post": `/?game=${game}&operation=start`,
+              "hx-target": indicator,
+              "hx-indicator": indicator,
+              "hx-disabled-elt": "this",
+              disabled: startBlocked || void 0,
+              title: startBlocked ? "a conflicting game is already running on the same port" : void 0,
+              children: "start"
+            }
+          ),
+          /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              "hx-post": `/?game=${game}&operation=stop`,
+              "hx-target": indicator,
+              "hx-indicator": indicator,
+              "hx-disabled-elt": "this",
+              children: "stop"
+            }
+          ),
+          logsEnabled ? /* @__PURE__ */ jsxDEV("button", { type: "button", onclick: `toggleLogs('${game}')`, children: "logs" }) : null
+        ] }),
+        /* @__PURE__ */ jsxDEV("div", { id: `status-result-${game}`, class: "status-frag", children: /* @__PURE__ */ jsxDEV("span", { class: "htmx-indicator", children: "working..." }) })
+      ] }),
+      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV(
+        "div",
+        {
+          id: `log-sse-${game}`,
+          class: "log-panel",
+          "data-log-mode": logMode,
+          "data-log-open": "0",
+          "data-log-url": logUrl,
+          "data-log-cursor": "",
+          "sse-swap": "log",
+          "hx-swap": "beforeend"
+        }
+      ) })
+    ] })
+  ] });
+};
 function renderUi(games) {
   const page = /* @__PURE__ */ jsxDEV("html", { lang: "en", children: [
     /* @__PURE__ */ jsxDEV("head", { children: [
@@ -4186,37 +4511,42 @@ function renderUi(games) {
       /* @__PURE__ */ jsxDEV("style", { children: css })
     ] }),
     /* @__PURE__ */ jsxDEV("body", { children: [
-      /* @__PURE__ */ jsxDEV("h1", { children: "insta-game" }),
-      /* @__PURE__ */ jsxDEV("div", { id: "auth", children: [
-        /* @__PURE__ */ jsxDEV(
-          "input",
-          {
-            type: "text",
-            id: "passphrase",
-            placeholder: "passphrase",
-            autocomplete: "off",
-            spellcheck: false,
-            style: "letter-spacing: 0.15em;"
-          }
-        ),
-        /* @__PURE__ */ jsxDEV("button", { id: "unlock-button", onclick: "authenticate()", children: "unlock" })
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { id: "panel", style: "display:none", children: [
-        /* @__PURE__ */ jsxDEV("div", { class: "games", children: games.map((g) => /* @__PURE__ */ jsxDEV(GameCard, { game: g }, g)) }),
-        /* @__PURE__ */ jsxDEV("br", {}),
-        /* @__PURE__ */ jsxDEV("button", { onclick: "logout()", style: "margin-top:1rem;padding:.3rem .7rem;background:#222;color:#888;border:1px solid #444;cursor:pointer;font-family:monospace;font-size:0.8rem;", children: "logout" })
-      ] }),
-      games.map((g) => /* @__PURE__ */ jsxDEV("dialog", { id: `log-dialog-${g}`, children: [
-        /* @__PURE__ */ jsxDEV("div", { class: "dialog-header", children: [
-          /* @__PURE__ */ jsxDEV("span", { children: [
-            g,
-            " \u2014 logs"
-          ] }),
-          /* @__PURE__ */ jsxDEV("button", { class: "dialog-close", onclick: `document.getElementById('log-dialog-${g}').close()`, children: "\u2715" })
+      /* @__PURE__ */ jsxDEV("div", { class: "title-bar", children: [
+        /* @__PURE__ */ jsxDEV("h1", { children: "insta-game" }),
+        /* @__PURE__ */ jsxDEV("form", { id: "auth-form", onsubmit: "authenticate(); return false;", children: [
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              id: "passphrase-input",
+              placeholder: "passphrase",
+              autocomplete: "off",
+              spellcheck: false,
+              style: "letter-spacing:0.15em;",
+              oninput: "this.style.borderColor=''"
+            }
+          ),
+          /* @__PURE__ */ jsxDEV("button", { id: "passphrase-btn", type: "submit", children: "unlock" })
         ] }),
-        /* @__PURE__ */ jsxDEV("div", { id: `log-lines-${g}`, class: "log-panel" })
-      ] }, g)),
+        /* @__PURE__ */ jsxDEV("span", { id: "auth-status", style: "display:none" })
+      ] }),
+      /* @__PURE__ */ jsxDEV("div", { class: "accordion", children: games.map(({ key, state, ui }) => /* @__PURE__ */ jsxDEV(
+        AccordionRow,
+        {
+          game: key,
+          displayName: ui.displayName,
+          state,
+          connectAddress: ui.connectAddress,
+          clientDownloadUrl: ui.clientDownloadUrl,
+          startBlocked: ui.startBlocked,
+          logsEnabled: ui.logsEnabled,
+          logMode: ui.logMode,
+          logUrl: ui.logUrl
+        },
+        key
+      )) }),
       /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx.org@2/dist/htmx.min.js" }),
+      /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx-ext-sse@2/sse.js" }),
       /* @__PURE__ */ jsxDEV("script", { dangerouslySetInnerHTML: { __html: initScript } })
     ] })
   ] });
@@ -4227,18 +4557,68 @@ function renderUi(games) {
 var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
 var SIDECAR_TOKEN3 = process.env.SIDECAR_TOKEN ?? "";
+var PUBLIC_HOST = process.env.PUBLIC_HOST ?? "localhost";
+var BACKEND = process.env.BACKEND ?? "ecs";
+var ENABLE_LOG_STREAMS = (process.env.ENABLE_LOG_STREAMS ?? "1") === "1";
+var REGION2 = process.env.AWS_REGION ?? "ca-central-1";
+var SIDECAR_HOST2 = process.env.SIDECAR_HOST ?? "localhost";
+var cloudwatchLogs = new import_client_cloudwatch_logs.CloudWatchLogsClient({ region: REGION2 });
 function statusFragment(state) {
   const ip = state.publicIp ? ` \u2014 ${state.publicIp}` : "";
   const players = state.players ? ` (${state.players} players)` : "";
   return `<span class="status ${state.status}">${state.status}${ip}${players}</span>`;
 }
-function createApp(backend2) {
+function gameUiConfig(gameKey, config, state, startBlocked) {
+  const c = config;
+  const logMode = BACKEND === "ecs" ? "poll" : "sse";
+  return {
+    displayName: c.displayName ?? null,
+    connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
+    clientDownloadUrl: c.clientDownloadUrl ?? null,
+    startBlocked,
+    logsEnabled: ENABLE_LOG_STREAMS,
+    logMode,
+    logUrl: `/logs?game=${encodeURIComponent(gameKey)}`
+  };
+}
+function splitLogMessages(events) {
+  const lines = [];
+  for (const event of events) {
+    const message = event.message ?? "";
+    for (const line of message.split("\n")) {
+      if (line !== "") lines.push(line);
+    }
+  }
+  return lines;
+}
+function occupiedHostPorts(games, cache2) {
+  const occupied = /* @__PURE__ */ new Set();
+  for (const [key, config] of Object.entries(games)) {
+    const state = cache2.get(key);
+    if (!state || state.status === "offline") continue;
+    const ports = config.ports ?? {};
+    for (const binding of Object.values(ports)) {
+      occupied.add(binding.hostPort);
+    }
+  }
+  return occupied;
+}
+function hasPortConflict(config, occupied, ownKey, games, cache2) {
+  const ownState = cache2.get(ownKey);
+  if (ownState && ownState.status !== "offline") return false;
+  const ports = config.ports ?? {};
+  for (const binding of Object.values(ports)) {
+    if (occupied.has(binding.hostPort)) return true;
+  }
+  return false;
+}
+function createApp(backend2, cache2) {
   const app2 = new Hono2();
   app2.get("/", async (c) => {
+    const passphrase = c.req.header("x-passphrase") ?? "";
     const game = c.req.query("game");
     const operation = c.req.query("operation");
     if (game && operation) {
-      const passphrase = c.req.header("x-passphrase") ?? "";
       if (passphrase !== WEB_UI_PASSPHRASE) {
         log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
         return c.text("unauthorized", 401);
@@ -4251,17 +4631,32 @@ function createApp(backend2) {
         log.info(`web: start ${game}`);
         state = await backend2.startGame(config);
         log.info(`web: start ${game} \u2192 ${state.status}`);
+        cache2.set(game, await backend2.getCachedState(config));
       } else if (operation === "stop") {
         log.info(`web: stop ${game}`);
         state = await backend2.stopGame(config);
         log.info(`web: stop ${game} \u2192 ${state.status}`);
+        cache2.set(game, await backend2.getCachedState(config));
       } else {
         state = await backend2.getGameState(config);
       }
       return c.html(statusFragment(state));
     }
+    if (c.req.header("hx-request") && WEB_UI_PASSPHRASE !== "") {
+      if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
+      return c.text("ok");
+    }
     const games = backend2.getGames();
-    return c.html(renderUi(Object.keys(games)));
+    const occupied = occupiedHostPorts(games, cache2);
+    const rows = Object.entries(games).map(([key, config]) => {
+      const state = cache2.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+      return {
+        key,
+        state,
+        ui: gameUiConfig(key, config, state, hasPortConflict(config, occupied, key, games, cache2))
+      };
+    });
+    return c.html(renderUi(rows));
   });
   app2.post("/", async (c) => {
     const passphrase = c.req.header("x-passphrase") ?? "";
@@ -4295,31 +4690,57 @@ function createApp(backend2) {
       log.info(`web: start ${gameKey}`);
       state = await backend2.startGame(config);
       log.info(`web: start ${gameKey} \u2192 ${state.status}`);
+      cache2.set(gameKey, await backend2.getCachedState(config));
     } else if (operation === "stop") {
       log.info(`web: stop ${gameKey}`);
       state = await backend2.stopGame(config);
       log.info(`web: stop ${gameKey} \u2192 ${state.status}`);
+      cache2.set(gameKey, await backend2.getCachedState(config));
     } else {
       state = await backend2.getGameState(config);
     }
     if (isHtmx) return c.html(statusFragment(state));
     return c.json(state);
   });
+  app2.get("/status", (c) => {
+    const games = backend2.getGames();
+    const states = Object.fromEntries(
+      Object.keys(games).map((game) => [
+        game,
+        cache2.get(game) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() }
+      ])
+    );
+    return c.json(states);
+  });
   app2.get("/logs", async (c) => {
+    if (!ENABLE_LOG_STREAMS) return c.text("log streaming disabled for this deployment", 503);
     const token = c.req.query("token") ?? "";
     if (token !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
     const game = c.req.query("game") ?? "";
     const games = backend2.getGames();
     const config = games[game];
     if (!config) return c.text(`unknown game: ${game}`, 400);
-    const state = await backend2.getGameState(config);
-    if (state.status === "offline" || !state.publicIp) {
-      return c.text("game offline", 503);
+    if (BACKEND === "ecs") {
+      const ecsConfig = config;
+      if (!ecsConfig.logGroupName) return c.json({ error: "log group not configured" }, 503);
+      const cursor = c.req.query("cursor") ?? void 0;
+      const res = await cloudwatchLogs.send(new import_client_cloudwatch_logs.FilterLogEventsCommand({
+        logGroupName: ecsConfig.logGroupName,
+        nextToken: cursor,
+        limit: 100,
+        startTime: cursor ? void 0 : Date.now() - 5 * 60 * 1e3
+      }));
+      return c.json({
+        lines: splitLogMessages(res.events ?? []),
+        cursor: res.nextToken ?? cursor ?? null
+      });
     }
-    const sidecarUrl = `http://${state.publicIp}:${config.sidecarPort}/logs`;
+    const cached = cache2.get(game);
+    if (!cached || cached.status === "offline") return c.text("game offline", 503);
+    const sidecarUrl = `http://${SIDECAR_HOST2}:${config.sidecarPort}/logs`;
     return streamSSE(c, async (stream2) => {
       log.info(`logs: stream opened for ${game}`);
-      await stream2.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
+      await stream2.writeSSE({ data: `<div class="log-line">[connecting to ${game} logs]</div>`, event: "log" });
       let res;
       try {
         res = await fetch(sidecarUrl, {
@@ -4328,23 +4749,17 @@ function createApp(backend2) {
         });
       } catch (error) {
         log.info(`logs: stream closed for ${game} (connection error)`);
-        await stream2.writeSSE({
-          data: `[log proxy error: ${error instanceof Error ? error.message : String(error)}]`,
-          event: "log"
-        });
+        await stream2.writeSSE({ data: `<div class="log-line">[log proxy error: ${error instanceof Error ? error.message : String(error)}]</div>`, event: "log" });
         await stream2.close();
         return;
       }
       if (!res.ok || !res.body) {
         log.warn(`logs: sidecar returned ${res.status} for ${game}`);
-        await stream2.writeSSE({
-          data: `[log proxy error: sidecar returned HTTP ${res.status}]`,
-          event: "log"
-        });
+        await stream2.writeSSE({ data: `<div class="log-line">[log proxy error: sidecar returned HTTP ${res.status}]</div>`, event: "log" });
         await stream2.close();
         return;
       }
-      await stream2.writeSSE({ data: `[connected to ${game} logs]`, event: "log" });
+      await stream2.writeSSE({ data: `<div class="log-line">[connected to ${game} logs]</div>`, event: "log" });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -4356,9 +4771,7 @@ function createApp(backend2) {
           const lines = buf.split("\n");
           buf = lines.pop() ?? "";
           for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              await stream2.writeSSE({ data: line.slice(6), event: "log" });
-            }
+            if (line.startsWith("data: ")) await stream2.writeSSE({ data: `<div class="log-line">${line.slice(6)}</div>`, event: "log" });
           }
         }
       } catch {
@@ -4378,12 +4791,14 @@ function createApp(backend2) {
       log.info(`api: start ${game}`);
       const state = await backend2.startGame(config);
       log.info(`api: start ${game} \u2192 ${state.status}`);
+      cache2.set(game, await backend2.getCachedState(config));
       return c.json(state);
     }
     if (operation === "stop") {
       log.info(`api: stop ${game}`);
       const state = await backend2.stopGame(config);
       log.info(`api: stop ${game} \u2192 ${state.status}`);
+      cache2.set(game, await backend2.getCachedState(config));
       return c.json(state);
     }
     return c.json(await backend2.getGameState(config));
@@ -4394,7 +4809,9 @@ function createApp(backend2) {
 
 // src/index.ts
 var backend = createBackend();
-var app = createApp(backend);
+var cache = new GameCache(backend);
+cache.start();
+var app = createApp(backend, cache);
 var handler = streamHandle(app);
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

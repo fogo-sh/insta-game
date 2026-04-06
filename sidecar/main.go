@@ -41,6 +41,7 @@ type cfg struct {
 	RconPassword    string
 	UserAgent       string
 	Token           string
+	LogToken        string
 	IdleTimeout     time.Duration
 	ECSCluster      string
 	ECSService      string
@@ -73,6 +74,7 @@ func loadConfig() cfg {
 		RconPassword:    envOr("RCON_PASSWORD", ""),
 		UserAgent:       envOr("DOWNLOAD_USER_AGENT", ""),
 		Token:           envOr("TOKEN", "abc123"),
+		LogToken:        envOr("LOG_TOKEN", ""),
 		IdleTimeout:     time.Duration(idleTimeout) * time.Second,
 		ECSCluster:      envOr("ECS_CLUSTER", ""),
 		ECSService:      envOr("ECS_SERVICE", ""),
@@ -326,6 +328,26 @@ func authorize(token string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func authorizeLogs(logToken string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
+
+		provided := r.URL.Query().Get("token")
+		if provided == "" {
+			auth := r.Header.Get("Authorization")
+			provided = strings.TrimPrefix(auth, "Bearer ")
+		}
+		if provided == "" || provided != logToken {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func jsonResponse(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
@@ -461,7 +483,11 @@ func toHTML(line string) string {
 }
 
 func logsHandler(c cfg) http.HandlerFunc {
-	return authorize(c.Token, func(w http.ResponseWriter, r *http.Request) {
+	token := c.LogToken
+	if token == "" {
+		token = c.Token
+	}
+	return authorizeLogs(token, func(w http.ResponseWriter, r *http.Request) {
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			http.Error(w, "streaming unsupported", http.StatusInternalServerError)

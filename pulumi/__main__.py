@@ -211,6 +211,7 @@ lambda_policy = aws.iam.Policy(
                         "ecs:DescribeTasks",
                         "ecs:UpdateService",
                         "ec2:DescribeNetworkInterfaces",
+                        "logs:FilterLogEvents",
                     ],
                     "Resource": "*",
                 }
@@ -316,6 +317,7 @@ for metadata in game_definitions:
         task_role_arn=ecs_task_role.arn,
         execution_role_arn=ecs_execution_role.arn,
         sidecar_token=sidecar_token,
+        log_token=web_ui_passphrase,
         data_url=data_url_for_game(metadata),
         game_port=game_port,
         game_port_protocols=game_port_protocols,
@@ -338,6 +340,7 @@ launcher_games = {
     metadata["id"]: {
         "serviceName": game_services[metadata["id"]].service_name,
         "sidecarPort": int(metadata.get("sidecarPort", 5001)),
+        "logGroupName": game_services[metadata["id"]].log_group_name,
     }
     for metadata in game_definitions
 }
@@ -377,6 +380,7 @@ launcher = aws.lambda_.Function(
                         game_id: {
                             "serviceName": args[index + 7],
                             "sidecarPort": launcher_games[game_id]["sidecarPort"],
+                            "logGroupName": launcher_games[game_id]["logGroupName"],
                         }
                         for index, game_id in enumerate(launcher_game_ids)
                     }

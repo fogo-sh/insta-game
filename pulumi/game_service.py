@@ -11,6 +11,7 @@ class GameService(pulumi.ComponentResource):
     """
 
     service_name: pulumi.Output[str]
+    log_group_name: pulumi.Output[str]
 
     def __init__(
         self,
@@ -25,6 +26,7 @@ class GameService(pulumi.ComponentResource):
         task_role_arn: pulumi.Input[str],
         execution_role_arn: pulumi.Input[str],
         sidecar_token: pulumi.Input[str],
+        log_token: pulumi.Input[str] | None = None,
         data_url: pulumi.Input[str] | None = None,
         game_port: int = 26000,
         game_port_protocols: list[str] | None = None,
@@ -63,6 +65,7 @@ class GameService(pulumi.ComponentResource):
         container_defs = pulumi.Output.all(
             log_group.name,
             sidecar_token,
+            log_token,
             cluster_name,
             game_args,
             rcon_password,
@@ -85,18 +88,19 @@ class GameService(pulumi.ComponentResource):
                         ],
                         "environment": [
                             {"name": "AWS_REGION", "value": region},
-                            {"name": "ECS_CLUSTER", "value": args[2]},
+                            {"name": "ECS_CLUSTER", "value": args[3]},
                             {"name": "ECS_SERVICE", "value": service_name},
                             {"name": "TOKEN", "value": args[1]},
                             {"name": "IDLE_TIMEOUT_SECONDS", "value": str(idle_timeout_seconds)},
                             {"name": "GAME_PORT", "value": str(game_port)},
                             {"name": "GAME_CMD", "value": game_cmd},
-                            {"name": "GAME_ARGS", "value": args[3]},
+                            {"name": "GAME_ARGS", "value": args[4]},
                             {"name": "GAME_QUIT_CMD", "value": game_quit_cmd},
                             {"name": "GAME_QUIT_TIMEOUT", "value": str(game_quit_timeout)},
                             {"name": "CONFIG_PATH", "value": config_path},
-                            *([{"name": "RCON_PASSWORD", "value": args[4]}] if args[4] else []),
-                            *([{"name": "DATA_URL", "value": args[5]}] if args[5] else []),
+                            *([{"name": "LOG_TOKEN", "value": args[2]}] if args[2] else []),
+                            *([{"name": "RCON_PASSWORD", "value": args[5]}] if args[5] else []),
+                            *([{"name": "DATA_URL", "value": args[6]}] if args[6] else []),
                         ],
                         "logConfiguration": {
                             "logDriver": "awslogs",
@@ -144,4 +148,7 @@ class GameService(pulumi.ComponentResource):
         )
 
         self.service_name = service.name
-        self.register_outputs({"service_name": self.service_name})
+        self.log_group_name = log_group.name
+        self.register_outputs(
+            {"service_name": self.service_name, "log_group_name": self.log_group_name}
+        )

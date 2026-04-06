@@ -11,6 +11,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.1024.0",
     "@aws-sdk/client-ec2": "^3.1023.0",
     "@aws-sdk/client-ecs": "^3.1023.0",
     "@hono/node-server": "^1.19.12",

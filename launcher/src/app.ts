@@ -1,19 +1,29 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { Backend, GameConfig } from "./backend.js";
+import { CloudWatchLogsClient, FilterLogEventsCommand } from "@aws-sdk/client-cloudwatch-logs";
+import type { Backend, CachedGameState, GameConfig } from "./backend.js";
 import type { GameCache } from "./cache.js";
 import type { DockerGameConfig } from "./backends/docker.js";
 import { makeDiscordHandler } from "./discord.js";
 import { log } from "./logger.js";
-import { renderUi, renderRowHeader, type GameUiConfig } from "./ui.js";
+import { renderUi, type GameUiConfig } from "./ui.js";
 
 const WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 const API_TOKEN = process.env.API_TOKEN ?? "";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
 const PUBLIC_HOST = process.env.PUBLIC_HOST ?? "localhost";
+const BACKEND = process.env.BACKEND ?? "ecs";
+const ENABLE_LOG_STREAMS = (process.env.ENABLE_LOG_STREAMS ?? "1") === "1";
+const REGION = process.env.AWS_REGION ?? "ca-central-1";
 // SIDECAR_HOST is the internal address used to reach sidecars from the launcher process.
 // For Docker deployments this differs from PUBLIC_HOST (host.docker.internal vs localhost).
 const SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
+const cloudwatchLogs = new CloudWatchLogsClient({ region: REGION });
+
+interface LauncherGameConfig extends GameConfig {
+  serviceName?: string;
+  logGroupName?: string;
+}
 
 function statusFragment(state: { status: string; publicIp?: string; players?: number }): string {
   const ip = state.publicIp ? ` — ${state.publicIp}` : "";
@@ -21,14 +31,29 @@ function statusFragment(state: { status: string; publicIp?: string; players?: nu
   return `<span class="status ${state.status}">${state.status}${ip}${players}</span>`;
 }
 
-function gameUiConfig(config: GameConfig, startBlocked: boolean): GameUiConfig {
+function gameUiConfig(gameKey: string, config: GameConfig, state: CachedGameState, startBlocked: boolean): GameUiConfig {
   const c = config as DockerGameConfig;
+  const logMode = BACKEND === "ecs" ? "poll" : "sse";
   return {
     displayName: c.displayName ?? null,
     connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
     clientDownloadUrl: c.clientDownloadUrl ?? null,
     startBlocked,
+    logsEnabled: ENABLE_LOG_STREAMS,
+    logMode,
+    logUrl: `/logs?game=${encodeURIComponent(gameKey)}`,
   };
+}
+
+function splitLogMessages(events: Array<{ message?: string }>): string[] {
+  const lines: string[] = [];
+  for (const event of events) {
+    const message = event.message ?? "";
+    for (const line of message.split("\n")) {
+      if (line !== "") lines.push(line);
+    }
+  }
+  return lines;
 }
 
 // Returns the set of host ports currently occupied by non-offline games
@@ -109,11 +134,14 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     // Render public page
     const games = backend.getGames();
     const occupied = occupiedHostPorts(games, cache);
-    const rows = Object.entries(games).map(([key, config]) => ({
-      key,
-      state: cache.get(key) ?? { status: "offline" as const, players: 0, hostname: "", map: "", updatedAt: new Date() },
-      ui: gameUiConfig(config, hasPortConflict(config, occupied, key, games, cache)),
-    }));
+    const rows = Object.entries(games).map(([key, config]) => {
+      const state = cache.get(key) ?? { status: "offline" as const, players: 0, hostname: "", map: "", updatedAt: new Date() };
+      return {
+        key,
+        state,
+        ui: gameUiConfig(key, config, state, hasPortConflict(config, occupied, key, games, cache)),
+      };
+    });
     return c.html(renderUi(rows));
   });
 
@@ -167,17 +195,24 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     return c.json(state);
   });
 
-  // Public fragment endpoint — returns updated row header for htmx 30s poll
+  // Batched status endpoint — returns cached state for every game in one response.
   app.get("/status", c => {
-    const game = c.req.query("game") ?? "";
     const games = backend.getGames();
-    if (!games[game]) return c.text(`unknown game: ${game}`, 400);
-    const state = cache.get(game) ?? { status: "offline" as const, players: 0, hostname: "", map: "", updatedAt: new Date() };
-    return c.html(renderRowHeader(game, state));
+    const states = Object.fromEntries(
+      Object.keys(games).map(game => [
+        game,
+        cache.get(game) ?? { status: "offline" as const, players: 0, hostname: "", map: "", updatedAt: new Date() },
+      ])
+    );
+    return c.json(states);
   });
 
-  // SSE log proxy — auth via token query param
+  // Logs endpoint:
+  // - ECS: short-poll CloudWatch Logs to avoid long-lived Lambda invocations.
+  // - Docker: SSE proxy to the local sidecar.
   app.get("/logs", async c => {
+    if (!ENABLE_LOG_STREAMS) return c.text("log streaming disabled for this deployment", 503);
+
     const token = c.req.query("token") ?? "";
     if (token !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
 
@@ -185,6 +220,22 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     const games = backend.getGames();
     const config = games[game];
     if (!config) return c.text(`unknown game: ${game}`, 400);
+
+    if (BACKEND === "ecs") {
+      const ecsConfig = config as LauncherGameConfig;
+      if (!ecsConfig.logGroupName) return c.json({ error: "log group not configured" }, 503);
+      const cursor = c.req.query("cursor") ?? undefined;
+      const res = await cloudwatchLogs.send(new FilterLogEventsCommand({
+        logGroupName: ecsConfig.logGroupName,
+        nextToken: cursor,
+        limit: 100,
+        startTime: cursor ? undefined : Date.now() - 5 * 60 * 1000,
+      }));
+      return c.json({
+        lines: splitLogMessages(res.events ?? []),
+        cursor: res.nextToken ?? cursor ?? null,
+      });
+    }
 
     const cached = cache.get(game);
     if (!cached || cached.status === "offline") return c.text("game offline", 503);

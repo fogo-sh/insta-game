@@ -18,6 +18,7 @@ export interface CachedGameState {
   players: number;
   hostname: string;
   map: string;
+  publicIp?: string;
   updatedAt: Date;
 }
 

@@ -99362,6 +99362,7962 @@ var require_dist_cjs57 = __commonJS({
   }
 });
 
+// node_modules/@smithy/eventstream-serde-config-resolver/dist-cjs/index.js
+var require_dist_cjs58 = __commonJS({
+  "node_modules/@smithy/eventstream-serde-config-resolver/dist-cjs/index.js"(exports2) {
+    "use strict";
+    var resolveEventStreamSerdeConfig = (input2) => Object.assign(input2, {
+      eventStreamMarshaller: input2.eventStreamSerdeProvider(input2)
+    });
+    exports2.resolveEventStreamSerdeConfig = resolveEventStreamSerdeConfig;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/auth/httpAuthSchemeProvider.js
+var require_httpAuthSchemeProvider3 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/auth/httpAuthSchemeProvider.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.resolveHttpAuthSchemeConfig = exports2.defaultCloudWatchLogsHttpAuthSchemeProvider = exports2.defaultCloudWatchLogsHttpAuthSchemeParametersProvider = void 0;
+    var httpAuthSchemes_1 = (init_httpAuthSchemes2(), __toCommonJS(httpAuthSchemes_exports));
+    var util_middleware_1 = require_dist_cjs6();
+    var defaultCloudWatchLogsHttpAuthSchemeParametersProvider = async (config, context, input2) => {
+      return {
+        operation: (0, util_middleware_1.getSmithyContext)(context).operation,
+        region: await (0, util_middleware_1.normalizeProvider)(config.region)() || (() => {
+          throw new Error("expected `region` to be configured for `aws.auth#sigv4`");
+        })()
+      };
+    };
+    exports2.defaultCloudWatchLogsHttpAuthSchemeParametersProvider = defaultCloudWatchLogsHttpAuthSchemeParametersProvider;
+    function createAwsAuthSigv4HttpAuthOption5(authParameters) {
+      return {
+        schemeId: "aws.auth#sigv4",
+        signingProperties: {
+          name: "logs",
+          region: authParameters.region
+        },
+        propertiesExtractor: (config, context) => ({
+          signingProperties: {
+            config,
+            context
+          }
+        })
+      };
+    }
+    var defaultCloudWatchLogsHttpAuthSchemeProvider = (authParameters) => {
+      const options = [];
+      switch (authParameters.operation) {
+        default: {
+          options.push(createAwsAuthSigv4HttpAuthOption5(authParameters));
+        }
+      }
+      return options;
+    };
+    exports2.defaultCloudWatchLogsHttpAuthSchemeProvider = defaultCloudWatchLogsHttpAuthSchemeProvider;
+    var resolveHttpAuthSchemeConfig5 = (config) => {
+      const config_0 = (0, httpAuthSchemes_1.resolveAwsSdkSigV4Config)(config);
+      return Object.assign(config_0, {
+        authSchemePreference: (0, util_middleware_1.normalizeProvider)(config.authSchemePreference ?? [])
+      });
+    };
+    exports2.resolveHttpAuthSchemeConfig = resolveHttpAuthSchemeConfig5;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/package.json
+var require_package3 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/package.json"(exports2, module2) {
+    module2.exports = {
+      name: "@aws-sdk/client-cloudwatch-logs",
+      description: "AWS SDK for JavaScript Cloudwatch Logs Client for Node.js, Browser and React Native",
+      version: "3.1024.0",
+      scripts: {
+        build: "concurrently 'yarn:build:types' 'yarn:build:es' && yarn build:cjs",
+        "build:cjs": "node ../../scripts/compilation/inline client-cloudwatch-logs",
+        "build:es": "tsc -p tsconfig.es.json",
+        "build:include:deps": 'yarn g:turbo run build -F="$npm_package_name"',
+        "build:types": "tsc -p tsconfig.types.json",
+        "build:types:downlevel": "downlevel-dts dist-types dist-types/ts3.4",
+        clean: "premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo",
+        "extract:docs": "api-extractor run --local",
+        "generate:client": "node ../../scripts/generate-clients/single-service --solo cloudwatch-logs",
+        test: "yarn g:vitest run --passWithNoTests",
+        "test:e2e": "yarn g:vitest run -c vitest.config.e2e.mts",
+        "test:e2e:watch": "yarn g:vitest watch -c vitest.config.e2e.mts",
+        "test:index": "tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs",
+        "test:integration": "yarn g:vitest run --passWithNoTests -c vitest.config.integ.mts",
+        "test:integration:watch": "yarn g:vitest run --passWithNoTests -c vitest.config.integ.mts",
+        "test:watch": "yarn g:vitest watch --passWithNoTests"
+      },
+      main: "./dist-cjs/index.js",
+      types: "./dist-types/index.d.ts",
+      module: "./dist-es/index.js",
+      sideEffects: false,
+      dependencies: {
+        "@aws-crypto/sha256-browser": "5.2.0",
+        "@aws-crypto/sha256-js": "5.2.0",
+        "@aws-sdk/core": "^3.973.26",
+        "@aws-sdk/credential-provider-node": "^3.972.29",
+        "@aws-sdk/middleware-host-header": "^3.972.8",
+        "@aws-sdk/middleware-logger": "^3.972.8",
+        "@aws-sdk/middleware-recursion-detection": "^3.972.9",
+        "@aws-sdk/middleware-user-agent": "^3.972.28",
+        "@aws-sdk/region-config-resolver": "^3.972.10",
+        "@aws-sdk/types": "^3.973.6",
+        "@aws-sdk/util-endpoints": "^3.996.5",
+        "@aws-sdk/util-user-agent-browser": "^3.972.8",
+        "@aws-sdk/util-user-agent-node": "^3.973.14",
+        "@smithy/config-resolver": "^4.4.13",
+        "@smithy/core": "^3.23.13",
+        "@smithy/eventstream-serde-browser": "^4.2.12",
+        "@smithy/eventstream-serde-config-resolver": "^4.3.12",
+        "@smithy/eventstream-serde-node": "^4.2.12",
+        "@smithy/fetch-http-handler": "^5.3.15",
+        "@smithy/hash-node": "^4.2.12",
+        "@smithy/invalid-dependency": "^4.2.12",
+        "@smithy/middleware-content-length": "^4.2.12",
+        "@smithy/middleware-endpoint": "^4.4.28",
+        "@smithy/middleware-retry": "^4.4.46",
+        "@smithy/middleware-serde": "^4.2.16",
+        "@smithy/middleware-stack": "^4.2.12",
+        "@smithy/node-config-provider": "^4.3.12",
+        "@smithy/node-http-handler": "^4.5.1",
+        "@smithy/protocol-http": "^5.3.12",
+        "@smithy/smithy-client": "^4.12.8",
+        "@smithy/types": "^4.13.1",
+        "@smithy/url-parser": "^4.2.12",
+        "@smithy/util-base64": "^4.3.2",
+        "@smithy/util-body-length-browser": "^4.2.2",
+        "@smithy/util-body-length-node": "^4.2.3",
+        "@smithy/util-defaults-mode-browser": "^4.3.44",
+        "@smithy/util-defaults-mode-node": "^4.2.48",
+        "@smithy/util-endpoints": "^3.3.3",
+        "@smithy/util-middleware": "^4.2.12",
+        "@smithy/util-retry": "^4.2.13",
+        "@smithy/util-utf8": "^4.2.2",
+        tslib: "^2.6.2"
+      },
+      devDependencies: {
+        "@smithy/snapshot-testing": "^2.0.4",
+        "@tsconfig/node20": "20.1.8",
+        "@types/node": "^20.14.8",
+        concurrently: "7.0.0",
+        "downlevel-dts": "0.10.1",
+        premove: "4.0.0",
+        typescript: "~5.8.3",
+        vitest: "^4.0.17"
+      },
+      engines: {
+        node: ">=20.0.0"
+      },
+      typesVersions: {
+        "<4.5": {
+          "dist-types/*": [
+            "dist-types/ts3.4/*"
+          ]
+        }
+      },
+      files: [
+        "dist-*/**"
+      ],
+      author: {
+        name: "AWS SDK for JavaScript Team",
+        url: "https://aws.amazon.com/javascript/"
+      },
+      license: "Apache-2.0",
+      browser: {
+        "./dist-es/runtimeConfig": "./dist-es/runtimeConfig.browser"
+      },
+      "react-native": {
+        "./dist-es/runtimeConfig": "./dist-es/runtimeConfig.native"
+      },
+      homepage: "https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-cloudwatch-logs",
+      repository: {
+        type: "git",
+        url: "https://github.com/aws/aws-sdk-js-v3.git",
+        directory: "clients/client-cloudwatch-logs"
+      }
+    };
+  }
+});
+
+// node_modules/@aws-crypto/util/node_modules/@smithy/is-array-buffer/dist-cjs/index.js
+var require_dist_cjs59 = __commonJS({
+  "node_modules/@aws-crypto/util/node_modules/@smithy/is-array-buffer/dist-cjs/index.js"(exports2, module2) {
+    var __defProp2 = Object.defineProperty;
+    var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
+    var __getOwnPropNames2 = Object.getOwnPropertyNames;
+    var __hasOwnProp2 = Object.prototype.hasOwnProperty;
+    var __name = (target, value) => __defProp2(target, "name", { value, configurable: true });
+    var __export2 = (target, all) => {
+      for (var name in all)
+        __defProp2(target, name, { get: all[name], enumerable: true });
+    };
+    var __copyProps2 = (to, from, except, desc) => {
+      if (from && typeof from === "object" || typeof from === "function") {
+        for (let key of __getOwnPropNames2(from))
+          if (!__hasOwnProp2.call(to, key) && key !== except)
+            __defProp2(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc2(from, key)) || desc.enumerable });
+      }
+      return to;
+    };
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp2({}, "__esModule", { value: true }), mod);
+    var src_exports = {};
+    __export2(src_exports, {
+      isArrayBuffer: () => isArrayBuffer
+    });
+    module2.exports = __toCommonJS2(src_exports);
+    var isArrayBuffer = /* @__PURE__ */ __name((arg) => typeof ArrayBuffer === "function" && arg instanceof ArrayBuffer || Object.prototype.toString.call(arg) === "[object ArrayBuffer]", "isArrayBuffer");
+  }
+});
+
+// node_modules/@aws-crypto/util/node_modules/@smithy/util-buffer-from/dist-cjs/index.js
+var require_dist_cjs60 = __commonJS({
+  "node_modules/@aws-crypto/util/node_modules/@smithy/util-buffer-from/dist-cjs/index.js"(exports2, module2) {
+    var __defProp2 = Object.defineProperty;
+    var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
+    var __getOwnPropNames2 = Object.getOwnPropertyNames;
+    var __hasOwnProp2 = Object.prototype.hasOwnProperty;
+    var __name = (target, value) => __defProp2(target, "name", { value, configurable: true });
+    var __export2 = (target, all) => {
+      for (var name in all)
+        __defProp2(target, name, { get: all[name], enumerable: true });
+    };
+    var __copyProps2 = (to, from, except, desc) => {
+      if (from && typeof from === "object" || typeof from === "function") {
+        for (let key of __getOwnPropNames2(from))
+          if (!__hasOwnProp2.call(to, key) && key !== except)
+            __defProp2(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc2(from, key)) || desc.enumerable });
+      }
+      return to;
+    };
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp2({}, "__esModule", { value: true }), mod);
+    var src_exports = {};
+    __export2(src_exports, {
+      fromArrayBuffer: () => fromArrayBuffer,
+      fromString: () => fromString
+    });
+    module2.exports = __toCommonJS2(src_exports);
+    var import_is_array_buffer = require_dist_cjs59();
+    var import_buffer = require("buffer");
+    var fromArrayBuffer = /* @__PURE__ */ __name((input2, offset = 0, length = input2.byteLength - offset) => {
+      if (!(0, import_is_array_buffer.isArrayBuffer)(input2)) {
+        throw new TypeError(`The "input" argument must be ArrayBuffer. Received type ${typeof input2} (${input2})`);
+      }
+      return import_buffer.Buffer.from(input2, offset, length);
+    }, "fromArrayBuffer");
+    var fromString = /* @__PURE__ */ __name((input2, encoding) => {
+      if (typeof input2 !== "string") {
+        throw new TypeError(`The "input" argument must be of type string. Received type ${typeof input2} (${input2})`);
+      }
+      return encoding ? import_buffer.Buffer.from(input2, encoding) : import_buffer.Buffer.from(input2);
+    }, "fromString");
+  }
+});
+
+// node_modules/@aws-crypto/util/node_modules/@smithy/util-utf8/dist-cjs/index.js
+var require_dist_cjs61 = __commonJS({
+  "node_modules/@aws-crypto/util/node_modules/@smithy/util-utf8/dist-cjs/index.js"(exports2, module2) {
+    var __defProp2 = Object.defineProperty;
+    var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
+    var __getOwnPropNames2 = Object.getOwnPropertyNames;
+    var __hasOwnProp2 = Object.prototype.hasOwnProperty;
+    var __name = (target, value) => __defProp2(target, "name", { value, configurable: true });
+    var __export2 = (target, all) => {
+      for (var name in all)
+        __defProp2(target, name, { get: all[name], enumerable: true });
+    };
+    var __copyProps2 = (to, from, except, desc) => {
+      if (from && typeof from === "object" || typeof from === "function") {
+        for (let key of __getOwnPropNames2(from))
+          if (!__hasOwnProp2.call(to, key) && key !== except)
+            __defProp2(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc2(from, key)) || desc.enumerable });
+      }
+      return to;
+    };
+    var __toCommonJS2 = (mod) => __copyProps2(__defProp2({}, "__esModule", { value: true }), mod);
+    var src_exports = {};
+    __export2(src_exports, {
+      fromUtf8: () => fromUtf88,
+      toUint8Array: () => toUint8Array2,
+      toUtf8: () => toUtf811
+    });
+    module2.exports = __toCommonJS2(src_exports);
+    var import_util_buffer_from = require_dist_cjs60();
+    var fromUtf88 = /* @__PURE__ */ __name((input2) => {
+      const buf = (0, import_util_buffer_from.fromString)(input2, "utf8");
+      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength / Uint8Array.BYTES_PER_ELEMENT);
+    }, "fromUtf8");
+    var toUint8Array2 = /* @__PURE__ */ __name((data2) => {
+      if (typeof data2 === "string") {
+        return fromUtf88(data2);
+      }
+      if (ArrayBuffer.isView(data2)) {
+        return new Uint8Array(data2.buffer, data2.byteOffset, data2.byteLength / Uint8Array.BYTES_PER_ELEMENT);
+      }
+      return new Uint8Array(data2);
+    }, "toUint8Array");
+    var toUtf811 = /* @__PURE__ */ __name((input2) => {
+      if (typeof input2 === "string") {
+        return input2;
+      }
+      if (typeof input2 !== "object" || typeof input2.byteOffset !== "number" || typeof input2.byteLength !== "number") {
+        throw new Error("@smithy/util-utf8: toUtf8 encoder function only accepts string | Uint8Array.");
+      }
+      return (0, import_util_buffer_from.fromArrayBuffer)(input2.buffer, input2.byteOffset, input2.byteLength).toString("utf8");
+    }, "toUtf8");
+  }
+});
+
+// node_modules/@aws-crypto/util/build/main/convertToBuffer.js
+var require_convertToBuffer = __commonJS({
+  "node_modules/@aws-crypto/util/build/main/convertToBuffer.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.convertToBuffer = void 0;
+    var util_utf8_1 = require_dist_cjs61();
+    var fromUtf88 = typeof Buffer !== "undefined" && Buffer.from ? function(input2) {
+      return Buffer.from(input2, "utf8");
+    } : util_utf8_1.fromUtf8;
+    function convertToBuffer(data2) {
+      if (data2 instanceof Uint8Array)
+        return data2;
+      if (typeof data2 === "string") {
+        return fromUtf88(data2);
+      }
+      if (ArrayBuffer.isView(data2)) {
+        return new Uint8Array(data2.buffer, data2.byteOffset, data2.byteLength / Uint8Array.BYTES_PER_ELEMENT);
+      }
+      return new Uint8Array(data2);
+    }
+    exports2.convertToBuffer = convertToBuffer;
+  }
+});
+
+// node_modules/@aws-crypto/util/build/main/isEmptyData.js
+var require_isEmptyData = __commonJS({
+  "node_modules/@aws-crypto/util/build/main/isEmptyData.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.isEmptyData = void 0;
+    function isEmptyData(data2) {
+      if (typeof data2 === "string") {
+        return data2.length === 0;
+      }
+      return data2.byteLength === 0;
+    }
+    exports2.isEmptyData = isEmptyData;
+  }
+});
+
+// node_modules/@aws-crypto/util/build/main/numToUint8.js
+var require_numToUint8 = __commonJS({
+  "node_modules/@aws-crypto/util/build/main/numToUint8.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.numToUint8 = void 0;
+    function numToUint8(num) {
+      return new Uint8Array([
+        (num & 4278190080) >> 24,
+        (num & 16711680) >> 16,
+        (num & 65280) >> 8,
+        num & 255
+      ]);
+    }
+    exports2.numToUint8 = numToUint8;
+  }
+});
+
+// node_modules/@aws-crypto/util/build/main/uint32ArrayFrom.js
+var require_uint32ArrayFrom = __commonJS({
+  "node_modules/@aws-crypto/util/build/main/uint32ArrayFrom.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.uint32ArrayFrom = void 0;
+    function uint32ArrayFrom(a_lookUpTable) {
+      if (!Uint32Array.from) {
+        var return_array = new Uint32Array(a_lookUpTable.length);
+        var a_index = 0;
+        while (a_index < a_lookUpTable.length) {
+          return_array[a_index] = a_lookUpTable[a_index];
+          a_index += 1;
+        }
+        return return_array;
+      }
+      return Uint32Array.from(a_lookUpTable);
+    }
+    exports2.uint32ArrayFrom = uint32ArrayFrom;
+  }
+});
+
+// node_modules/@aws-crypto/util/build/main/index.js
+var require_main = __commonJS({
+  "node_modules/@aws-crypto/util/build/main/index.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.uint32ArrayFrom = exports2.numToUint8 = exports2.isEmptyData = exports2.convertToBuffer = void 0;
+    var convertToBuffer_1 = require_convertToBuffer();
+    Object.defineProperty(exports2, "convertToBuffer", { enumerable: true, get: function() {
+      return convertToBuffer_1.convertToBuffer;
+    } });
+    var isEmptyData_1 = require_isEmptyData();
+    Object.defineProperty(exports2, "isEmptyData", { enumerable: true, get: function() {
+      return isEmptyData_1.isEmptyData;
+    } });
+    var numToUint8_1 = require_numToUint8();
+    Object.defineProperty(exports2, "numToUint8", { enumerable: true, get: function() {
+      return numToUint8_1.numToUint8;
+    } });
+    var uint32ArrayFrom_1 = require_uint32ArrayFrom();
+    Object.defineProperty(exports2, "uint32ArrayFrom", { enumerable: true, get: function() {
+      return uint32ArrayFrom_1.uint32ArrayFrom;
+    } });
+  }
+});
+
+// node_modules/@aws-crypto/crc32/build/main/aws_crc32.js
+var require_aws_crc32 = __commonJS({
+  "node_modules/@aws-crypto/crc32/build/main/aws_crc32.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.AwsCrc32 = void 0;
+    var tslib_1 = (init_tslib_es6(), __toCommonJS(tslib_es6_exports));
+    var util_1 = require_main();
+    var index_1 = require_main2();
+    var AwsCrc32 = (
+      /** @class */
+      (function() {
+        function AwsCrc322() {
+          this.crc32 = new index_1.Crc32();
+        }
+        AwsCrc322.prototype.update = function(toHash) {
+          if ((0, util_1.isEmptyData)(toHash))
+            return;
+          this.crc32.update((0, util_1.convertToBuffer)(toHash));
+        };
+        AwsCrc322.prototype.digest = function() {
+          return tslib_1.__awaiter(this, void 0, void 0, function() {
+            return tslib_1.__generator(this, function(_a2) {
+              return [2, (0, util_1.numToUint8)(this.crc32.digest())];
+            });
+          });
+        };
+        AwsCrc322.prototype.reset = function() {
+          this.crc32 = new index_1.Crc32();
+        };
+        return AwsCrc322;
+      })()
+    );
+    exports2.AwsCrc32 = AwsCrc32;
+  }
+});
+
+// node_modules/@aws-crypto/crc32/build/main/index.js
+var require_main2 = __commonJS({
+  "node_modules/@aws-crypto/crc32/build/main/index.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.AwsCrc32 = exports2.Crc32 = exports2.crc32 = void 0;
+    var tslib_1 = (init_tslib_es6(), __toCommonJS(tslib_es6_exports));
+    var util_1 = require_main();
+    function crc32(data2) {
+      return new Crc32().update(data2).digest();
+    }
+    exports2.crc32 = crc32;
+    var Crc32 = (
+      /** @class */
+      (function() {
+        function Crc322() {
+          this.checksum = 4294967295;
+        }
+        Crc322.prototype.update = function(data2) {
+          var e_1, _a2;
+          try {
+            for (var data_1 = tslib_1.__values(data2), data_1_1 = data_1.next(); !data_1_1.done; data_1_1 = data_1.next()) {
+              var byte = data_1_1.value;
+              this.checksum = this.checksum >>> 8 ^ lookupTable[(this.checksum ^ byte) & 255];
+            }
+          } catch (e_1_1) {
+            e_1 = { error: e_1_1 };
+          } finally {
+            try {
+              if (data_1_1 && !data_1_1.done && (_a2 = data_1.return)) _a2.call(data_1);
+            } finally {
+              if (e_1) throw e_1.error;
+            }
+          }
+          return this;
+        };
+        Crc322.prototype.digest = function() {
+          return (this.checksum ^ 4294967295) >>> 0;
+        };
+        return Crc322;
+      })()
+    );
+    exports2.Crc32 = Crc32;
+    var a_lookUpTable = [
+      0,
+      1996959894,
+      3993919788,
+      2567524794,
+      124634137,
+      1886057615,
+      3915621685,
+      2657392035,
+      249268274,
+      2044508324,
+      3772115230,
+      2547177864,
+      162941995,
+      2125561021,
+      3887607047,
+      2428444049,
+      498536548,
+      1789927666,
+      4089016648,
+      2227061214,
+      450548861,
+      1843258603,
+      4107580753,
+      2211677639,
+      325883990,
+      1684777152,
+      4251122042,
+      2321926636,
+      335633487,
+      1661365465,
+      4195302755,
+      2366115317,
+      997073096,
+      1281953886,
+      3579855332,
+      2724688242,
+      1006888145,
+      1258607687,
+      3524101629,
+      2768942443,
+      901097722,
+      1119000684,
+      3686517206,
+      2898065728,
+      853044451,
+      1172266101,
+      3705015759,
+      2882616665,
+      651767980,
+      1373503546,
+      3369554304,
+      3218104598,
+      565507253,
+      1454621731,
+      3485111705,
+      3099436303,
+      671266974,
+      1594198024,
+      3322730930,
+      2970347812,
+      795835527,
+      1483230225,
+      3244367275,
+      3060149565,
+      1994146192,
+      31158534,
+      2563907772,
+      4023717930,
+      1907459465,
+      112637215,
+      2680153253,
+      3904427059,
+      2013776290,
+      251722036,
+      2517215374,
+      3775830040,
+      2137656763,
+      141376813,
+      2439277719,
+      3865271297,
+      1802195444,
+      476864866,
+      2238001368,
+      4066508878,
+      1812370925,
+      453092731,
+      2181625025,
+      4111451223,
+      1706088902,
+      314042704,
+      2344532202,
+      4240017532,
+      1658658271,
+      366619977,
+      2362670323,
+      4224994405,
+      1303535960,
+      984961486,
+      2747007092,
+      3569037538,
+      1256170817,
+      1037604311,
+      2765210733,
+      3554079995,
+      1131014506,
+      879679996,
+      2909243462,
+      3663771856,
+      1141124467,
+      855842277,
+      2852801631,
+      3708648649,
+      1342533948,
+      654459306,
+      3188396048,
+      3373015174,
+      1466479909,
+      544179635,
+      3110523913,
+      3462522015,
+      1591671054,
+      702138776,
+      2966460450,
+      3352799412,
+      1504918807,
+      783551873,
+      3082640443,
+      3233442989,
+      3988292384,
+      2596254646,
+      62317068,
+      1957810842,
+      3939845945,
+      2647816111,
+      81470997,
+      1943803523,
+      3814918930,
+      2489596804,
+      225274430,
+      2053790376,
+      3826175755,
+      2466906013,
+      167816743,
+      2097651377,
+      4027552580,
+      2265490386,
+      503444072,
+      1762050814,
+      4150417245,
+      2154129355,
+      426522225,
+      1852507879,
+      4275313526,
+      2312317920,
+      282753626,
+      1742555852,
+      4189708143,
+      2394877945,
+      397917763,
+      1622183637,
+      3604390888,
+      2714866558,
+      953729732,
+      1340076626,
+      3518719985,
+      2797360999,
+      1068828381,
+      1219638859,
+      3624741850,
+      2936675148,
+      906185462,
+      1090812512,
+      3747672003,
+      2825379669,
+      829329135,
+      1181335161,
+      3412177804,
+      3160834842,
+      628085408,
+      1382605366,
+      3423369109,
+      3138078467,
+      570562233,
+      1426400815,
+      3317316542,
+      2998733608,
+      733239954,
+      1555261956,
+      3268935591,
+      3050360625,
+      752459403,
+      1541320221,
+      2607071920,
+      3965973030,
+      1969922972,
+      40735498,
+      2617837225,
+      3943577151,
+      1913087877,
+      83908371,
+      2512341634,
+      3803740692,
+      2075208622,
+      213261112,
+      2463272603,
+      3855990285,
+      2094854071,
+      198958881,
+      2262029012,
+      4057260610,
+      1759359992,
+      534414190,
+      2176718541,
+      4139329115,
+      1873836001,
+      414664567,
+      2282248934,
+      4279200368,
+      1711684554,
+      285281116,
+      2405801727,
+      4167216745,
+      1634467795,
+      376229701,
+      2685067896,
+      3608007406,
+      1308918612,
+      956543938,
+      2808555105,
+      3495958263,
+      1231636301,
+      1047427035,
+      2932959818,
+      3654703836,
+      1088359270,
+      936918e3,
+      2847714899,
+      3736837829,
+      1202900863,
+      817233897,
+      3183342108,
+      3401237130,
+      1404277552,
+      615818150,
+      3134207493,
+      3453421203,
+      1423857449,
+      601450431,
+      3009837614,
+      3294710456,
+      1567103746,
+      711928724,
+      3020668471,
+      3272380065,
+      1510334235,
+      755167117
+    ];
+    var lookupTable = (0, util_1.uint32ArrayFrom)(a_lookUpTable);
+    var aws_crc32_1 = require_aws_crc32();
+    Object.defineProperty(exports2, "AwsCrc32", { enumerable: true, get: function() {
+      return aws_crc32_1.AwsCrc32;
+    } });
+  }
+});
+
+// node_modules/@smithy/eventstream-codec/dist-cjs/index.js
+var require_dist_cjs62 = __commonJS({
+  "node_modules/@smithy/eventstream-codec/dist-cjs/index.js"(exports2) {
+    "use strict";
+    var crc32 = require_main2();
+    var utilHexEncoding = require_dist_cjs15();
+    var Int64 = class _Int64 {
+      bytes;
+      constructor(bytes) {
+        this.bytes = bytes;
+        if (bytes.byteLength !== 8) {
+          throw new Error("Int64 buffers must be exactly 8 bytes");
+        }
+      }
+      static fromNumber(number) {
+        if (number > 9223372036854776e3 || number < -9223372036854776e3) {
+          throw new Error(`${number} is too large (or, if negative, too small) to represent as an Int64`);
+        }
+        const bytes = new Uint8Array(8);
+        for (let i5 = 7, remaining = Math.abs(Math.round(number)); i5 > -1 && remaining > 0; i5--, remaining /= 256) {
+          bytes[i5] = remaining;
+        }
+        if (number < 0) {
+          negate(bytes);
+        }
+        return new _Int64(bytes);
+      }
+      valueOf() {
+        const bytes = this.bytes.slice(0);
+        const negative = bytes[0] & 128;
+        if (negative) {
+          negate(bytes);
+        }
+        return parseInt(utilHexEncoding.toHex(bytes), 16) * (negative ? -1 : 1);
+      }
+      toString() {
+        return String(this.valueOf());
+      }
+    };
+    function negate(bytes) {
+      for (let i5 = 0; i5 < 8; i5++) {
+        bytes[i5] ^= 255;
+      }
+      for (let i5 = 7; i5 > -1; i5--) {
+        bytes[i5]++;
+        if (bytes[i5] !== 0)
+          break;
+      }
+    }
+    var HeaderMarshaller = class {
+      toUtf8;
+      fromUtf8;
+      constructor(toUtf811, fromUtf88) {
+        this.toUtf8 = toUtf811;
+        this.fromUtf8 = fromUtf88;
+      }
+      format(headers) {
+        const chunks = [];
+        for (const headerName of Object.keys(headers)) {
+          const bytes = this.fromUtf8(headerName);
+          chunks.push(Uint8Array.from([bytes.byteLength]), bytes, this.formatHeaderValue(headers[headerName]));
+        }
+        const out = new Uint8Array(chunks.reduce((carry, bytes) => carry + bytes.byteLength, 0));
+        let position = 0;
+        for (const chunk of chunks) {
+          out.set(chunk, position);
+          position += chunk.byteLength;
+        }
+        return out;
+      }
+      formatHeaderValue(header) {
+        switch (header.type) {
+          case "boolean":
+            return Uint8Array.from([header.value ? 0 : 1]);
+          case "byte":
+            return Uint8Array.from([2, header.value]);
+          case "short":
+            const shortView = new DataView(new ArrayBuffer(3));
+            shortView.setUint8(0, 3);
+            shortView.setInt16(1, header.value, false);
+            return new Uint8Array(shortView.buffer);
+          case "integer":
+            const intView = new DataView(new ArrayBuffer(5));
+            intView.setUint8(0, 4);
+            intView.setInt32(1, header.value, false);
+            return new Uint8Array(intView.buffer);
+          case "long":
+            const longBytes = new Uint8Array(9);
+            longBytes[0] = 5;
+            longBytes.set(header.value.bytes, 1);
+            return longBytes;
+          case "binary":
+            const binView = new DataView(new ArrayBuffer(3 + header.value.byteLength));
+            binView.setUint8(0, 6);
+            binView.setUint16(1, header.value.byteLength, false);
+            const binBytes = new Uint8Array(binView.buffer);
+            binBytes.set(header.value, 3);
+            return binBytes;
+          case "string":
+            const utf8Bytes = this.fromUtf8(header.value);
+            const strView = new DataView(new ArrayBuffer(3 + utf8Bytes.byteLength));
+            strView.setUint8(0, 7);
+            strView.setUint16(1, utf8Bytes.byteLength, false);
+            const strBytes = new Uint8Array(strView.buffer);
+            strBytes.set(utf8Bytes, 3);
+            return strBytes;
+          case "timestamp":
+            const tsBytes = new Uint8Array(9);
+            tsBytes[0] = 8;
+            tsBytes.set(Int64.fromNumber(header.value.valueOf()).bytes, 1);
+            return tsBytes;
+          case "uuid":
+            if (!UUID_PATTERN.test(header.value)) {
+              throw new Error(`Invalid UUID received: ${header.value}`);
+            }
+            const uuidBytes = new Uint8Array(17);
+            uuidBytes[0] = 9;
+            uuidBytes.set(utilHexEncoding.fromHex(header.value.replace(/\-/g, "")), 1);
+            return uuidBytes;
+        }
+      }
+      parse(headers) {
+        const out = {};
+        let position = 0;
+        while (position < headers.byteLength) {
+          const nameLength = headers.getUint8(position++);
+          const name = this.toUtf8(new Uint8Array(headers.buffer, headers.byteOffset + position, nameLength));
+          position += nameLength;
+          switch (headers.getUint8(position++)) {
+            case 0:
+              out[name] = {
+                type: BOOLEAN_TAG,
+                value: true
+              };
+              break;
+            case 1:
+              out[name] = {
+                type: BOOLEAN_TAG,
+                value: false
+              };
+              break;
+            case 2:
+              out[name] = {
+                type: BYTE_TAG,
+                value: headers.getInt8(position++)
+              };
+              break;
+            case 3:
+              out[name] = {
+                type: SHORT_TAG,
+                value: headers.getInt16(position, false)
+              };
+              position += 2;
+              break;
+            case 4:
+              out[name] = {
+                type: INT_TAG,
+                value: headers.getInt32(position, false)
+              };
+              position += 4;
+              break;
+            case 5:
+              out[name] = {
+                type: LONG_TAG,
+                value: new Int64(new Uint8Array(headers.buffer, headers.byteOffset + position, 8))
+              };
+              position += 8;
+              break;
+            case 6:
+              const binaryLength = headers.getUint16(position, false);
+              position += 2;
+              out[name] = {
+                type: BINARY_TAG,
+                value: new Uint8Array(headers.buffer, headers.byteOffset + position, binaryLength)
+              };
+              position += binaryLength;
+              break;
+            case 7:
+              const stringLength = headers.getUint16(position, false);
+              position += 2;
+              out[name] = {
+                type: STRING_TAG,
+                value: this.toUtf8(new Uint8Array(headers.buffer, headers.byteOffset + position, stringLength))
+              };
+              position += stringLength;
+              break;
+            case 8:
+              out[name] = {
+                type: TIMESTAMP_TAG,
+                value: new Date(new Int64(new Uint8Array(headers.buffer, headers.byteOffset + position, 8)).valueOf())
+              };
+              position += 8;
+              break;
+            case 9:
+              const uuidBytes = new Uint8Array(headers.buffer, headers.byteOffset + position, 16);
+              position += 16;
+              out[name] = {
+                type: UUID_TAG,
+                value: `${utilHexEncoding.toHex(uuidBytes.subarray(0, 4))}-${utilHexEncoding.toHex(uuidBytes.subarray(4, 6))}-${utilHexEncoding.toHex(uuidBytes.subarray(6, 8))}-${utilHexEncoding.toHex(uuidBytes.subarray(8, 10))}-${utilHexEncoding.toHex(uuidBytes.subarray(10))}`
+              };
+              break;
+            default:
+              throw new Error(`Unrecognized header type tag`);
+          }
+        }
+        return out;
+      }
+    };
+    var BOOLEAN_TAG = "boolean";
+    var BYTE_TAG = "byte";
+    var SHORT_TAG = "short";
+    var INT_TAG = "integer";
+    var LONG_TAG = "long";
+    var BINARY_TAG = "binary";
+    var STRING_TAG = "string";
+    var TIMESTAMP_TAG = "timestamp";
+    var UUID_TAG = "uuid";
+    var UUID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+    var PRELUDE_MEMBER_LENGTH = 4;
+    var PRELUDE_LENGTH = PRELUDE_MEMBER_LENGTH * 2;
+    var CHECKSUM_LENGTH = 4;
+    var MINIMUM_MESSAGE_LENGTH = PRELUDE_LENGTH + CHECKSUM_LENGTH * 2;
+    function splitMessage({ byteLength, byteOffset, buffer }) {
+      if (byteLength < MINIMUM_MESSAGE_LENGTH) {
+        throw new Error("Provided message too short to accommodate event stream message overhead");
+      }
+      const view = new DataView(buffer, byteOffset, byteLength);
+      const messageLength = view.getUint32(0, false);
+      if (byteLength !== messageLength) {
+        throw new Error("Reported message length does not match received message length");
+      }
+      const headerLength = view.getUint32(PRELUDE_MEMBER_LENGTH, false);
+      const expectedPreludeChecksum = view.getUint32(PRELUDE_LENGTH, false);
+      const expectedMessageChecksum = view.getUint32(byteLength - CHECKSUM_LENGTH, false);
+      const checksummer = new crc32.Crc32().update(new Uint8Array(buffer, byteOffset, PRELUDE_LENGTH));
+      if (expectedPreludeChecksum !== checksummer.digest()) {
+        throw new Error(`The prelude checksum specified in the message (${expectedPreludeChecksum}) does not match the calculated CRC32 checksum (${checksummer.digest()})`);
+      }
+      checksummer.update(new Uint8Array(buffer, byteOffset + PRELUDE_LENGTH, byteLength - (PRELUDE_LENGTH + CHECKSUM_LENGTH)));
+      if (expectedMessageChecksum !== checksummer.digest()) {
+        throw new Error(`The message checksum (${checksummer.digest()}) did not match the expected value of ${expectedMessageChecksum}`);
+      }
+      return {
+        headers: new DataView(buffer, byteOffset + PRELUDE_LENGTH + CHECKSUM_LENGTH, headerLength),
+        body: new Uint8Array(buffer, byteOffset + PRELUDE_LENGTH + CHECKSUM_LENGTH + headerLength, messageLength - headerLength - (PRELUDE_LENGTH + CHECKSUM_LENGTH + CHECKSUM_LENGTH))
+      };
+    }
+    var EventStreamCodec = class {
+      headerMarshaller;
+      messageBuffer;
+      isEndOfStream;
+      constructor(toUtf811, fromUtf88) {
+        this.headerMarshaller = new HeaderMarshaller(toUtf811, fromUtf88);
+        this.messageBuffer = [];
+        this.isEndOfStream = false;
+      }
+      feed(message) {
+        this.messageBuffer.push(this.decode(message));
+      }
+      endOfStream() {
+        this.isEndOfStream = true;
+      }
+      getMessage() {
+        const message = this.messageBuffer.pop();
+        const isEndOfStream = this.isEndOfStream;
+        return {
+          getMessage() {
+            return message;
+          },
+          isEndOfStream() {
+            return isEndOfStream;
+          }
+        };
+      }
+      getAvailableMessages() {
+        const messages = this.messageBuffer;
+        this.messageBuffer = [];
+        const isEndOfStream = this.isEndOfStream;
+        return {
+          getMessages() {
+            return messages;
+          },
+          isEndOfStream() {
+            return isEndOfStream;
+          }
+        };
+      }
+      encode({ headers: rawHeaders, body }) {
+        const headers = this.headerMarshaller.format(rawHeaders);
+        const length = headers.byteLength + body.byteLength + 16;
+        const out = new Uint8Array(length);
+        const view = new DataView(out.buffer, out.byteOffset, out.byteLength);
+        const checksum = new crc32.Crc32();
+        view.setUint32(0, length, false);
+        view.setUint32(4, headers.byteLength, false);
+        view.setUint32(8, checksum.update(out.subarray(0, 8)).digest(), false);
+        out.set(headers, 12);
+        out.set(body, headers.byteLength + 12);
+        view.setUint32(length - 4, checksum.update(out.subarray(8, length - 4)).digest(), false);
+        return out;
+      }
+      decode(message) {
+        const { headers, body } = splitMessage(message);
+        return { headers: this.headerMarshaller.parse(headers), body };
+      }
+      formatHeaders(rawHeaders) {
+        return this.headerMarshaller.format(rawHeaders);
+      }
+    };
+    var MessageDecoderStream = class {
+      options;
+      constructor(options) {
+        this.options = options;
+      }
+      [Symbol.asyncIterator]() {
+        return this.asyncIterator();
+      }
+      async *asyncIterator() {
+        for await (const bytes of this.options.inputStream) {
+          const decoded = this.options.decoder.decode(bytes);
+          yield decoded;
+        }
+      }
+    };
+    var MessageEncoderStream = class {
+      options;
+      constructor(options) {
+        this.options = options;
+      }
+      [Symbol.asyncIterator]() {
+        return this.asyncIterator();
+      }
+      async *asyncIterator() {
+        for await (const msg of this.options.messageStream) {
+          const encoded = this.options.encoder.encode(msg);
+          yield encoded;
+        }
+        if (this.options.includeEndFrame) {
+          yield new Uint8Array(0);
+        }
+      }
+    };
+    var SmithyMessageDecoderStream = class {
+      options;
+      constructor(options) {
+        this.options = options;
+      }
+      [Symbol.asyncIterator]() {
+        return this.asyncIterator();
+      }
+      async *asyncIterator() {
+        for await (const message of this.options.messageStream) {
+          const deserialized = await this.options.deserializer(message);
+          if (deserialized === void 0)
+            continue;
+          yield deserialized;
+        }
+      }
+    };
+    var SmithyMessageEncoderStream = class {
+      options;
+      constructor(options) {
+        this.options = options;
+      }
+      [Symbol.asyncIterator]() {
+        return this.asyncIterator();
+      }
+      async *asyncIterator() {
+        for await (const chunk of this.options.inputStream) {
+          const payloadBuf = this.options.serializer(chunk);
+          yield payloadBuf;
+        }
+      }
+    };
+    exports2.EventStreamCodec = EventStreamCodec;
+    exports2.HeaderMarshaller = HeaderMarshaller;
+    exports2.Int64 = Int64;
+    exports2.MessageDecoderStream = MessageDecoderStream;
+    exports2.MessageEncoderStream = MessageEncoderStream;
+    exports2.SmithyMessageDecoderStream = SmithyMessageDecoderStream;
+    exports2.SmithyMessageEncoderStream = SmithyMessageEncoderStream;
+  }
+});
+
+// node_modules/@smithy/eventstream-serde-universal/dist-cjs/index.js
+var require_dist_cjs63 = __commonJS({
+  "node_modules/@smithy/eventstream-serde-universal/dist-cjs/index.js"(exports2) {
+    "use strict";
+    var eventstreamCodec = require_dist_cjs62();
+    function getChunkedStream(source) {
+      let currentMessageTotalLength = 0;
+      let currentMessagePendingLength = 0;
+      let currentMessage = null;
+      let messageLengthBuffer = null;
+      const allocateMessage = (size) => {
+        if (typeof size !== "number") {
+          throw new Error("Attempted to allocate an event message where size was not a number: " + size);
+        }
+        currentMessageTotalLength = size;
+        currentMessagePendingLength = 4;
+        currentMessage = new Uint8Array(size);
+        const currentMessageView = new DataView(currentMessage.buffer);
+        currentMessageView.setUint32(0, size, false);
+      };
+      const iterator = async function* () {
+        const sourceIterator = source[Symbol.asyncIterator]();
+        while (true) {
+          const { value, done } = await sourceIterator.next();
+          if (done) {
+            if (!currentMessageTotalLength) {
+              return;
+            } else if (currentMessageTotalLength === currentMessagePendingLength) {
+              yield currentMessage;
+            } else {
+              throw new Error("Truncated event message received.");
+            }
+            return;
+          }
+          const chunkLength = value.length;
+          let currentOffset = 0;
+          while (currentOffset < chunkLength) {
+            if (!currentMessage) {
+              const bytesRemaining = chunkLength - currentOffset;
+              if (!messageLengthBuffer) {
+                messageLengthBuffer = new Uint8Array(4);
+              }
+              const numBytesForTotal = Math.min(4 - currentMessagePendingLength, bytesRemaining);
+              messageLengthBuffer.set(value.slice(currentOffset, currentOffset + numBytesForTotal), currentMessagePendingLength);
+              currentMessagePendingLength += numBytesForTotal;
+              currentOffset += numBytesForTotal;
+              if (currentMessagePendingLength < 4) {
+                break;
+              }
+              allocateMessage(new DataView(messageLengthBuffer.buffer).getUint32(0, false));
+              messageLengthBuffer = null;
+            }
+            const numBytesToWrite = Math.min(currentMessageTotalLength - currentMessagePendingLength, chunkLength - currentOffset);
+            currentMessage.set(value.slice(currentOffset, currentOffset + numBytesToWrite), currentMessagePendingLength);
+            currentMessagePendingLength += numBytesToWrite;
+            currentOffset += numBytesToWrite;
+            if (currentMessageTotalLength && currentMessageTotalLength === currentMessagePendingLength) {
+              yield currentMessage;
+              currentMessage = null;
+              currentMessageTotalLength = 0;
+              currentMessagePendingLength = 0;
+            }
+          }
+        }
+      };
+      return {
+        [Symbol.asyncIterator]: iterator
+      };
+    }
+    function getMessageUnmarshaller(deserializer, toUtf811) {
+      return async function(message) {
+        const { value: messageType } = message.headers[":message-type"];
+        if (messageType === "error") {
+          const unmodeledError = new Error(message.headers[":error-message"].value || "UnknownError");
+          unmodeledError.name = message.headers[":error-code"].value;
+          throw unmodeledError;
+        } else if (messageType === "exception") {
+          const code = message.headers[":exception-type"].value;
+          const exception = { [code]: message };
+          const deserializedException = await deserializer(exception);
+          if (deserializedException.$unknown) {
+            const error2 = new Error(toUtf811(message.body));
+            error2.name = code;
+            throw error2;
+          }
+          throw deserializedException[code];
+        } else if (messageType === "event") {
+          const event = {
+            [message.headers[":event-type"].value]: message
+          };
+          const deserialized = await deserializer(event);
+          if (deserialized.$unknown)
+            return;
+          return deserialized;
+        } else {
+          throw Error(`Unrecognizable event type: ${message.headers[":event-type"].value}`);
+        }
+      };
+    }
+    var EventStreamMarshaller = class {
+      eventStreamCodec;
+      utfEncoder;
+      constructor({ utf8Encoder, utf8Decoder }) {
+        this.eventStreamCodec = new eventstreamCodec.EventStreamCodec(utf8Encoder, utf8Decoder);
+        this.utfEncoder = utf8Encoder;
+      }
+      deserialize(body, deserializer) {
+        const inputStream = getChunkedStream(body);
+        return new eventstreamCodec.SmithyMessageDecoderStream({
+          messageStream: new eventstreamCodec.MessageDecoderStream({ inputStream, decoder: this.eventStreamCodec }),
+          deserializer: getMessageUnmarshaller(deserializer, this.utfEncoder)
+        });
+      }
+      serialize(inputStream, serializer) {
+        return new eventstreamCodec.MessageEncoderStream({
+          messageStream: new eventstreamCodec.SmithyMessageEncoderStream({ inputStream, serializer }),
+          encoder: this.eventStreamCodec,
+          includeEndFrame: true
+        });
+      }
+    };
+    var eventStreamSerdeProvider = (options) => new EventStreamMarshaller(options);
+    exports2.EventStreamMarshaller = EventStreamMarshaller;
+    exports2.eventStreamSerdeProvider = eventStreamSerdeProvider;
+  }
+});
+
+// node_modules/@smithy/eventstream-serde-node/dist-cjs/index.js
+var require_dist_cjs64 = __commonJS({
+  "node_modules/@smithy/eventstream-serde-node/dist-cjs/index.js"(exports2) {
+    "use strict";
+    var eventstreamSerdeUniversal = require_dist_cjs63();
+    var stream2 = require("stream");
+    async function* readabletoIterable(readStream) {
+      let streamEnded = false;
+      let generationEnded = false;
+      const records = new Array();
+      readStream.on("error", (err) => {
+        if (!streamEnded) {
+          streamEnded = true;
+        }
+        if (err) {
+          throw err;
+        }
+      });
+      readStream.on("data", (data2) => {
+        records.push(data2);
+      });
+      readStream.on("end", () => {
+        streamEnded = true;
+      });
+      while (!generationEnded) {
+        const value = await new Promise((resolve) => setTimeout(() => resolve(records.shift()), 0));
+        if (value) {
+          yield value;
+        }
+        generationEnded = streamEnded && records.length === 0;
+      }
+    }
+    var EventStreamMarshaller = class {
+      universalMarshaller;
+      constructor({ utf8Encoder, utf8Decoder }) {
+        this.universalMarshaller = new eventstreamSerdeUniversal.EventStreamMarshaller({
+          utf8Decoder,
+          utf8Encoder
+        });
+      }
+      deserialize(body, deserializer) {
+        const bodyIterable = typeof body[Symbol.asyncIterator] === "function" ? body : readabletoIterable(body);
+        return this.universalMarshaller.deserialize(bodyIterable, deserializer);
+      }
+      serialize(input2, serializer) {
+        return stream2.Readable.from(this.universalMarshaller.serialize(input2, serializer));
+      }
+    };
+    var eventStreamSerdeProvider = (options) => new EventStreamMarshaller(options);
+    exports2.EventStreamMarshaller = EventStreamMarshaller;
+    exports2.eventStreamSerdeProvider = eventStreamSerdeProvider;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/endpoint/ruleset.js
+var require_ruleset3 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/endpoint/ruleset.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.ruleSet = void 0;
+    var u5 = "required";
+    var v5 = "fn";
+    var w5 = "argv";
+    var x5 = "ref";
+    var a5 = true;
+    var b5 = "isSet";
+    var c5 = "booleanEquals";
+    var d5 = "error";
+    var e5 = "endpoint";
+    var f5 = "tree";
+    var g5 = "PartitionResult";
+    var h5 = "stringEquals";
+    var i5 = { [u5]: false, "type": "string" };
+    var j5 = { [u5]: true, "default": false, "type": "boolean" };
+    var k5 = { [x5]: "Endpoint" };
+    var l5 = { [v5]: c5, [w5]: [{ [x5]: "UseFIPS" }, true] };
+    var m5 = { [v5]: c5, [w5]: [{ [x5]: "UseDualStack" }, true] };
+    var n5 = {};
+    var o5 = { [x5]: "Region" };
+    var p5 = { [v5]: "getAttr", [w5]: [{ [x5]: g5 }, "supportsFIPS"] };
+    var q5 = { [v5]: c5, [w5]: [true, { [v5]: "getAttr", [w5]: [{ [x5]: g5 }, "supportsDualStack"] }] };
+    var r5 = [l5];
+    var s5 = [m5];
+    var t5 = [o5];
+    var _data5 = { version: "1.0", parameters: { Region: i5, UseDualStack: j5, UseFIPS: j5, Endpoint: i5 }, rules: [{ conditions: [{ [v5]: b5, [w5]: [k5] }], rules: [{ conditions: r5, error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d5 }, { conditions: s5, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d5 }, { endpoint: { url: k5, properties: n5, headers: n5 }, type: e5 }], type: f5 }, { conditions: [{ [v5]: b5, [w5]: t5 }], rules: [{ conditions: [{ [v5]: "aws.partition", [w5]: t5, assign: g5 }], rules: [{ conditions: [l5, m5], rules: [{ conditions: [{ [v5]: c5, [w5]: [a5, p5] }, q5], rules: [{ endpoint: { url: "https://logs-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n5, headers: n5 }, type: e5 }], type: f5 }, { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d5 }], type: f5 }, { conditions: r5, rules: [{ conditions: [{ [v5]: c5, [w5]: [p5, a5] }], rules: [{ conditions: [{ [v5]: h5, [w5]: [o5, "us-gov-east-1"] }], endpoint: { url: "https://logs.us-gov-east-1.amazonaws.com", properties: n5, headers: n5 }, type: e5 }, { conditions: [{ [v5]: h5, [w5]: [o5, "us-gov-west-1"] }], endpoint: { url: "https://logs.us-gov-west-1.amazonaws.com", properties: n5, headers: n5 }, type: e5 }, { endpoint: { url: "https://logs-fips.{Region}.{PartitionResult#dnsSuffix}", properties: n5, headers: n5 }, type: e5 }], type: f5 }, { error: "FIPS is enabled but this partition does not support FIPS", type: d5 }], type: f5 }, { conditions: s5, rules: [{ conditions: [q5], rules: [{ endpoint: { url: "https://logs.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n5, headers: n5 }, type: e5 }], type: f5 }, { error: "DualStack is enabled but this partition does not support DualStack", type: d5 }], type: f5 }, { endpoint: { url: "https://logs.{Region}.{PartitionResult#dnsSuffix}", properties: n5, headers: n5 }, type: e5 }], type: f5 }], type: f5 }, { error: "Invalid Configuration: Missing Region", type: d5 }] };
+    exports2.ruleSet = _data5;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/endpoint/endpointResolver.js
+var require_endpointResolver3 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/endpoint/endpointResolver.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.defaultEndpointResolver = void 0;
+    var util_endpoints_1 = require_dist_cjs21();
+    var util_endpoints_2 = require_dist_cjs20();
+    var ruleset_1 = require_ruleset3();
+    var cache6 = new util_endpoints_2.EndpointCache({
+      size: 50,
+      params: ["Endpoint", "Region", "UseDualStack", "UseFIPS"]
+    });
+    var defaultEndpointResolver5 = (endpointParams, context = {}) => {
+      return cache6.get(endpointParams, () => (0, util_endpoints_2.resolveEndpoint)(ruleset_1.ruleSet, {
+        endpointParams,
+        logger: context.logger
+      }));
+    };
+    exports2.defaultEndpointResolver = defaultEndpointResolver5;
+    util_endpoints_2.customEndpointFunctions.aws = util_endpoints_1.awsEndpointFunctions;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/models/CloudWatchLogsServiceException.js
+var require_CloudWatchLogsServiceException = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/models/CloudWatchLogsServiceException.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.CloudWatchLogsServiceException = exports2.__ServiceException = void 0;
+    var smithy_client_1 = require_dist_cjs34();
+    Object.defineProperty(exports2, "__ServiceException", { enumerable: true, get: function() {
+      return smithy_client_1.ServiceException;
+    } });
+    var CloudWatchLogsServiceException = class _CloudWatchLogsServiceException extends smithy_client_1.ServiceException {
+      constructor(options) {
+        super(options);
+        Object.setPrototypeOf(this, _CloudWatchLogsServiceException.prototype);
+      }
+    };
+    exports2.CloudWatchLogsServiceException = CloudWatchLogsServiceException;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/models/errors.js
+var require_errors2 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/models/errors.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.TooManyTagsException = exports2.MalformedQueryException = exports2.SessionTimeoutException = exports2.SessionStreamingException = exports2.UnrecognizedClientException = exports2.InvalidSequenceTokenException = exports2.InternalStreamingException = exports2.DataAlreadyAcceptedException = exports2.ResourceAlreadyExistsException = exports2.LimitExceededException = exports2.ServiceQuotaExceededException = exports2.ConflictException = exports2.InvalidOperationException = exports2.ValidationException = exports2.ThrottlingException = exports2.InternalServerException = exports2.ServiceUnavailableException = exports2.ResourceNotFoundException = exports2.OperationAbortedException = exports2.InvalidParameterException = exports2.AccessDeniedException = void 0;
+    var CloudWatchLogsServiceException_1 = require_CloudWatchLogsServiceException();
+    var AccessDeniedException3 = class _AccessDeniedException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "AccessDeniedException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "AccessDeniedException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _AccessDeniedException.prototype);
+      }
+    };
+    exports2.AccessDeniedException = AccessDeniedException3;
+    var InvalidParameterException = class _InvalidParameterException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "InvalidParameterException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "InvalidParameterException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _InvalidParameterException.prototype);
+      }
+    };
+    exports2.InvalidParameterException = InvalidParameterException;
+    var OperationAbortedException = class _OperationAbortedException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "OperationAbortedException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "OperationAbortedException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _OperationAbortedException.prototype);
+      }
+    };
+    exports2.OperationAbortedException = OperationAbortedException;
+    var ResourceNotFoundException2 = class _ResourceNotFoundException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "ResourceNotFoundException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "ResourceNotFoundException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _ResourceNotFoundException.prototype);
+      }
+    };
+    exports2.ResourceNotFoundException = ResourceNotFoundException2;
+    var ServiceUnavailableException = class _ServiceUnavailableException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "ServiceUnavailableException";
+      $fault = "server";
+      constructor(opts) {
+        super({
+          name: "ServiceUnavailableException",
+          $fault: "server",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _ServiceUnavailableException.prototype);
+      }
+    };
+    exports2.ServiceUnavailableException = ServiceUnavailableException;
+    var InternalServerException3 = class _InternalServerException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "InternalServerException";
+      $fault = "server";
+      constructor(opts) {
+        super({
+          name: "InternalServerException",
+          $fault: "server",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _InternalServerException.prototype);
+      }
+    };
+    exports2.InternalServerException = InternalServerException3;
+    var ThrottlingException = class _ThrottlingException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "ThrottlingException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "ThrottlingException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _ThrottlingException.prototype);
+      }
+    };
+    exports2.ThrottlingException = ThrottlingException;
+    var ValidationException2 = class _ValidationException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "ValidationException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "ValidationException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _ValidationException.prototype);
+      }
+    };
+    exports2.ValidationException = ValidationException2;
+    var InvalidOperationException = class _InvalidOperationException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "InvalidOperationException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "InvalidOperationException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _InvalidOperationException.prototype);
+      }
+    };
+    exports2.InvalidOperationException = InvalidOperationException;
+    var ConflictException = class _ConflictException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "ConflictException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "ConflictException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _ConflictException.prototype);
+      }
+    };
+    exports2.ConflictException = ConflictException;
+    var ServiceQuotaExceededException = class _ServiceQuotaExceededException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "ServiceQuotaExceededException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "ServiceQuotaExceededException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _ServiceQuotaExceededException.prototype);
+      }
+    };
+    exports2.ServiceQuotaExceededException = ServiceQuotaExceededException;
+    var LimitExceededException = class _LimitExceededException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "LimitExceededException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "LimitExceededException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _LimitExceededException.prototype);
+      }
+    };
+    exports2.LimitExceededException = LimitExceededException;
+    var ResourceAlreadyExistsException = class _ResourceAlreadyExistsException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "ResourceAlreadyExistsException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "ResourceAlreadyExistsException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _ResourceAlreadyExistsException.prototype);
+      }
+    };
+    exports2.ResourceAlreadyExistsException = ResourceAlreadyExistsException;
+    var DataAlreadyAcceptedException = class _DataAlreadyAcceptedException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "DataAlreadyAcceptedException";
+      $fault = "client";
+      expectedSequenceToken;
+      constructor(opts) {
+        super({
+          name: "DataAlreadyAcceptedException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _DataAlreadyAcceptedException.prototype);
+        this.expectedSequenceToken = opts.expectedSequenceToken;
+      }
+    };
+    exports2.DataAlreadyAcceptedException = DataAlreadyAcceptedException;
+    var InternalStreamingException = class _InternalStreamingException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "InternalStreamingException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "InternalStreamingException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _InternalStreamingException.prototype);
+      }
+    };
+    exports2.InternalStreamingException = InternalStreamingException;
+    var InvalidSequenceTokenException = class _InvalidSequenceTokenException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "InvalidSequenceTokenException";
+      $fault = "client";
+      expectedSequenceToken;
+      constructor(opts) {
+        super({
+          name: "InvalidSequenceTokenException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _InvalidSequenceTokenException.prototype);
+        this.expectedSequenceToken = opts.expectedSequenceToken;
+      }
+    };
+    exports2.InvalidSequenceTokenException = InvalidSequenceTokenException;
+    var UnrecognizedClientException = class _UnrecognizedClientException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "UnrecognizedClientException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "UnrecognizedClientException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _UnrecognizedClientException.prototype);
+      }
+    };
+    exports2.UnrecognizedClientException = UnrecognizedClientException;
+    var SessionStreamingException = class _SessionStreamingException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "SessionStreamingException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "SessionStreamingException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _SessionStreamingException.prototype);
+      }
+    };
+    exports2.SessionStreamingException = SessionStreamingException;
+    var SessionTimeoutException = class _SessionTimeoutException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "SessionTimeoutException";
+      $fault = "client";
+      constructor(opts) {
+        super({
+          name: "SessionTimeoutException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _SessionTimeoutException.prototype);
+      }
+    };
+    exports2.SessionTimeoutException = SessionTimeoutException;
+    var MalformedQueryException = class _MalformedQueryException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "MalformedQueryException";
+      $fault = "client";
+      queryCompileError;
+      constructor(opts) {
+        super({
+          name: "MalformedQueryException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _MalformedQueryException.prototype);
+        this.queryCompileError = opts.queryCompileError;
+      }
+    };
+    exports2.MalformedQueryException = MalformedQueryException;
+    var TooManyTagsException = class _TooManyTagsException extends CloudWatchLogsServiceException_1.CloudWatchLogsServiceException {
+      name = "TooManyTagsException";
+      $fault = "client";
+      resourceName;
+      constructor(opts) {
+        super({
+          name: "TooManyTagsException",
+          $fault: "client",
+          ...opts
+        });
+        Object.setPrototypeOf(this, _TooManyTagsException.prototype);
+        this.resourceName = opts.resourceName;
+      }
+    };
+    exports2.TooManyTagsException = TooManyTagsException;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/schemas/schemas_0.js
+var require_schemas_03 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/schemas/schemas_0.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.CreateLookupTableRequest$ = exports2.CreateLogStreamRequest$ = exports2.CreateLogGroupRequest$ = exports2.CreateLogAnomalyDetectorResponse$ = exports2.CreateLogAnomalyDetectorRequest$ = exports2.CreateImportTaskResponse$ = exports2.CreateImportTaskRequest$ = exports2.CreateExportTaskResponse$ = exports2.CreateExportTaskRequest$ = exports2.CreateDeliveryResponse$ = exports2.CreateDeliveryRequest$ = exports2.CopyValueEntry$ = exports2.CopyValue$ = exports2.ConfigurationTemplateDeliveryConfigValues$ = exports2.ConfigurationTemplate$ = exports2.CancelImportTaskResponse$ = exports2.CancelImportTaskRequest$ = exports2.CancelExportTaskRequest$ = exports2.AssociateSourceToS3TableIntegrationResponse$ = exports2.AssociateSourceToS3TableIntegrationRequest$ = exports2.AssociateKmsKeyRequest$ = exports2.AnomalyDetector$ = exports2.Anomaly$ = exports2.AggregateLogGroupSummary$ = exports2.AddKeys$ = exports2.AddKeyEntry$ = exports2.AccountPolicy$ = exports2.errorTypeRegistries = exports2.ValidationException$ = exports2.UnrecognizedClientException$ = exports2.TooManyTagsException$ = exports2.ThrottlingException$ = exports2.SessionTimeoutException$ = exports2.SessionStreamingException$ = exports2.ServiceUnavailableException$ = exports2.ServiceQuotaExceededException$ = exports2.ResourceNotFoundException$ = exports2.ResourceAlreadyExistsException$ = exports2.OperationAbortedException$ = exports2.MalformedQueryException$ = exports2.LimitExceededException$ = exports2.InvalidSequenceTokenException$ = exports2.InvalidParameterException$ = exports2.InvalidOperationException$ = exports2.InternalStreamingException$ = exports2.InternalServerException$ = exports2.DataAlreadyAcceptedException$ = exports2.ConflictException$ = exports2.AccessDeniedException$ = exports2.CloudWatchLogsServiceException$ = void 0;
+    exports2.DescribeExportTasksResponse$ = exports2.DescribeExportTasksRequest$ = exports2.DescribeDestinationsResponse$ = exports2.DescribeDestinationsRequest$ = exports2.DescribeDeliverySourcesResponse$ = exports2.DescribeDeliverySourcesRequest$ = exports2.DescribeDeliveryDestinationsResponse$ = exports2.DescribeDeliveryDestinationsRequest$ = exports2.DescribeDeliveriesResponse$ = exports2.DescribeDeliveriesRequest$ = exports2.DescribeConfigurationTemplatesResponse$ = exports2.DescribeConfigurationTemplatesRequest$ = exports2.DescribeAccountPoliciesResponse$ = exports2.DescribeAccountPoliciesRequest$ = exports2.DeliverySource$ = exports2.DeliveryDestinationConfiguration$ = exports2.DeliveryDestination$ = exports2.Delivery$ = exports2.DeleteTransformerRequest$ = exports2.DeleteSubscriptionFilterRequest$ = exports2.DeleteScheduledQueryResponse$ = exports2.DeleteScheduledQueryRequest$ = exports2.DeleteRetentionPolicyRequest$ = exports2.DeleteResourcePolicyRequest$ = exports2.DeleteQueryDefinitionResponse$ = exports2.DeleteQueryDefinitionRequest$ = exports2.DeleteMetricFilterRequest$ = exports2.DeleteLookupTableRequest$ = exports2.DeleteLogStreamRequest$ = exports2.DeleteLogGroupRequest$ = exports2.DeleteLogAnomalyDetectorRequest$ = exports2.DeleteKeys$ = exports2.DeleteIntegrationResponse$ = exports2.DeleteIntegrationRequest$ = exports2.DeleteIndexPolicyResponse$ = exports2.DeleteIndexPolicyRequest$ = exports2.DeleteDestinationRequest$ = exports2.DeleteDeliverySourceRequest$ = exports2.DeleteDeliveryRequest$ = exports2.DeleteDeliveryDestinationRequest$ = exports2.DeleteDeliveryDestinationPolicyRequest$ = exports2.DeleteDataProtectionPolicyRequest$ = exports2.DeleteAccountPolicyRequest$ = exports2.DateTimeConverter$ = exports2.DataSourceFilter$ = exports2.DataSource$ = exports2.CSV$ = exports2.CreateScheduledQueryResponse$ = exports2.CreateScheduledQueryRequest$ = exports2.CreateLookupTableResponse$ = void 0;
+    exports2.GetIntegrationResponse$ = exports2.GetIntegrationRequest$ = exports2.GetDeliverySourceResponse$ = exports2.GetDeliverySourceRequest$ = exports2.GetDeliveryResponse$ = exports2.GetDeliveryRequest$ = exports2.GetDeliveryDestinationResponse$ = exports2.GetDeliveryDestinationRequest$ = exports2.GetDeliveryDestinationPolicyResponse$ = exports2.GetDeliveryDestinationPolicyRequest$ = exports2.GetDataProtectionPolicyResponse$ = exports2.GetDataProtectionPolicyRequest$ = exports2.FilterLogEventsResponse$ = exports2.FilterLogEventsRequest$ = exports2.FilteredLogEvent$ = exports2.FieldsData$ = exports2.FieldIndex$ = exports2.ExportTaskStatus$ = exports2.ExportTaskExecutionInfo$ = exports2.ExportTask$ = exports2.Entity$ = exports2.DisassociateSourceFromS3TableIntegrationResponse$ = exports2.DisassociateSourceFromS3TableIntegrationRequest$ = exports2.DisassociateKmsKeyRequest$ = exports2.DestinationConfiguration$ = exports2.Destination$ = exports2.DescribeSubscriptionFiltersResponse$ = exports2.DescribeSubscriptionFiltersRequest$ = exports2.DescribeResourcePoliciesResponse$ = exports2.DescribeResourcePoliciesRequest$ = exports2.DescribeQueryDefinitionsResponse$ = exports2.DescribeQueryDefinitionsRequest$ = exports2.DescribeQueriesResponse$ = exports2.DescribeQueriesRequest$ = exports2.DescribeMetricFiltersResponse$ = exports2.DescribeMetricFiltersRequest$ = exports2.DescribeLookupTablesResponse$ = exports2.DescribeLookupTablesRequest$ = exports2.DescribeLogStreamsResponse$ = exports2.DescribeLogStreamsRequest$ = exports2.DescribeLogGroupsResponse$ = exports2.DescribeLogGroupsRequest$ = exports2.DescribeIndexPoliciesResponse$ = exports2.DescribeIndexPoliciesRequest$ = exports2.DescribeImportTasksResponse$ = exports2.DescribeImportTasksRequest$ = exports2.DescribeImportTaskBatchesResponse$ = exports2.DescribeImportTaskBatchesRequest$ = exports2.DescribeFieldIndexesResponse$ = exports2.DescribeFieldIndexesRequest$ = void 0;
+    exports2.ListTagsLogGroupRequest$ = exports2.ListTagsForResourceResponse$ = exports2.ListTagsForResourceRequest$ = exports2.ListSourcesForS3TableIntegrationResponse$ = exports2.ListSourcesForS3TableIntegrationRequest$ = exports2.ListScheduledQueriesResponse$ = exports2.ListScheduledQueriesRequest$ = exports2.ListLogGroupsResponse$ = exports2.ListLogGroupsRequest$ = exports2.ListLogGroupsForQueryResponse$ = exports2.ListLogGroupsForQueryRequest$ = exports2.ListLogAnomalyDetectorsResponse$ = exports2.ListLogAnomalyDetectorsRequest$ = exports2.ListIntegrationsResponse$ = exports2.ListIntegrationsRequest$ = exports2.ListAnomaliesResponse$ = exports2.ListAnomaliesRequest$ = exports2.ListAggregateLogGroupSummariesResponse$ = exports2.ListAggregateLogGroupSummariesRequest$ = exports2.IntegrationSummary$ = exports2.InputLogEvent$ = exports2.IndexPolicy$ = exports2.ImportStatistics$ = exports2.ImportFilter$ = exports2.ImportBatch$ = exports2.Import$ = exports2.GroupingIdentifier$ = exports2.Grok$ = exports2.GetTransformerResponse$ = exports2.GetTransformerRequest$ = exports2.GetScheduledQueryResponse$ = exports2.GetScheduledQueryRequest$ = exports2.GetScheduledQueryHistoryResponse$ = exports2.GetScheduledQueryHistoryRequest$ = exports2.GetQueryResultsResponse$ = exports2.GetQueryResultsRequest$ = exports2.GetLookupTableResponse$ = exports2.GetLookupTableRequest$ = exports2.GetLogRecordResponse$ = exports2.GetLogRecordRequest$ = exports2.GetLogObjectResponse$ = exports2.GetLogObjectRequest$ = exports2.GetLogGroupFieldsResponse$ = exports2.GetLogGroupFieldsRequest$ = exports2.GetLogFieldsResponse$ = exports2.GetLogFieldsRequest$ = exports2.GetLogEventsResponse$ = exports2.GetLogEventsRequest$ = exports2.GetLogAnomalyDetectorResponse$ = exports2.GetLogAnomalyDetectorRequest$ = void 0;
+    exports2.PutDeliveryDestinationPolicyResponse$ = exports2.PutDeliveryDestinationPolicyRequest$ = exports2.PutDataProtectionPolicyResponse$ = exports2.PutDataProtectionPolicyRequest$ = exports2.PutBearerTokenAuthenticationRequest$ = exports2.PutAccountPolicyResponse$ = exports2.PutAccountPolicyRequest$ = exports2.Processor$ = exports2.Policy$ = exports2.PatternToken$ = exports2.ParseWAF$ = exports2.ParseVPC$ = exports2.ParseToOCSF$ = exports2.ParseRoute53$ = exports2.ParsePostgres$ = exports2.ParseKeyValue$ = exports2.ParseJSON$ = exports2.ParseCloudfront$ = exports2.OutputLogEvent$ = exports2.OpenSearchWorkspace$ = exports2.OpenSearchResourceStatus$ = exports2.OpenSearchResourceConfig$ = exports2.OpenSearchNetworkPolicy$ = exports2.OpenSearchLifecyclePolicy$ = exports2.OpenSearchIntegrationDetails$ = exports2.OpenSearchEncryptionPolicy$ = exports2.OpenSearchDataSource$ = exports2.OpenSearchDataAccessPolicy$ = exports2.OpenSearchCollection$ = exports2.OpenSearchApplication$ = exports2.MoveKeys$ = exports2.MoveKeyEntry$ = exports2.MetricTransformation$ = exports2.MetricFilterMatchRecord$ = exports2.MetricFilter$ = exports2.LowerCaseString$ = exports2.LookupTable$ = exports2.LogStream$ = exports2.LogGroupSummary$ = exports2.LogGroupField$ = exports2.LogGroup$ = exports2.LogFieldType$ = exports2.LogFieldsListItem$ = exports2.LogEvent$ = exports2.LiveTailSessionUpdate$ = exports2.LiveTailSessionStart$ = exports2.LiveTailSessionMetadata$ = exports2.LiveTailSessionLogEvent$ = exports2.ListToMap$ = exports2.ListTagsLogGroupResponse$ = void 0;
+    exports2.SubscriptionFilter$ = exports2.StopQueryResponse$ = exports2.StopQueryRequest$ = exports2.StartQueryResponse$ = exports2.StartQueryRequest$ = exports2.StartLiveTailResponse$ = exports2.StartLiveTailRequest$ = exports2.SplitStringEntry$ = exports2.SplitString$ = exports2.SearchedLogStream$ = exports2.ScheduledQuerySummary$ = exports2.ScheduledQueryDestination$ = exports2.S3TableIntegrationSource$ = exports2.S3DeliveryConfiguration$ = exports2.S3Configuration$ = exports2.ResultField$ = exports2.ResourcePolicy$ = exports2.RenameKeys$ = exports2.RenameKeyEntry$ = exports2.RejectedLogEventsInfo$ = exports2.RejectedEntityInfo$ = exports2.RecordField$ = exports2.QueryStatistics$ = exports2.QueryParameter$ = exports2.QueryInfo$ = exports2.QueryDefinition$ = exports2.QueryCompileErrorLocation$ = exports2.QueryCompileError$ = exports2.PutTransformerRequest$ = exports2.PutSubscriptionFilterRequest$ = exports2.PutRetentionPolicyRequest$ = exports2.PutResourcePolicyResponse$ = exports2.PutResourcePolicyRequest$ = exports2.PutQueryDefinitionResponse$ = exports2.PutQueryDefinitionRequest$ = exports2.PutMetricFilterRequest$ = exports2.PutLogGroupDeletionProtectionRequest$ = exports2.PutLogEventsResponse$ = exports2.PutLogEventsRequest$ = exports2.PutIntegrationResponse$ = exports2.PutIntegrationRequest$ = exports2.PutIndexPolicyResponse$ = exports2.PutIndexPolicyRequest$ = exports2.PutDestinationResponse$ = exports2.PutDestinationRequest$ = exports2.PutDestinationPolicyRequest$ = exports2.PutDeliverySourceResponse$ = exports2.PutDeliverySourceRequest$ = exports2.PutDeliveryDestinationResponse$ = exports2.PutDeliveryDestinationRequest$ = void 0;
+    exports2.DeleteIntegration$ = exports2.DeleteIndexPolicy$ = exports2.DeleteDestination$ = exports2.DeleteDeliverySource$ = exports2.DeleteDeliveryDestinationPolicy$ = exports2.DeleteDeliveryDestination$ = exports2.DeleteDelivery$ = exports2.DeleteDataProtectionPolicy$ = exports2.DeleteAccountPolicy$ = exports2.CreateScheduledQuery$ = exports2.CreateLookupTable$ = exports2.CreateLogStream$ = exports2.CreateLogGroup$ = exports2.CreateLogAnomalyDetector$ = exports2.CreateImportTask$ = exports2.CreateExportTask$ = exports2.CreateDelivery$ = exports2.CancelImportTask$ = exports2.CancelExportTask$ = exports2.AssociateSourceToS3TableIntegration$ = exports2.AssociateKmsKey$ = exports2.StartLiveTailResponseStream$ = exports2.ResourceConfig$ = exports2.IntegrationDetails$ = exports2.GetLogObjectResponseStream$ = exports2.UpperCaseString$ = exports2.UpdateScheduledQueryResponse$ = exports2.UpdateScheduledQueryRequest$ = exports2.UpdateLookupTableResponse$ = exports2.UpdateLookupTableRequest$ = exports2.UpdateLogAnomalyDetectorRequest$ = exports2.UpdateDeliveryConfigurationResponse$ = exports2.UpdateDeliveryConfigurationRequest$ = exports2.UpdateAnomalyRequest$ = exports2.UntagResourceRequest$ = exports2.UntagLogGroupRequest$ = exports2.TypeConverterEntry$ = exports2.TypeConverter$ = exports2.TrimString$ = exports2.TriggerHistoryRecord$ = exports2.TransformedLogRecord$ = exports2.TestTransformerResponse$ = exports2.TestTransformerRequest$ = exports2.TestMetricFilterResponse$ = exports2.TestMetricFilterRequest$ = exports2.TagResourceRequest$ = exports2.TagLogGroupRequest$ = exports2.SuppressionPeriod$ = exports2.SubstituteStringEntry$ = exports2.SubstituteString$ = void 0;
+    exports2.GetTransformer$ = exports2.GetScheduledQueryHistory$ = exports2.GetScheduledQuery$ = exports2.GetQueryResults$ = exports2.GetLookupTable$ = exports2.GetLogRecord$ = exports2.GetLogObject$ = exports2.GetLogGroupFields$ = exports2.GetLogFields$ = exports2.GetLogEvents$ = exports2.GetLogAnomalyDetector$ = exports2.GetIntegration$ = exports2.GetDeliverySource$ = exports2.GetDeliveryDestinationPolicy$ = exports2.GetDeliveryDestination$ = exports2.GetDelivery$ = exports2.GetDataProtectionPolicy$ = exports2.FilterLogEvents$ = exports2.DisassociateSourceFromS3TableIntegration$ = exports2.DisassociateKmsKey$ = exports2.DescribeSubscriptionFilters$ = exports2.DescribeResourcePolicies$ = exports2.DescribeQueryDefinitions$ = exports2.DescribeQueries$ = exports2.DescribeMetricFilters$ = exports2.DescribeLookupTables$ = exports2.DescribeLogStreams$ = exports2.DescribeLogGroups$ = exports2.DescribeIndexPolicies$ = exports2.DescribeImportTasks$ = exports2.DescribeImportTaskBatches$ = exports2.DescribeFieldIndexes$ = exports2.DescribeExportTasks$ = exports2.DescribeDestinations$ = exports2.DescribeDeliverySources$ = exports2.DescribeDeliveryDestinations$ = exports2.DescribeDeliveries$ = exports2.DescribeConfigurationTemplates$ = exports2.DescribeAccountPolicies$ = exports2.DeleteTransformer$ = exports2.DeleteSubscriptionFilter$ = exports2.DeleteScheduledQuery$ = exports2.DeleteRetentionPolicy$ = exports2.DeleteResourcePolicy$ = exports2.DeleteQueryDefinition$ = exports2.DeleteMetricFilter$ = exports2.DeleteLookupTable$ = exports2.DeleteLogStream$ = exports2.DeleteLogGroup$ = exports2.DeleteLogAnomalyDetector$ = void 0;
+    exports2.UpdateScheduledQuery$ = exports2.UpdateLookupTable$ = exports2.UpdateLogAnomalyDetector$ = exports2.UpdateDeliveryConfiguration$ = exports2.UpdateAnomaly$ = exports2.UntagResource$ = exports2.UntagLogGroup$ = exports2.TestTransformer$ = exports2.TestMetricFilter$ = exports2.TagResource$ = exports2.TagLogGroup$ = exports2.StopQuery$ = exports2.StartQuery$ = exports2.StartLiveTail$ = exports2.PutTransformer$ = exports2.PutSubscriptionFilter$ = exports2.PutRetentionPolicy$ = exports2.PutResourcePolicy$ = exports2.PutQueryDefinition$ = exports2.PutMetricFilter$ = exports2.PutLogGroupDeletionProtection$ = exports2.PutLogEvents$ = exports2.PutIntegration$ = exports2.PutIndexPolicy$ = exports2.PutDestinationPolicy$ = exports2.PutDestination$ = exports2.PutDeliverySource$ = exports2.PutDeliveryDestinationPolicy$ = exports2.PutDeliveryDestination$ = exports2.PutDataProtectionPolicy$ = exports2.PutBearerTokenAuthentication$ = exports2.PutAccountPolicy$ = exports2.ListTagsLogGroup$ = exports2.ListTagsForResource$ = exports2.ListSourcesForS3TableIntegration$ = exports2.ListScheduledQueries$ = exports2.ListLogGroupsForQuery$ = exports2.ListLogGroups$ = exports2.ListLogAnomalyDetectors$ = exports2.ListIntegrations$ = exports2.ListAnomalies$ = exports2.ListAggregateLogGroupSummaries$ = void 0;
+    var _A2 = "Anomaly";
+    var _AD = "AnomalyDetector";
+    var _ADE3 = "AccessDeniedException";
+    var _ADn = "AnomalyDetectors";
+    var _AF = "AllowedFields";
+    var _AK = "AddKeys";
+    var _AKE = "AddKeyEntry";
+    var _AKEd = "AddKeyEntries";
+    var _AKK = "AssociateKmsKey";
+    var _AKKR = "AssociateKmsKeyRequest";
+    var _ALGS = "AggregateLogGroupSummary";
+    var _ALGSg = "AggregateLogGroupSummaries";
+    var _AP = "AccountPolicy";
+    var _APc = "AccountPolicies";
+    var _ASTSTI = "AssociateSourceToS3TableIntegration";
+    var _ASTSTIR = "AssociateSourceToS3TableIntegrationRequest";
+    var _ASTSTIRs = "AssociateSourceToS3TableIntegrationResponse";
+    var _An = "Anomalies";
+    var _CD = "CreateDelivery";
+    var _CDR = "CreateDeliveryRequest";
+    var _CDRr = "CreateDeliveryResponse";
+    var _CE = "ConflictException";
+    var _CET = "CancelExportTask";
+    var _CETR = "CancelExportTaskRequest";
+    var _CETRr = "CreateExportTaskRequest";
+    var _CETRre = "CreateExportTaskResponse";
+    var _CETr = "CreateExportTask";
+    var _CIT = "CancelImportTask";
+    var _CITR = "CancelImportTaskRequest";
+    var _CITRa = "CancelImportTaskResponse";
+    var _CITRr = "CreateImportTaskRequest";
+    var _CITRre = "CreateImportTaskResponse";
+    var _CITr = "CreateImportTask";
+    var _CLAD = "CreateLogAnomalyDetector";
+    var _CLADR = "CreateLogAnomalyDetectorRequest";
+    var _CLADRr = "CreateLogAnomalyDetectorResponse";
+    var _CLG = "CreateLogGroup";
+    var _CLGR = "CreateLogGroupRequest";
+    var _CLS = "CreateLogStream";
+    var _CLSR = "CreateLogStreamRequest";
+    var _CLT = "CreateLookupTable";
+    var _CLTR = "CreateLookupTableRequest";
+    var _CLTRr = "CreateLookupTableResponse";
+    var _CSQ = "CreateScheduledQuery";
+    var _CSQR = "CreateScheduledQueryRequest";
+    var _CSQRr = "CreateScheduledQueryResponse";
+    var _CSV = "CSV";
+    var _CT2 = "ConfigurationTemplate";
+    var _CTDCV = "ConfigurationTemplateDeliveryConfigValues";
+    var _CTo = "ConfigurationTemplates";
+    var _CV2 = "CopyValue";
+    var _CVE = "CopyValueEntry";
+    var _CVEo = "CopyValueEntries";
+    var _D = "Delivery";
+    var _DAAE = "DataAlreadyAcceptedException";
+    var _DAP = "DeleteAccountPolicy";
+    var _DAPR = "DeleteAccountPolicyRequest";
+    var _DAPRe = "DescribeAccountPoliciesRequest";
+    var _DAPRes = "DescribeAccountPoliciesResponse";
+    var _DAPe = "DescribeAccountPolicies";
+    var _DC = "DestinationConfiguration";
+    var _DCT = "DescribeConfigurationTemplates";
+    var _DCTR = "DescribeConfigurationTemplatesRequest";
+    var _DCTRe = "DescribeConfigurationTemplatesResponse";
+    var _DD = "DeliveryDestination";
+    var _DDC = "DeliveryDestinationConfiguration";
+    var _DDD = "DeleteDeliveryDestination";
+    var _DDDP = "DeleteDeliveryDestinationPolicy";
+    var _DDDPR = "DeleteDeliveryDestinationPolicyRequest";
+    var _DDDR = "DeleteDeliveryDestinationRequest";
+    var _DDDRe = "DescribeDeliveryDestinationsRequest";
+    var _DDDRes = "DescribeDeliveryDestinationsResponse";
+    var _DDDe = "DescribeDeliveryDestinations";
+    var _DDPP = "DeleteDataProtectionPolicy";
+    var _DDPPR = "DeleteDataProtectionPolicyRequest";
+    var _DDR = "DeleteDeliveryRequest";
+    var _DDRe = "DeleteDestinationRequest";
+    var _DDRes = "DescribeDeliveriesRequest";
+    var _DDResc = "DescribeDeliveriesResponse";
+    var _DDRescr = "DescribeDestinationsRequest";
+    var _DDRescri = "DescribeDestinationsResponse";
+    var _DDS = "DeleteDeliverySource";
+    var _DDSR = "DeleteDeliverySourceRequest";
+    var _DDSRe = "DescribeDeliverySourcesRequest";
+    var _DDSRes = "DescribeDeliverySourcesResponse";
+    var _DDSe = "DescribeDeliverySources";
+    var _DDe = "DeliveryDestinations";
+    var _DDel = "DeleteDelivery";
+    var _DDele = "DeleteDestination";
+    var _DDes = "DescribeDeliveries";
+    var _DDesc = "DescribeDestinations";
+    var _DET = "DescribeExportTasks";
+    var _DETR = "DescribeExportTasksRequest";
+    var _DETRe = "DescribeExportTasksResponse";
+    var _DFI = "DescribeFieldIndexes";
+    var _DFIR = "DescribeFieldIndexesRequest";
+    var _DFIRe = "DescribeFieldIndexesResponse";
+    var _DI = "DeleteIntegration";
+    var _DIP = "DeleteIndexPolicy";
+    var _DIPR = "DeleteIndexPolicyRequest";
+    var _DIPRe = "DeleteIndexPolicyResponse";
+    var _DIPRes = "DescribeIndexPoliciesRequest";
+    var _DIPResc = "DescribeIndexPoliciesResponse";
+    var _DIPe = "DescribeIndexPolicies";
+    var _DIR = "DeleteIntegrationRequest";
+    var _DIRe = "DeleteIntegrationResponse";
+    var _DIT = "DescribeImportTasks";
+    var _DITB = "DescribeImportTaskBatches";
+    var _DITBR = "DescribeImportTaskBatchesRequest";
+    var _DITBRe = "DescribeImportTaskBatchesResponse";
+    var _DITR = "DescribeImportTasksRequest";
+    var _DITRe = "DescribeImportTasksResponse";
+    var _DK = "DeleteKeys";
+    var _DKK = "DisassociateKmsKey";
+    var _DKKR = "DisassociateKmsKeyRequest";
+    var _DLAD = "DeleteLogAnomalyDetector";
+    var _DLADR = "DeleteLogAnomalyDetectorRequest";
+    var _DLG = "DeleteLogGroup";
+    var _DLGR = "DeleteLogGroupRequest";
+    var _DLGRe = "DescribeLogGroupsRequest";
+    var _DLGRes = "DescribeLogGroupsResponse";
+    var _DLGe = "DescribeLogGroups";
+    var _DLS = "DeleteLogStream";
+    var _DLSR = "DeleteLogStreamRequest";
+    var _DLSRe = "DescribeLogStreamsRequest";
+    var _DLSRes = "DescribeLogStreamsResponse";
+    var _DLSe = "DescribeLogStreams";
+    var _DLT = "DeleteLookupTable";
+    var _DLTR = "DeleteLookupTableRequest";
+    var _DLTRe = "DescribeLookupTablesRequest";
+    var _DLTRes = "DescribeLookupTablesResponse";
+    var _DLTe = "DescribeLookupTables";
+    var _DMF = "DeleteMetricFilter";
+    var _DMFR = "DeleteMetricFilterRequest";
+    var _DMFRe = "DescribeMetricFiltersRequest";
+    var _DMFRes = "DescribeMetricFiltersResponse";
+    var _DMFe = "DescribeMetricFilters";
+    var _DNP = "DestinationNamePrefix";
+    var _DQ = "DescribeQueries";
+    var _DQD = "DeleteQueryDefinition";
+    var _DQDR = "DeleteQueryDefinitionRequest";
+    var _DQDRe = "DeleteQueryDefinitionResponse";
+    var _DQDRes = "DescribeQueryDefinitionsRequest";
+    var _DQDResc = "DescribeQueryDefinitionsResponse";
+    var _DQDe = "DescribeQueryDefinitions";
+    var _DQR = "DescribeQueriesRequest";
+    var _DQRe = "DescribeQueriesResponse";
+    var _DRP = "DeleteResourcePolicy";
+    var _DRPR = "DeleteResourcePolicyRequest";
+    var _DRPRe = "DeleteRetentionPolicyRequest";
+    var _DRPRes = "DescribeResourcePoliciesRequest";
+    var _DRPResc = "DescribeResourcePoliciesResponse";
+    var _DRPe = "DeleteRetentionPolicy";
+    var _DRPes = "DescribeResourcePolicies";
+    var _DS2 = "DataSource";
+    var _DSF = "DataSourceFilter";
+    var _DSFR = "DeleteSubscriptionFilterRequest";
+    var _DSFRe = "DescribeSubscriptionFiltersRequest";
+    var _DSFRes = "DescribeSubscriptionFiltersResponse";
+    var _DSFSTI = "DisassociateSourceFromS3TableIntegration";
+    var _DSFSTIR = "DisassociateSourceFromS3TableIntegrationRequest";
+    var _DSFSTIRi = "DisassociateSourceFromS3TableIntegrationResponse";
+    var _DSFa = "DataSourceFilters";
+    var _DSFe = "DeleteSubscriptionFilter";
+    var _DSFes = "DescribeSubscriptionFilters";
+    var _DSQ = "DeleteScheduledQuery";
+    var _DSQR = "DeleteScheduledQueryRequest";
+    var _DSQRe = "DeleteScheduledQueryResponse";
+    var _DSe = "DeliverySource";
+    var _DSel = "DeliverySources";
+    var _DT = "DeleteTransformer";
+    var _DTC = "DateTimeConverter";
+    var _DTR = "DeleteTransformerRequest";
+    var _De = "Destination";
+    var _Del = "Deliveries";
+    var _Des = "Destinations";
+    var _E2 = "Entity";
+    var _ET = "ExportTask";
+    var _ETEI = "ExportTaskExecutionInfo";
+    var _ETS = "ExportTaskStatus";
+    var _ETx = "ExportTasks";
+    var _FD = "FieldsData";
+    var _FI = "FieldIndex";
+    var _FIi = "FieldIndexes";
+    var _FLE = "FilteredLogEvent";
+    var _FLER = "FilterLogEventsRequest";
+    var _FLERi = "FilterLogEventsResponse";
+    var _FLEi = "FilteredLogEvents";
+    var _FLEil = "FilterLogEvents";
+    var _G = "Grok";
+    var _GD = "GetDelivery";
+    var _GDD = "GetDeliveryDestination";
+    var _GDDP = "GetDeliveryDestinationPolicy";
+    var _GDDPR = "GetDeliveryDestinationPolicyRequest";
+    var _GDDPRe = "GetDeliveryDestinationPolicyResponse";
+    var _GDDR = "GetDeliveryDestinationRequest";
+    var _GDDRe = "GetDeliveryDestinationResponse";
+    var _GDPP = "GetDataProtectionPolicy";
+    var _GDPPR = "GetDataProtectionPolicyRequest";
+    var _GDPPRe = "GetDataProtectionPolicyResponse";
+    var _GDR = "GetDeliveryRequest";
+    var _GDRe = "GetDeliveryResponse";
+    var _GDS = "GetDeliverySource";
+    var _GDSR = "GetDeliverySourceRequest";
+    var _GDSRe = "GetDeliverySourceResponse";
+    var _GI = "GroupingIdentifier";
+    var _GIR = "GetIntegrationRequest";
+    var _GIRe = "GetIntegrationResponse";
+    var _GIe = "GetIntegration";
+    var _GIr = "GroupingIdentifiers";
+    var _GLAD = "GetLogAnomalyDetector";
+    var _GLADR = "GetLogAnomalyDetectorRequest";
+    var _GLADRe = "GetLogAnomalyDetectorResponse";
+    var _GLE = "GetLogEvents";
+    var _GLER = "GetLogEventsRequest";
+    var _GLERe = "GetLogEventsResponse";
+    var _GLF = "GetLogFields";
+    var _GLFR = "GetLogFieldsRequest";
+    var _GLFRe = "GetLogFieldsResponse";
+    var _GLGF = "GetLogGroupFields";
+    var _GLGFR = "GetLogGroupFieldsRequest";
+    var _GLGFRe = "GetLogGroupFieldsResponse";
+    var _GLO = "GetLogObject";
+    var _GLOR = "GetLogObjectRequest";
+    var _GLORS = "GetLogObjectResponseStream";
+    var _GLORe = "GetLogObjectResponse";
+    var _GLR = "GetLogRecord";
+    var _GLRR = "GetLogRecordRequest";
+    var _GLRRe = "GetLogRecordResponse";
+    var _GLT = "GetLookupTable";
+    var _GLTR = "GetLookupTableRequest";
+    var _GLTRe = "GetLookupTableResponse";
+    var _GQR = "GetQueryResults";
+    var _GQRR = "GetQueryResultsRequest";
+    var _GQRRe = "GetQueryResultsResponse";
+    var _GSQ = "GetScheduledQuery";
+    var _GSQH = "GetScheduledQueryHistory";
+    var _GSQHR = "GetScheduledQueryHistoryRequest";
+    var _GSQHRe = "GetScheduledQueryHistoryResponse";
+    var _GSQR = "GetScheduledQueryRequest";
+    var _GSQRe = "GetScheduledQueryResponse";
+    var _GT = "GetTransformer";
+    var _GTR = "GetTransformerRequest";
+    var _GTRe = "GetTransformerResponse";
+    var _I = "Import";
+    var _IB = "ImportBatch";
+    var _IBL = "ImportBatchList";
+    var _ID = "IntegrationDetails";
+    var _IF = "ImportFilter";
+    var _IL = "ImportList";
+    var _ILE = "InputLogEvent";
+    var _ILEn = "InputLogEvents";
+    var _IOE = "InvalidOperationException";
+    var _IP = "IndexPolicy";
+    var _IPE = "InvalidParameterException";
+    var _IPn = "IndexPolicies";
+    var _IS = "ImportStatistics";
+    var _ISE3 = "InternalServerException";
+    var _ISEn2 = "InternalStreamingException";
+    var _ISTE = "InvalidSequenceTokenException";
+    var _ISn = "IntegrationSummary";
+    var _ISnt = "IntegrationSummaries";
+    var _LA = "ListAnomalies";
+    var _LALGS = "ListAggregateLogGroupSummaries";
+    var _LALGSR = "ListAggregateLogGroupSummariesRequest";
+    var _LALGSRi = "ListAggregateLogGroupSummariesResponse";
+    var _LAR = "ListAnomaliesRequest";
+    var _LARi = "ListAnomaliesResponse";
+    var _LCS = "LowerCaseString";
+    var _LE = "LogEvent";
+    var _LEE = "LimitExceededException";
+    var _LFL = "LogFieldsList";
+    var _LFLI = "LogFieldsListItem";
+    var _LFT = "LogFieldType";
+    var _LG = "LogGroup";
+    var _LGF = "LogGroupField";
+    var _LGFL = "LogGroupFieldList";
+    var _LGS = "LogGroupSummary";
+    var _LGSo = "LogGroupSummaries";
+    var _LGo = "LogGroups";
+    var _LI = "ListIntegrations";
+    var _LIR = "ListIntegrationsRequest";
+    var _LIRi = "ListIntegrationsResponse";
+    var _LLAD = "ListLogAnomalyDetectors";
+    var _LLADR = "ListLogAnomalyDetectorsRequest";
+    var _LLADRi = "ListLogAnomalyDetectorsResponse";
+    var _LLG = "ListLogGroups";
+    var _LLGFQ = "ListLogGroupsForQuery";
+    var _LLGFQR = "ListLogGroupsForQueryRequest";
+    var _LLGFQRi = "ListLogGroupsForQueryResponse";
+    var _LLGR = "ListLogGroupsRequest";
+    var _LLGRi = "ListLogGroupsResponse";
+    var _LS = "LogStream";
+    var _LSFSTI = "ListSourcesForS3TableIntegration";
+    var _LSFSTIR = "ListSourcesForS3TableIntegrationRequest";
+    var _LSFSTIRi = "ListSourcesForS3TableIntegrationResponse";
+    var _LSQ = "ListScheduledQueries";
+    var _LSQR = "ListScheduledQueriesRequest";
+    var _LSQRi = "ListScheduledQueriesResponse";
+    var _LSo = "LogSamples";
+    var _LSog = "LogStreams";
+    var _LT = "LookupTable";
+    var _LTFR = "ListTagsForResource";
+    var _LTFRR = "ListTagsForResourceRequest";
+    var _LTFRRi = "ListTagsForResourceResponse";
+    var _LTLG = "ListTagsLogGroup";
+    var _LTLGR = "ListTagsLogGroupRequest";
+    var _LTLGRi = "ListTagsLogGroupResponse";
+    var _LTM = "ListToMap";
+    var _LTSLE = "LiveTailSessionLogEvent";
+    var _LTSM = "LiveTailSessionMetadata";
+    var _LTSR = "LiveTailSessionResults";
+    var _LTSS = "LiveTailSessionStart";
+    var _LTSU = "LiveTailSessionUpdate";
+    var _LTo = "LookupTables";
+    var _MF = "MetricFilter";
+    var _MFM = "MetricFilterMatches";
+    var _MFMR = "MetricFilterMatchRecord";
+    var _MFe = "MetricFilters";
+    var _MK = "MoveKeys";
+    var _MKE = "MoveKeyEntry";
+    var _MKEo = "MoveKeyEntries";
+    var _MQE = "MalformedQueryException";
+    var _MT = "MetricTransformation";
+    var _MTe = "MetricTransformations";
+    var _OAE = "OperationAbortedException";
+    var _OLE = "OutputLogEvent";
+    var _OLEu = "OutputLogEvents";
+    var _OSA = "OpenSearchApplication";
+    var _OSC = "OpenSearchCollection";
+    var _OSDAP = "OpenSearchDataAccessPolicy";
+    var _OSDS = "OpenSearchDataSource";
+    var _OSEP = "OpenSearchEncryptionPolicy";
+    var _OSID = "OpenSearchIntegrationDetails";
+    var _OSLP = "OpenSearchLifecyclePolicy";
+    var _OSNP = "OpenSearchNetworkPolicy";
+    var _OSRC = "OpenSearchResourceConfig";
+    var _OSRS = "OpenSearchResourceStatus";
+    var _OSW = "OpenSearchWorkspace";
+    var _P2 = "Policy";
+    var _PAP = "PutAccountPolicy";
+    var _PAPR = "PutAccountPolicyRequest";
+    var _PAPRu = "PutAccountPolicyResponse";
+    var _PBTA = "PutBearerTokenAuthentication";
+    var _PBTAR = "PutBearerTokenAuthenticationRequest";
+    var _PC2 = "ParseCloudfront";
+    var _PD = "PutDestination";
+    var _PDD = "PutDeliveryDestination";
+    var _PDDP = "PutDeliveryDestinationPolicy";
+    var _PDDPR = "PutDeliveryDestinationPolicyRequest";
+    var _PDDPRu = "PutDeliveryDestinationPolicyResponse";
+    var _PDDR = "PutDeliveryDestinationRequest";
+    var _PDDRu = "PutDeliveryDestinationResponse";
+    var _PDP = "PutDestinationPolicy";
+    var _PDPP = "PutDataProtectionPolicy";
+    var _PDPPR = "PutDataProtectionPolicyRequest";
+    var _PDPPRu = "PutDataProtectionPolicyResponse";
+    var _PDPR = "PutDestinationPolicyRequest";
+    var _PDR = "PutDestinationRequest";
+    var _PDRu = "PutDestinationResponse";
+    var _PDS = "PutDeliverySource";
+    var _PDSR = "PutDeliverySourceRequest";
+    var _PDSRu = "PutDeliverySourceResponse";
+    var _PI2 = "PutIntegration";
+    var _PIP = "PutIndexPolicy";
+    var _PIPR = "PutIndexPolicyRequest";
+    var _PIPRu = "PutIndexPolicyResponse";
+    var _PIR = "PutIntegrationRequest";
+    var _PIRu = "PutIntegrationResponse";
+    var _PJSON = "ParseJSON";
+    var _PKV = "ParseKeyValue";
+    var _PLE = "PutLogEvents";
+    var _PLER = "PutLogEventsRequest";
+    var _PLERu = "PutLogEventsResponse";
+    var _PLGDP = "PutLogGroupDeletionProtection";
+    var _PLGDPR = "PutLogGroupDeletionProtectionRequest";
+    var _PMF = "PutMetricFilter";
+    var _PMFR = "PutMetricFilterRequest";
+    var _PP = "ParsePostgres";
+    var _PQD = "PutQueryDefinition";
+    var _PQDR = "PutQueryDefinitionRequest";
+    var _PQDRu = "PutQueryDefinitionResponse";
+    var _PR = "ParseRoute53";
+    var _PRP = "PutResourcePolicy";
+    var _PRPR = "PutResourcePolicyRequest";
+    var _PRPRu = "PutResourcePolicyResponse";
+    var _PRPRut = "PutRetentionPolicyRequest";
+    var _PRPu = "PutRetentionPolicy";
+    var _PSF = "PutSubscriptionFilter";
+    var _PSFR = "PutSubscriptionFilterRequest";
+    var _PT = "PatternToken";
+    var _PTOCSF = "ParseToOCSF";
+    var _PTR = "PutTransformerRequest";
+    var _PTa = "PatternTokens";
+    var _PTu = "PutTransformer";
+    var _PVPC = "ParseVPC";
+    var _PWAF = "ParseWAF";
+    var _Pr2 = "Processor";
+    var _Pro = "Processors";
+    var _QCE = "QueryCompileError";
+    var _QCEL = "QueryCompileErrorLocation";
+    var _QD = "QueryDefinition";
+    var _QDL = "QueryDefinitionList";
+    var _QI = "QueryInfo";
+    var _QIL = "QueryInfoList";
+    var _QP = "QueryParameter";
+    var _QPL = "QueryParameterList";
+    var _QR = "QueryResults";
+    var _QS = "QueryStatistics";
+    var _RAEE = "ResourceAlreadyExistsException";
+    var _RC2 = "ResourceConfig";
+    var _REI = "RejectedEntityInfo";
+    var _RF = "RecordField";
+    var _RFe = "ResultField";
+    var _RK = "RenameKeys";
+    var _RKE = "RenameKeyEntry";
+    var _RKEe = "RenameKeyEntries";
+    var _RLEI = "RejectedLogEventsInfo";
+    var _RNFE2 = "ResourceNotFoundException";
+    var _RP = "ResourcePolicy";
+    var _RPe = "ResourcePolicies";
+    var _RR = "ResultRows";
+    var _SC = "S3Configuration";
+    var _SDC = "S3DeliveryConfiguration";
+    var _SF = "SubscriptionFilter";
+    var _SFu = "SubscriptionFilters";
+    var _SLS = "SearchedLogStream";
+    var _SLSe = "SearchedLogStreams";
+    var _SLT = "StartLiveTail";
+    var _SLTR = "StartLiveTailRequest";
+    var _SLTRS = "StartLiveTailResponseStream";
+    var _SLTRt = "StartLiveTailResponse";
+    var _SP = "SuppressionPeriod";
+    var _SQ = "StartQuery";
+    var _SQD = "ScheduledQueryDestination";
+    var _SQDL = "ScheduledQueryDestinationList";
+    var _SQEE = "ServiceQuotaExceededException";
+    var _SQR = "StartQueryRequest";
+    var _SQRt = "StartQueryResponse";
+    var _SQRto = "StopQueryRequest";
+    var _SQRtop = "StopQueryResponse";
+    var _SQS = "ScheduledQuerySummary";
+    var _SQSL = "ScheduledQuerySummaryList";
+    var _SQt = "StopQuery";
+    var _SS = "SplitString";
+    var _SSE = "SessionStreamingException";
+    var _SSEp = "SplitStringEntry";
+    var _SSEpl = "SplitStringEntries";
+    var _SSEu = "SubstituteStringEntry";
+    var _SSEub = "SubstituteStringEntries";
+    var _SSu = "SubstituteString";
+    var _STE = "SessionTimeoutException";
+    var _STIS = "S3TableIntegrationSource";
+    var _STISa = "S3TableIntegrationSources";
+    var _SUE = "ServiceUnavailableException";
+    var _TC2 = "TypeConverter";
+    var _TCE = "TypeConverterEntry";
+    var _TCEy = "TypeConverterEntries";
+    var _TE = "ThrottlingException";
+    var _THR = "TriggerHistoryRecord";
+    var _THRL = "TriggerHistoryRecordList";
+    var _TL = "TransformedLogs";
+    var _TLG = "TagLogGroup";
+    var _TLGR = "TagLogGroupRequest";
+    var _TLR = "TransformedLogRecord";
+    var _TMF = "TestMetricFilter";
+    var _TMFR = "TestMetricFilterRequest";
+    var _TMFRe = "TestMetricFilterResponse";
+    var _TMTE = "TooManyTagsException";
+    var _TR = "TagResource";
+    var _TRR = "TagResourceRequest";
+    var _TS = "TrimString";
+    var _TT = "TestTransformer";
+    var _TTR = "TestTransformerRequest";
+    var _TTRe = "TestTransformerResponse";
+    var _UA = "UpdateAnomaly";
+    var _UAR = "UpdateAnomalyRequest";
+    var _UCE2 = "UnrecognizedClientException";
+    var _UCS = "UpperCaseString";
+    var _UDC = "UpdateDeliveryConfiguration";
+    var _UDCR = "UpdateDeliveryConfigurationRequest";
+    var _UDCRp = "UpdateDeliveryConfigurationResponse";
+    var _ULAD = "UpdateLogAnomalyDetector";
+    var _ULADR = "UpdateLogAnomalyDetectorRequest";
+    var _ULG = "UntagLogGroup";
+    var _ULGR = "UntagLogGroupRequest";
+    var _ULT = "UpdateLookupTable";
+    var _ULTR = "UpdateLookupTableRequest";
+    var _ULTRp = "UpdateLookupTableResponse";
+    var _UR = "UntagResource";
+    var _URR = "UntagResourceRequest";
+    var _USQ = "UpdateScheduledQuery";
+    var _USQR = "UpdateScheduledQueryRequest";
+    var _USQRp = "UpdateScheduledQueryResponse";
+    var _VE2 = "ValidationException";
+    var _a2 = "active";
+    var _aA = "applicationArn";
+    var _aAFAVLDFR = "allowedActionForAllowVendedLogsDeliveryForResource";
+    var _aD = "anomalyDetectors";
+    var _aDA = "anomalyDetectorArn";
+    var _aDS = "anomalyDetectorStatus";
+    var _aE = "applicationEndpoint";
+    var _aF = "allowedFields";
+    var _aFD = "allowedFieldDelimiters";
+    var _aI2 = "accountId";
+    var _aIc = "accountIdentifiers";
+    var _aIn = "anomalyId";
+    var _aIp = "applicationId";
+    var _aK = "addKeys";
+    var _aLGS = "aggregateLogGroupSummaries";
+    var _aOF = "allowedOutputFormats";
+    var _aOTL = "applyOnTransformedLogs";
+    var _aP = "accountPolicies";
+    var _aPc = "accessPolicy";
+    var _aPcc = "accountPolicy";
+    var _aSPF = "allowedSuffixPathFields";
+    var _aVT = "anomalyVisibilityTime";
+    var _an = "anomalies";
+    var _ap = "application";
+    var _ar = "arn";
+    var _at = "attributes";
+    var _b = "baseline";
+    var _bI = "batchId";
+    var _bIS = "batchImportStatus";
+    var _bIy = "bytesImported";
+    var _bS = "bytesScanned";
+    var _bTAE = "bearerTokenAuthenticationEnabled";
+    var _c5 = "client";
+    var _cA = "createdAt";
+    var _cAo = "collectionArn";
+    var _cE = "collectionEndpoint";
+    var _cT = "creationTime";
+    var _cTS = "creationTimeStamp";
+    var _cTSr = "createdTimeStamp";
+    var _cTl = "clientToken";
+    var _cTo = "configurationTemplates";
+    var _cTom = "completionTime";
+    var _cTr = "createTime";
+    var _cV3 = "copyValue";
+    var _co3 = "columns";
+    var _cod = "code";
+    var _col = "collection";
+    var _cs = "csv";
+    var _d = "description";
+    var _dA = "destinationArn";
+    var _dC2 = "destinationConfiguration";
+    var _dD = "deliveryDestinations";
+    var _dDA = "deliveryDestinationArn";
+    var _dDC = "deliveryDestinationConfiguration";
+    var _dDCV = "defaultDeliveryConfigValues";
+    var _dDN = "deliveryDestinationName";
+    var _dDP = "deliveryDestinationPolicy";
+    var _dDT = "deliveryDestinationType";
+    var _dDTe = "deliveryDestinationTypes";
+    var _dDe = "deliveryDestination";
+    var _dI = "destinationIdentifier";
+    var _dK = "deleteKeys";
+    var _dN = "detectorName";
+    var _dNe = "destinationName";
+    var _dP = "destinationPrefix";
+    var _dPE = "deletionProtectionEnabled";
+    var _dPS = "dataProtectionStatus";
+    var _dRA = "destinationResourceArn";
+    var _dS = "dataSource";
+    var _dSN = "deliverySourceName";
+    var _dSNa = "dataSourceName";
+    var _dSRA = "dataSourceRoleArn";
+    var _dST = "dataSourceType";
+    var _dSa = "dataSources";
+    var _dSe = "deliverySources";
+    var _dSel = "deliverySource";
+    var _dT = "destinationType";
+    var _dTC = "dateTimeConverter";
+    var _dTP = "dynamicTokenPosition";
+    var _dV = "defaultValue";
+    var _dVP = "dashboardViewerPrincipals";
+    var _da = "data";
+    var _de = "delivery";
+    var _del = "delimiter";
+    var _deli = "deliveries";
+    var _des = "destination";
+    var _desc = "descending";
+    var _dest = "destinations";
+    var _di = "dimensions";
+    var _dis = "distribution";
+    var _e5 = "error";
+    var _eBS = "estimatedBytesSkipped";
+    var _eCO = "endCharOffset";
+    var _eET = "endEventTime";
+    var _eF = "evaluationFrequency";
+    var _eHCP = "enableHiveCompatiblePath";
+    var _eI3 = "executionInfo";
+    var _eIv = "eventId";
+    var _eK = "encryptionKey";
+    var _eLEEI = "expiredLogEventEndIndex";
+    var _eM = "errorMessage";
+    var _eMv = "eventMessage";
+    var _eN = "eventNumber";
+    var _eP = "encryptionPolicy";
+    var _eRA = "executionRoleArn";
+    var _eRI = "expectedRevisionId";
+    var _eRS = "estimatedRecordsSkipped";
+    var _eS = "executionStatuses";
+    var _eSF = "emitSystemFields";
+    var _eSFD = "emitSystemFieldDimensions";
+    var _eST = "expectedSequenceToken";
+    var _eSv = "eventSource";
+    var _eSx = "executionStatus";
+    var _eT = "exportTasks";
+    var _eTn = "endTime";
+    var _eTr = "errorType";
+    var _eV = "extractedValues";
+    var _el = "element";
+    var _en = "entries";
+    var _ena = "enabled";
+    var _end = "endpoint";
+    var _ent = "entity";
+    var _enu = "enumerations";
+    var _ev = "events";
+    var _f = "from";
+    var _fD = "fieldDelimiter";
+    var _fE = "flattenedElement";
+    var _fET = "firstEventTime";
+    var _fETi = "firstEventTimestamp";
+    var _fI = "fieldIndexes";
+    var _fIN = "fieldIndexName";
+    var _fINi = "fieldIndexNames";
+    var _fLGA = "filterLogGroupArn";
+    var _fN = "filterName";
+    var _fNP = "filterNamePrefix";
+    var _fP = "filterPattern";
+    var _fS = "firstSeen";
+    var _fSC = "fieldSelectionCriteria";
+    var _fSi = "fieldStream";
+    var _fU = "forceUpdate";
+    var _fi = "fields";
+    var _fie = "field";
+    var _fl = "flatten";
+    var _fo = "force";
+    var _g = "grok";
+    var _gB = "groupBy";
+    var _gI = "groupingIdentifiers";
+    var _h4 = "histogram";
+    var _hE5 = "httpError";
+    var _i = "identifier";
+    var _iA = "integrationArn";
+    var _iB = "importBatches";
+    var _iD = "integrationDetails";
+    var _iDA = "importDestinationArn";
+    var _iDs = "isDynamic";
+    var _iF = "importFilter";
+    var _iI = "importId";
+    var _iLA = "includeLinkedAccounts";
+    var _iN = "integrationName";
+    var _iNP = "integrationNamePrefix";
+    var _iP = "indexPolicies";
+    var _iPLS = "isPatternLevelSuppression";
+    var _iPn = "inheritedProperties";
+    var _iPnd = "indexPolicy";
+    var _iRA = "importRoleArn";
+    var _iS = "importStatistics";
+    var _iSA = "importSourceArn";
+    var _iSm = "importStatus";
+    var _iSn = "integrationStatus";
+    var _iSnt = "integrationSummaries";
+    var _iT3 = "ingestionTime";
+    var _iTN = "inferredTokenName";
+    var _iTn = "integrationType";
+    var _id = "id";
+    var _im = "imports";
+    var _in = "interleaved";
+    var _k = "key";
+    var _kA = "keyAttributes";
+    var _kKA = "kmsKeyArn";
+    var _kKI = "kmsKeyId";
+    var _kP = "keyPrefix";
+    var _kVD = "keyValueDelimiter";
+    var _l = "locale";
+    var _lCS = "lowerCaseString";
+    var _lE = "logEvents";
+    var _lEFP = "logEventFilterPattern";
+    var _lEM = "logEventMessages";
+    var _lES = "lastExecutionStatus";
+    var _lET = "lastEventTime";
+    var _lETa = "lastEventTimestamp";
+    var _lF = "logFields";
+    var _lFN = "logFieldName";
+    var _lFT = "logFieldType";
+    var _lG = "logGroups";
+    var _lGA = "logGroupArn";
+    var _lGAL = "logGroupArnList";
+    var _lGC = "logGroupCount";
+    var _lGCo = "logGroupClass";
+    var _lGF = "logGroupFields";
+    var _lGI = "logGroupIdentifiers";
+    var _lGIo = "logGroupIdentifier";
+    var _lGN = "logGroupName";
+    var _lGNP = "logGroupNamePrefix";
+    var _lGNPo = "logGroupNamePattern";
+    var _lGNo = "logGroupNames";
+    var _lGS = "logGroupsScanned";
+    var _lIT = "lastIngestionTime";
+    var _lM = "lastModified";
+    var _lMT = "lastModifiedTime";
+    var _lMTS = "lastModifiedTimeStamp";
+    var _lOP = "logObjectPointer";
+    var _lP = "lifecyclePolicy";
+    var _lR = "logRecord";
+    var _lRP = "logRecordPointer";
+    var _lS = "lastSeen";
+    var _lSN = "logStreamName";
+    var _lSNP = "logStreamNamePrefix";
+    var _lSNPo = "logStreamNamePrefixes";
+    var _lSNo = "logStreamNames";
+    var _lST = "lastScanTime";
+    var _lSo = "logSamples";
+    var _lSog = "logStreams";
+    var _lT = "logType";
+    var _lTA = "lookupTableArn";
+    var _lTM = "listToMap";
+    var _lTN = "lookupTableName";
+    var _lTNP = "lookupTableNamePrefix";
+    var _lTT = "lastTriggeredTime";
+    var _lTo = "logTypes";
+    var _lToo = "lookupTables";
+    var _lUT = "lastUpdatedTime";
+    var _lUTa = "lastUpdateTime";
+    var _li = "limit";
+    var _lo = "location";
+    var _m4 = "message";
+    var _mF = "metricFilters";
+    var _mFC = "metricFilterCount";
+    var _mK = "moveKeys";
+    var _mN = "metricName";
+    var _mNe = "metricNamespace";
+    var _mP = "matchPatterns";
+    var _mR = "maxResults";
+    var _mT = "metricTransformations";
+    var _mV = "metricValue";
+    var _mVa = "mappingVersion";
+    var _ma = "match";
+    var _man = "mandatory";
+    var _mat = "matches";
+    var _n = "name";
+    var _nBT = "nextBackwardToken";
+    var _nFT = "nextForwardToken";
+    var _nMV = "nonMatchValue";
+    var _nP = "networkPolicy";
+    var _nST = "nextSequenceToken";
+    var _nT = "nextToken";
+    var _oAI = "ownerAccountId";
+    var _oB = "orderBy";
+    var _oF = "outputFormat";
+    var _oIE = "overwriteIfExists";
+    var _oSID = "openSearchIntegrationDetails";
+    var _oSRC = "openSearchResourceConfig";
+    var _oV = "ocsfVersion";
+    var _p = "priority";
+    var _pC = "parseCloudfront";
+    var _pD = "policyDocument";
+    var _pI = "patternId";
+    var _pIr = "processedIdentifier";
+    var _pJSON = "parseJSON";
+    var _pKV = "parseKeyValue";
+    var _pN = "policyName";
+    var _pP = "parsePostgres";
+    var _pR = "patternRegex";
+    var _pRa = "parseRoute53";
+    var _pS = "patternString";
+    var _pSo = "policyScope";
+    var _pT = "policyType";
+    var _pTOCSF = "parseToOCSF";
+    var _pTa = "patternTokens";
+    var _pVPC = "parseVPC";
+    var _pWAF = "parseWAF";
+    var _pa = "parameters";
+    var _pe = "percent";
+    var _po = "policy";
+    var _q = "queries";
+    var _qC = "quoteCharacter";
+    var _qCE = "queryCompileError";
+    var _qD = "queryDefinitions";
+    var _qDI = "queryDefinitionId";
+    var _qDNP = "queryDefinitionNamePrefix";
+    var _qDu = "queryDuration";
+    var _qI = "queryId";
+    var _qL = "queryLanguage";
+    var _qS = "queryString";
+    var _r2 = "results";
+    var _rA = "resourceArn";
+    var _rAe = "resourceArns";
+    var _rAo = "roleArn";
+    var _rC2 = "recordsCount";
+    var _rCe = "resourceConfig";
+    var _rD = "retentionDays";
+    var _rEI = "rejectedEntityInfo";
+    var _rF = "recordFields";
+    var _rI = "resourceIdentifier";
+    var _rID = "retentionInDays";
+    var _rIe = "requestId";
+    var _rIev = "revisionId";
+    var _rK = "renameKeys";
+    var _rLEI = "rejectedLogEventsInfo";
+    var _rM = "recordsMatched";
+    var _rN2 = "resourceName";
+    var _rP = "resourcePolicies";
+    var _rPe = "resourcePolicy";
+    var _rS = "recordsScanned";
+    var _rSe = "responseStream";
+    var _rT3 = "resourceType";
+    var _rTe = "resourceTypes";
+    var _rTen = "renameTo";
+    var _s5 = "smithy.ts.sdk.synthetic.com.amazonaws.cloudwatchlogs";
+    var _sB = "sizeBytes";
+    var _sBt = "storedBytes";
+    var _sC = "selectionCriteria";
+    var _sCO = "startCharOffset";
+    var _sCe = "searchedCompletely";
+    var _sCo = "s3Configuration";
+    var _sCt = "statusCode";
+    var _sD = "suppressedDate";
+    var _sDC = "s3DeliveryConfiguration";
+    var _sE = "scheduleExpression";
+    var _sET = "scheduleEndTime";
+    var _sETt = "startEventTime";
+    var _sF = "subscriptionFilters";
+    var _sFH = "startFromHead";
+    var _sI = "sessionId";
+    var _sLS = "searchedLogStreams";
+    var _sM = "sessionMetadata";
+    var _sMt = "statusMessage";
+    var _sP = "suffixPath";
+    var _sPu = "suppressionPeriod";
+    var _sQ = "scheduledQueries";
+    var _sQA = "scheduledQueryArn";
+    var _sR = "sessionResults";
+    var _sRt = "statusReason";
+    var _sS = "suppressionState";
+    var _sST = "scheduleStartTime";
+    var _sSe = "sessionStart";
+    var _sSp = "splitString";
+    var _sSu = "substituteString";
+    var _sT3 = "sourceTimezone";
+    var _sTO = "startTimeOffset";
+    var _sTe = "sequenceToken";
+    var _sTt = "startTime";
+    var _sTu = "suppressionType";
+    var _sU = "suppressedUntil";
+    var _sUe = "sessionUpdate";
+    var _sUu = "suppressionUnit";
+    var _sa = "sampled";
+    var _sc2 = "scope";
+    var _se3 = "server";
+    var _ser = "service";
+    var _so = "source";
+    var _sou = "sources";
+    var _st = "state";
+    var _sta = "status";
+    var _stat = "statistics";
+    var _str = "streaming";
+    var _su = "suppressed";
+    var _suc = "success";
+    var _t = "target";
+    var _tA = "targetArn";
+    var _tB = "tableBody";
+    var _tC = "transformerConfig";
+    var _tCy = "typeConverter";
+    var _tEM = "transformedEventMessage";
+    var _tF = "targetFormat";
+    var _tFa = "tableFields";
+    var _tH = "triggerHistory";
+    var _tI2 = "taskId";
+    var _tK = "tagKeys";
+    var _tL = "transformedLogs";
+    var _tN = "taskName";
+    var _tNLESI = "tooNewLogEventStartIndex";
+    var _tOLEEI = "tooOldLogEventEndIndex";
+    var _tS = "tokenString";
+    var _tSr = "trimString";
+    var _tT3 = "targetTimezone";
+    var _tTr = "triggeredTimestamp";
+    var _ta = "tags";
+    var _ti = "timezone";
+    var _tim = "timestamp";
+    var _time = "time";
+    var _to = "to";
+    var _ty = "type";
+    var _u = "unmask";
+    var _uCS = "upperCaseString";
+    var _uI = "userIdentity";
+    var _uST = "uploadSequenceToken";
+    var _un = "unit";
+    var _v = "value";
+    var _vK = "valueKey";
+    var _w = "workspace";
+    var _wI = "workspaceId";
+    var _wK = "withKeys";
+    var n05 = "com.amazonaws.cloudwatchlogs";
+    var schema_1 = (init_schema(), __toCommonJS(schema_exports));
+    var CloudWatchLogsServiceException_1 = require_CloudWatchLogsServiceException();
+    var errors_1 = require_errors2();
+    var _s_registry5 = schema_1.TypeRegistry.for(_s5);
+    exports2.CloudWatchLogsServiceException$ = [-3, _s5, "CloudWatchLogsServiceException", 0, [], []];
+    _s_registry5.registerError(exports2.CloudWatchLogsServiceException$, CloudWatchLogsServiceException_1.CloudWatchLogsServiceException);
+    var n0_registry5 = schema_1.TypeRegistry.for(n05);
+    exports2.AccessDeniedException$ = [
+      -3,
+      n05,
+      _ADE3,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.AccessDeniedException$, errors_1.AccessDeniedException);
+    exports2.ConflictException$ = [
+      -3,
+      n05,
+      _CE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.ConflictException$, errors_1.ConflictException);
+    exports2.DataAlreadyAcceptedException$ = [
+      -3,
+      n05,
+      _DAAE,
+      { [_e5]: _c5 },
+      [_eST, _m4],
+      [0, 0]
+    ];
+    n0_registry5.registerError(exports2.DataAlreadyAcceptedException$, errors_1.DataAlreadyAcceptedException);
+    exports2.InternalServerException$ = [
+      -3,
+      n05,
+      _ISE3,
+      { [_e5]: _se3, [_hE5]: 500 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.InternalServerException$, errors_1.InternalServerException);
+    exports2.InternalStreamingException$ = [
+      -3,
+      n05,
+      _ISEn2,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.InternalStreamingException$, errors_1.InternalStreamingException);
+    exports2.InvalidOperationException$ = [
+      -3,
+      n05,
+      _IOE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.InvalidOperationException$, errors_1.InvalidOperationException);
+    exports2.InvalidParameterException$ = [
+      -3,
+      n05,
+      _IPE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.InvalidParameterException$, errors_1.InvalidParameterException);
+    exports2.InvalidSequenceTokenException$ = [
+      -3,
+      n05,
+      _ISTE,
+      { [_e5]: _c5 },
+      [_eST, _m4],
+      [0, 0]
+    ];
+    n0_registry5.registerError(exports2.InvalidSequenceTokenException$, errors_1.InvalidSequenceTokenException);
+    exports2.LimitExceededException$ = [
+      -3,
+      n05,
+      _LEE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.LimitExceededException$, errors_1.LimitExceededException);
+    exports2.MalformedQueryException$ = [
+      -3,
+      n05,
+      _MQE,
+      { [_e5]: _c5 },
+      [_qCE, _m4],
+      [() => exports2.QueryCompileError$, 0]
+    ];
+    n0_registry5.registerError(exports2.MalformedQueryException$, errors_1.MalformedQueryException);
+    exports2.OperationAbortedException$ = [
+      -3,
+      n05,
+      _OAE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.OperationAbortedException$, errors_1.OperationAbortedException);
+    exports2.ResourceAlreadyExistsException$ = [
+      -3,
+      n05,
+      _RAEE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.ResourceAlreadyExistsException$, errors_1.ResourceAlreadyExistsException);
+    exports2.ResourceNotFoundException$ = [
+      -3,
+      n05,
+      _RNFE2,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.ResourceNotFoundException$, errors_1.ResourceNotFoundException);
+    exports2.ServiceQuotaExceededException$ = [
+      -3,
+      n05,
+      _SQEE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.ServiceQuotaExceededException$, errors_1.ServiceQuotaExceededException);
+    exports2.ServiceUnavailableException$ = [
+      -3,
+      n05,
+      _SUE,
+      { [_e5]: _se3 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.ServiceUnavailableException$, errors_1.ServiceUnavailableException);
+    exports2.SessionStreamingException$ = [
+      -3,
+      n05,
+      _SSE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.SessionStreamingException$, errors_1.SessionStreamingException);
+    exports2.SessionTimeoutException$ = [
+      -3,
+      n05,
+      _STE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.SessionTimeoutException$, errors_1.SessionTimeoutException);
+    exports2.ThrottlingException$ = [
+      -3,
+      n05,
+      _TE,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.ThrottlingException$, errors_1.ThrottlingException);
+    exports2.TooManyTagsException$ = [
+      -3,
+      n05,
+      _TMTE,
+      { [_e5]: _c5, [_hE5]: 400 },
+      [_m4, _rN2],
+      [0, 0]
+    ];
+    n0_registry5.registerError(exports2.TooManyTagsException$, errors_1.TooManyTagsException);
+    exports2.UnrecognizedClientException$ = [
+      -3,
+      n05,
+      _UCE2,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.UnrecognizedClientException$, errors_1.UnrecognizedClientException);
+    exports2.ValidationException$ = [
+      -3,
+      n05,
+      _VE2,
+      { [_e5]: _c5 },
+      [_m4],
+      [0]
+    ];
+    n0_registry5.registerError(exports2.ValidationException$, errors_1.ValidationException);
+    exports2.errorTypeRegistries = [
+      _s_registry5,
+      n0_registry5
+    ];
+    exports2.AccountPolicy$ = [
+      3,
+      n05,
+      _AP,
+      0,
+      [_pN, _pD, _lUT, _pT, _sc2, _sC, _aI2],
+      [0, 0, 1, 0, 0, 0, 0]
+    ];
+    exports2.AddKeyEntry$ = [
+      3,
+      n05,
+      _AKE,
+      0,
+      [_k, _v, _oIE],
+      [0, 0, 2],
+      2
+    ];
+    exports2.AddKeys$ = [
+      3,
+      n05,
+      _AK,
+      0,
+      [_en],
+      [() => AddKeyEntries],
+      1
+    ];
+    exports2.AggregateLogGroupSummary$ = [
+      3,
+      n05,
+      _ALGS,
+      0,
+      [_lGC, _gI],
+      [1, () => GroupingIdentifiers]
+    ];
+    exports2.Anomaly$ = [
+      3,
+      n05,
+      _A2,
+      0,
+      [_aIn, _pI, _aDA, _pS, _fS, _lS, _d, _a2, _st, _h4, _lSo, _pTa, _lGAL, _pR, _p, _su, _sD, _sU, _iPLS],
+      [0, 0, 0, 0, 1, 1, 0, 2, 0, 128 | 1, () => LogSamples, () => PatternTokens, 64 | 0, 0, 0, 2, 1, 1, 2],
+      13
+    ];
+    exports2.AnomalyDetector$ = [
+      3,
+      n05,
+      _AD,
+      0,
+      [_aDA, _dN, _lGAL, _eF, _fP, _aDS, _kKI, _cTS, _lMTS, _aVT],
+      [0, 0, 64 | 0, 0, 0, 0, 0, 1, 1, 1]
+    ];
+    exports2.AssociateKmsKeyRequest$ = [
+      3,
+      n05,
+      _AKKR,
+      0,
+      [_kKI, _lGN, _rI],
+      [0, 0, 0],
+      1
+    ];
+    exports2.AssociateSourceToS3TableIntegrationRequest$ = [
+      3,
+      n05,
+      _ASTSTIR,
+      0,
+      [_iA, _dS],
+      [0, () => exports2.DataSource$],
+      2
+    ];
+    exports2.AssociateSourceToS3TableIntegrationResponse$ = [
+      3,
+      n05,
+      _ASTSTIRs,
+      0,
+      [_i],
+      [0]
+    ];
+    exports2.CancelExportTaskRequest$ = [
+      3,
+      n05,
+      _CETR,
+      0,
+      [_tI2],
+      [0],
+      1
+    ];
+    exports2.CancelImportTaskRequest$ = [
+      3,
+      n05,
+      _CITR,
+      0,
+      [_iI],
+      [0],
+      1
+    ];
+    exports2.CancelImportTaskResponse$ = [
+      3,
+      n05,
+      _CITRa,
+      0,
+      [_iI, _iS, _iSm, _cT, _lUT],
+      [0, () => exports2.ImportStatistics$, 0, 1, 1]
+    ];
+    exports2.ConfigurationTemplate$ = [
+      3,
+      n05,
+      _CT2,
+      0,
+      [_ser, _lT, _rT3, _dDT, _dDCV, _aF, _aOF, _aAFAVLDFR, _aFD, _aSPF],
+      [0, 0, 0, 0, () => exports2.ConfigurationTemplateDeliveryConfigValues$, () => AllowedFields, 64 | 0, 0, 64 | 0, 64 | 0]
+    ];
+    exports2.ConfigurationTemplateDeliveryConfigValues$ = [
+      3,
+      n05,
+      _CTDCV,
+      0,
+      [_rF, _fD, _sDC],
+      [64 | 0, 0, () => exports2.S3DeliveryConfiguration$]
+    ];
+    exports2.CopyValue$ = [
+      3,
+      n05,
+      _CV2,
+      0,
+      [_en],
+      [() => CopyValueEntries],
+      1
+    ];
+    exports2.CopyValueEntry$ = [
+      3,
+      n05,
+      _CVE,
+      0,
+      [_so, _t, _oIE],
+      [0, 0, 2],
+      2
+    ];
+    exports2.CreateDeliveryRequest$ = [
+      3,
+      n05,
+      _CDR,
+      0,
+      [_dSN, _dDA, _rF, _fD, _sDC, _ta],
+      [0, 0, 64 | 0, 0, () => exports2.S3DeliveryConfiguration$, 128 | 0],
+      2
+    ];
+    exports2.CreateDeliveryResponse$ = [
+      3,
+      n05,
+      _CDRr,
+      0,
+      [_de],
+      [() => exports2.Delivery$]
+    ];
+    exports2.CreateExportTaskRequest$ = [
+      3,
+      n05,
+      _CETRr,
+      0,
+      [_lGN, _f, _to, _des, _tN, _lSNP, _dP],
+      [0, 1, 1, 0, 0, 0, 0],
+      4
+    ];
+    exports2.CreateExportTaskResponse$ = [
+      3,
+      n05,
+      _CETRre,
+      0,
+      [_tI2],
+      [0]
+    ];
+    exports2.CreateImportTaskRequest$ = [
+      3,
+      n05,
+      _CITRr,
+      0,
+      [_iSA, _iRA, _iF],
+      [0, 0, () => exports2.ImportFilter$],
+      2
+    ];
+    exports2.CreateImportTaskResponse$ = [
+      3,
+      n05,
+      _CITRre,
+      0,
+      [_iI, _iDA, _cT],
+      [0, 0, 1]
+    ];
+    exports2.CreateLogAnomalyDetectorRequest$ = [
+      3,
+      n05,
+      _CLADR,
+      0,
+      [_lGAL, _dN, _eF, _fP, _kKI, _aVT, _ta],
+      [64 | 0, 0, 0, 0, 0, 1, 128 | 0],
+      1
+    ];
+    exports2.CreateLogAnomalyDetectorResponse$ = [
+      3,
+      n05,
+      _CLADRr,
+      0,
+      [_aDA],
+      [0]
+    ];
+    exports2.CreateLogGroupRequest$ = [
+      3,
+      n05,
+      _CLGR,
+      0,
+      [_lGN, _kKI, _ta, _lGCo, _dPE],
+      [0, 0, 128 | 0, 0, 2],
+      1
+    ];
+    exports2.CreateLogStreamRequest$ = [
+      3,
+      n05,
+      _CLSR,
+      0,
+      [_lGN, _lSN],
+      [0, 0],
+      2
+    ];
+    exports2.CreateLookupTableRequest$ = [
+      3,
+      n05,
+      _CLTR,
+      0,
+      [_lTN, _tB, _d, _kKI, _ta],
+      [0, 0, 0, 0, 128 | 0],
+      2
+    ];
+    exports2.CreateLookupTableResponse$ = [
+      3,
+      n05,
+      _CLTRr,
+      0,
+      [_lTA, _cA],
+      [0, 1]
+    ];
+    exports2.CreateScheduledQueryRequest$ = [
+      3,
+      n05,
+      _CSQR,
+      0,
+      [_n, _qL, _qS, _sE, _eRA, _d, _lGI, _ti, _sTO, _dC2, _sST, _sET, _st, _ta],
+      [0, 0, 0, 0, 0, 0, 64 | 0, 0, 1, () => exports2.DestinationConfiguration$, 1, 1, 0, 128 | 0],
+      5
+    ];
+    exports2.CreateScheduledQueryResponse$ = [
+      3,
+      n05,
+      _CSQRr,
+      0,
+      [_sQA, _st],
+      [0, 0]
+    ];
+    exports2.CSV$ = [
+      3,
+      n05,
+      _CSV,
+      0,
+      [_qC, _del, _co3, _so, _des],
+      [0, 0, 64 | 0, 0, 0]
+    ];
+    exports2.DataSource$ = [
+      3,
+      n05,
+      _DS2,
+      0,
+      [_n, _ty],
+      [0, 0],
+      1
+    ];
+    exports2.DataSourceFilter$ = [
+      3,
+      n05,
+      _DSF,
+      0,
+      [_n, _ty],
+      [0, 0],
+      1
+    ];
+    exports2.DateTimeConverter$ = [
+      3,
+      n05,
+      _DTC,
+      0,
+      [_so, _t, _mP, _tF, _sT3, _tT3, _l],
+      [0, 0, 64 | 0, 0, 0, 0, 0],
+      3
+    ];
+    exports2.DeleteAccountPolicyRequest$ = [
+      3,
+      n05,
+      _DAPR,
+      0,
+      [_pN, _pT],
+      [0, 0],
+      2
+    ];
+    exports2.DeleteDataProtectionPolicyRequest$ = [
+      3,
+      n05,
+      _DDPPR,
+      0,
+      [_lGIo],
+      [0],
+      1
+    ];
+    exports2.DeleteDeliveryDestinationPolicyRequest$ = [
+      3,
+      n05,
+      _DDDPR,
+      0,
+      [_dDN],
+      [0],
+      1
+    ];
+    exports2.DeleteDeliveryDestinationRequest$ = [
+      3,
+      n05,
+      _DDDR,
+      0,
+      [_n],
+      [0],
+      1
+    ];
+    exports2.DeleteDeliveryRequest$ = [
+      3,
+      n05,
+      _DDR,
+      0,
+      [_id],
+      [0],
+      1
+    ];
+    exports2.DeleteDeliverySourceRequest$ = [
+      3,
+      n05,
+      _DDSR,
+      0,
+      [_n],
+      [0],
+      1
+    ];
+    exports2.DeleteDestinationRequest$ = [
+      3,
+      n05,
+      _DDRe,
+      0,
+      [_dNe],
+      [0],
+      1
+    ];
+    exports2.DeleteIndexPolicyRequest$ = [
+      3,
+      n05,
+      _DIPR,
+      0,
+      [_lGIo],
+      [0],
+      1
+    ];
+    exports2.DeleteIndexPolicyResponse$ = [
+      3,
+      n05,
+      _DIPRe,
+      0,
+      [],
+      []
+    ];
+    exports2.DeleteIntegrationRequest$ = [
+      3,
+      n05,
+      _DIR,
+      0,
+      [_iN, _fo],
+      [0, 2],
+      1
+    ];
+    exports2.DeleteIntegrationResponse$ = [
+      3,
+      n05,
+      _DIRe,
+      0,
+      [],
+      []
+    ];
+    exports2.DeleteKeys$ = [
+      3,
+      n05,
+      _DK,
+      0,
+      [_wK],
+      [64 | 0],
+      1
+    ];
+    exports2.DeleteLogAnomalyDetectorRequest$ = [
+      3,
+      n05,
+      _DLADR,
+      0,
+      [_aDA],
+      [0],
+      1
+    ];
+    exports2.DeleteLogGroupRequest$ = [
+      3,
+      n05,
+      _DLGR,
+      0,
+      [_lGN],
+      [0],
+      1
+    ];
+    exports2.DeleteLogStreamRequest$ = [
+      3,
+      n05,
+      _DLSR,
+      0,
+      [_lGN, _lSN],
+      [0, 0],
+      2
+    ];
+    exports2.DeleteLookupTableRequest$ = [
+      3,
+      n05,
+      _DLTR,
+      0,
+      [_lTA],
+      [0],
+      1
+    ];
+    exports2.DeleteMetricFilterRequest$ = [
+      3,
+      n05,
+      _DMFR,
+      0,
+      [_lGN, _fN],
+      [0, 0],
+      2
+    ];
+    exports2.DeleteQueryDefinitionRequest$ = [
+      3,
+      n05,
+      _DQDR,
+      0,
+      [_qDI],
+      [0],
+      1
+    ];
+    exports2.DeleteQueryDefinitionResponse$ = [
+      3,
+      n05,
+      _DQDRe,
+      0,
+      [_suc],
+      [2]
+    ];
+    exports2.DeleteResourcePolicyRequest$ = [
+      3,
+      n05,
+      _DRPR,
+      0,
+      [_pN, _rA, _eRI],
+      [0, 0, 0]
+    ];
+    exports2.DeleteRetentionPolicyRequest$ = [
+      3,
+      n05,
+      _DRPRe,
+      0,
+      [_lGN],
+      [0],
+      1
+    ];
+    exports2.DeleteScheduledQueryRequest$ = [
+      3,
+      n05,
+      _DSQR,
+      0,
+      [_i],
+      [0],
+      1
+    ];
+    exports2.DeleteScheduledQueryResponse$ = [
+      3,
+      n05,
+      _DSQRe,
+      0,
+      [],
+      []
+    ];
+    exports2.DeleteSubscriptionFilterRequest$ = [
+      3,
+      n05,
+      _DSFR,
+      0,
+      [_lGN, _fN],
+      [0, 0],
+      2
+    ];
+    exports2.DeleteTransformerRequest$ = [
+      3,
+      n05,
+      _DTR,
+      0,
+      [_lGIo],
+      [0],
+      1
+    ];
+    exports2.Delivery$ = [
+      3,
+      n05,
+      _D,
+      0,
+      [_id, _ar, _dSN, _dDA, _dDT, _rF, _fD, _sDC, _ta],
+      [0, 0, 0, 0, 0, 64 | 0, 0, () => exports2.S3DeliveryConfiguration$, 128 | 0]
+    ];
+    exports2.DeliveryDestination$ = [
+      3,
+      n05,
+      _DD,
+      0,
+      [_n, _ar, _dDT, _oF, _dDC, _ta],
+      [0, 0, 0, 0, () => exports2.DeliveryDestinationConfiguration$, 128 | 0]
+    ];
+    exports2.DeliveryDestinationConfiguration$ = [
+      3,
+      n05,
+      _DDC,
+      0,
+      [_dRA],
+      [0],
+      1
+    ];
+    exports2.DeliverySource$ = [
+      3,
+      n05,
+      _DSe,
+      0,
+      [_n, _ar, _rAe, _ser, _lT, _ta],
+      [0, 0, 64 | 0, 0, 0, 128 | 0]
+    ];
+    exports2.DescribeAccountPoliciesRequest$ = [
+      3,
+      n05,
+      _DAPRe,
+      0,
+      [_pT, _pN, _aIc, _nT],
+      [0, 0, 64 | 0, 0],
+      1
+    ];
+    exports2.DescribeAccountPoliciesResponse$ = [
+      3,
+      n05,
+      _DAPRes,
+      0,
+      [_aP, _nT],
+      [() => AccountPolicies, 0]
+    ];
+    exports2.DescribeConfigurationTemplatesRequest$ = [
+      3,
+      n05,
+      _DCTR,
+      0,
+      [_ser, _lTo, _rTe, _dDTe, _nT, _li],
+      [0, 64 | 0, 64 | 0, 64 | 0, 0, 1]
+    ];
+    exports2.DescribeConfigurationTemplatesResponse$ = [
+      3,
+      n05,
+      _DCTRe,
+      0,
+      [_cTo, _nT],
+      [() => ConfigurationTemplates, 0]
+    ];
+    exports2.DescribeDeliveriesRequest$ = [
+      3,
+      n05,
+      _DDRes,
+      0,
+      [_nT, _li],
+      [0, 1]
+    ];
+    exports2.DescribeDeliveriesResponse$ = [
+      3,
+      n05,
+      _DDResc,
+      0,
+      [_deli, _nT],
+      [() => Deliveries, 0]
+    ];
+    exports2.DescribeDeliveryDestinationsRequest$ = [
+      3,
+      n05,
+      _DDDRe,
+      0,
+      [_nT, _li],
+      [0, 1]
+    ];
+    exports2.DescribeDeliveryDestinationsResponse$ = [
+      3,
+      n05,
+      _DDDRes,
+      0,
+      [_dD, _nT],
+      [() => DeliveryDestinations, 0]
+    ];
+    exports2.DescribeDeliverySourcesRequest$ = [
+      3,
+      n05,
+      _DDSRe,
+      0,
+      [_nT, _li],
+      [0, 1]
+    ];
+    exports2.DescribeDeliverySourcesResponse$ = [
+      3,
+      n05,
+      _DDSRes,
+      0,
+      [_dSe, _nT],
+      [() => DeliverySources, 0]
+    ];
+    exports2.DescribeDestinationsRequest$ = [
+      3,
+      n05,
+      _DDRescr,
+      0,
+      [_DNP, _nT, _li],
+      [0, 0, 1]
+    ];
+    exports2.DescribeDestinationsResponse$ = [
+      3,
+      n05,
+      _DDRescri,
+      0,
+      [_dest, _nT],
+      [() => Destinations, 0]
+    ];
+    exports2.DescribeExportTasksRequest$ = [
+      3,
+      n05,
+      _DETR,
+      0,
+      [_tI2, _sCt, _nT, _li],
+      [0, 0, 0, 1]
+    ];
+    exports2.DescribeExportTasksResponse$ = [
+      3,
+      n05,
+      _DETRe,
+      0,
+      [_eT, _nT],
+      [() => ExportTasks, 0]
+    ];
+    exports2.DescribeFieldIndexesRequest$ = [
+      3,
+      n05,
+      _DFIR,
+      0,
+      [_lGI, _nT],
+      [64 | 0, 0],
+      1
+    ];
+    exports2.DescribeFieldIndexesResponse$ = [
+      3,
+      n05,
+      _DFIRe,
+      0,
+      [_fI, _nT],
+      [() => FieldIndexes, 0]
+    ];
+    exports2.DescribeImportTaskBatchesRequest$ = [
+      3,
+      n05,
+      _DITBR,
+      0,
+      [_iI, _bIS, _li, _nT],
+      [0, 64 | 0, 1, 0],
+      1
+    ];
+    exports2.DescribeImportTaskBatchesResponse$ = [
+      3,
+      n05,
+      _DITBRe,
+      0,
+      [_iSA, _iI, _iB, _nT],
+      [0, 0, () => ImportBatchList, 0]
+    ];
+    exports2.DescribeImportTasksRequest$ = [
+      3,
+      n05,
+      _DITR,
+      0,
+      [_iI, _iSm, _iSA, _li, _nT],
+      [0, 0, 0, 1, 0]
+    ];
+    exports2.DescribeImportTasksResponse$ = [
+      3,
+      n05,
+      _DITRe,
+      0,
+      [_im, _nT],
+      [() => ImportList, 0]
+    ];
+    exports2.DescribeIndexPoliciesRequest$ = [
+      3,
+      n05,
+      _DIPRes,
+      0,
+      [_lGI, _nT],
+      [64 | 0, 0],
+      1
+    ];
+    exports2.DescribeIndexPoliciesResponse$ = [
+      3,
+      n05,
+      _DIPResc,
+      0,
+      [_iP, _nT],
+      [() => IndexPolicies, 0]
+    ];
+    exports2.DescribeLogGroupsRequest$ = [
+      3,
+      n05,
+      _DLGRe,
+      0,
+      [_aIc, _lGNP, _lGNPo, _nT, _li, _iLA, _lGCo, _lGI],
+      [64 | 0, 0, 0, 0, 1, 2, 0, 64 | 0]
+    ];
+    exports2.DescribeLogGroupsResponse$ = [
+      3,
+      n05,
+      _DLGRes,
+      0,
+      [_lG, _nT],
+      [() => LogGroups, 0]
+    ];
+    exports2.DescribeLogStreamsRequest$ = [
+      3,
+      n05,
+      _DLSRe,
+      0,
+      [_lGN, _lGIo, _lSNP, _oB, _desc, _nT, _li],
+      [0, 0, 0, 0, 2, 0, 1]
+    ];
+    exports2.DescribeLogStreamsResponse$ = [
+      3,
+      n05,
+      _DLSRes,
+      0,
+      [_lSog, _nT],
+      [() => LogStreams, 0]
+    ];
+    exports2.DescribeLookupTablesRequest$ = [
+      3,
+      n05,
+      _DLTRe,
+      0,
+      [_lTNP, _mR, _nT],
+      [0, 1, 0]
+    ];
+    exports2.DescribeLookupTablesResponse$ = [
+      3,
+      n05,
+      _DLTRes,
+      0,
+      [_lToo, _nT],
+      [() => LookupTables, 0]
+    ];
+    exports2.DescribeMetricFiltersRequest$ = [
+      3,
+      n05,
+      _DMFRe,
+      0,
+      [_lGN, _fNP, _nT, _li, _mN, _mNe],
+      [0, 0, 0, 1, 0, 0]
+    ];
+    exports2.DescribeMetricFiltersResponse$ = [
+      3,
+      n05,
+      _DMFRes,
+      0,
+      [_mF, _nT],
+      [() => MetricFilters, 0]
+    ];
+    exports2.DescribeQueriesRequest$ = [
+      3,
+      n05,
+      _DQR,
+      0,
+      [_lGN, _sta, _mR, _nT, _qL],
+      [0, 0, 1, 0, 0]
+    ];
+    exports2.DescribeQueriesResponse$ = [
+      3,
+      n05,
+      _DQRe,
+      0,
+      [_q, _nT],
+      [() => QueryInfoList, 0]
+    ];
+    exports2.DescribeQueryDefinitionsRequest$ = [
+      3,
+      n05,
+      _DQDRes,
+      0,
+      [_qL, _qDNP, _mR, _nT],
+      [0, 0, 1, 0]
+    ];
+    exports2.DescribeQueryDefinitionsResponse$ = [
+      3,
+      n05,
+      _DQDResc,
+      0,
+      [_qD, _nT],
+      [() => QueryDefinitionList, 0]
+    ];
+    exports2.DescribeResourcePoliciesRequest$ = [
+      3,
+      n05,
+      _DRPRes,
+      0,
+      [_nT, _li, _rA, _pSo],
+      [0, 1, 0, 0]
+    ];
+    exports2.DescribeResourcePoliciesResponse$ = [
+      3,
+      n05,
+      _DRPResc,
+      0,
+      [_rP, _nT],
+      [() => ResourcePolicies, 0]
+    ];
+    exports2.DescribeSubscriptionFiltersRequest$ = [
+      3,
+      n05,
+      _DSFRe,
+      0,
+      [_lGN, _fNP, _nT, _li],
+      [0, 0, 0, 1],
+      1
+    ];
+    exports2.DescribeSubscriptionFiltersResponse$ = [
+      3,
+      n05,
+      _DSFRes,
+      0,
+      [_sF, _nT],
+      [() => SubscriptionFilters, 0]
+    ];
+    exports2.Destination$ = [
+      3,
+      n05,
+      _De,
+      0,
+      [_dNe, _tA, _rAo, _aPc, _ar, _cT],
+      [0, 0, 0, 0, 0, 1]
+    ];
+    exports2.DestinationConfiguration$ = [
+      3,
+      n05,
+      _DC,
+      0,
+      [_sCo],
+      [() => exports2.S3Configuration$],
+      1
+    ];
+    exports2.DisassociateKmsKeyRequest$ = [
+      3,
+      n05,
+      _DKKR,
+      0,
+      [_lGN, _rI],
+      [0, 0]
+    ];
+    exports2.DisassociateSourceFromS3TableIntegrationRequest$ = [
+      3,
+      n05,
+      _DSFSTIR,
+      0,
+      [_i],
+      [0],
+      1
+    ];
+    exports2.DisassociateSourceFromS3TableIntegrationResponse$ = [
+      3,
+      n05,
+      _DSFSTIRi,
+      0,
+      [_i],
+      [0]
+    ];
+    exports2.Entity$ = [
+      3,
+      n05,
+      _E2,
+      0,
+      [_kA, _at],
+      [128 | 0, 128 | 0]
+    ];
+    exports2.ExportTask$ = [
+      3,
+      n05,
+      _ET,
+      0,
+      [_tI2, _tN, _lGN, _f, _to, _des, _dP, _sta, _eI3],
+      [0, 0, 0, 1, 1, 0, 0, () => exports2.ExportTaskStatus$, () => exports2.ExportTaskExecutionInfo$]
+    ];
+    exports2.ExportTaskExecutionInfo$ = [
+      3,
+      n05,
+      _ETEI,
+      0,
+      [_cT, _cTom],
+      [1, 1]
+    ];
+    exports2.ExportTaskStatus$ = [
+      3,
+      n05,
+      _ETS,
+      0,
+      [_cod, _m4],
+      [0, 0]
+    ];
+    exports2.FieldIndex$ = [
+      3,
+      n05,
+      _FI,
+      0,
+      [_lGIo, _fIN, _lST, _fET, _lET, _ty],
+      [0, 0, 1, 1, 1, 0]
+    ];
+    exports2.FieldsData$ = [
+      3,
+      n05,
+      _FD,
+      0,
+      [_da],
+      [21]
+    ];
+    exports2.FilteredLogEvent$ = [
+      3,
+      n05,
+      _FLE,
+      0,
+      [_lSN, _tim, _m4, _iT3, _eIv],
+      [0, 1, 0, 1, 0]
+    ];
+    exports2.FilterLogEventsRequest$ = [
+      3,
+      n05,
+      _FLER,
+      0,
+      [_lGN, _lGIo, _lSNo, _lSNP, _sTt, _eTn, _fP, _nT, _li, _in, _u],
+      [0, 0, 64 | 0, 0, 1, 1, 0, 0, 1, 2, 2]
+    ];
+    exports2.FilterLogEventsResponse$ = [
+      3,
+      n05,
+      _FLERi,
+      0,
+      [_ev, _sLS, _nT],
+      [() => FilteredLogEvents, () => SearchedLogStreams, 0]
+    ];
+    exports2.GetDataProtectionPolicyRequest$ = [
+      3,
+      n05,
+      _GDPPR,
+      0,
+      [_lGIo],
+      [0],
+      1
+    ];
+    exports2.GetDataProtectionPolicyResponse$ = [
+      3,
+      n05,
+      _GDPPRe,
+      0,
+      [_lGIo, _pD, _lUT],
+      [0, 0, 1]
+    ];
+    exports2.GetDeliveryDestinationPolicyRequest$ = [
+      3,
+      n05,
+      _GDDPR,
+      0,
+      [_dDN],
+      [0],
+      1
+    ];
+    exports2.GetDeliveryDestinationPolicyResponse$ = [
+      3,
+      n05,
+      _GDDPRe,
+      0,
+      [_po],
+      [() => exports2.Policy$]
+    ];
+    exports2.GetDeliveryDestinationRequest$ = [
+      3,
+      n05,
+      _GDDR,
+      0,
+      [_n],
+      [0],
+      1
+    ];
+    exports2.GetDeliveryDestinationResponse$ = [
+      3,
+      n05,
+      _GDDRe,
+      0,
+      [_dDe],
+      [() => exports2.DeliveryDestination$]
+    ];
+    exports2.GetDeliveryRequest$ = [
+      3,
+      n05,
+      _GDR,
+      0,
+      [_id],
+      [0],
+      1
+    ];
+    exports2.GetDeliveryResponse$ = [
+      3,
+      n05,
+      _GDRe,
+      0,
+      [_de],
+      [() => exports2.Delivery$]
+    ];
+    exports2.GetDeliverySourceRequest$ = [
+      3,
+      n05,
+      _GDSR,
+      0,
+      [_n],
+      [0],
+      1
+    ];
+    exports2.GetDeliverySourceResponse$ = [
+      3,
+      n05,
+      _GDSRe,
+      0,
+      [_dSel],
+      [() => exports2.DeliverySource$]
+    ];
+    exports2.GetIntegrationRequest$ = [
+      3,
+      n05,
+      _GIR,
+      0,
+      [_iN],
+      [0],
+      1
+    ];
+    exports2.GetIntegrationResponse$ = [
+      3,
+      n05,
+      _GIRe,
+      0,
+      [_iN, _iTn, _iSn, _iD],
+      [0, 0, 0, () => exports2.IntegrationDetails$]
+    ];
+    exports2.GetLogAnomalyDetectorRequest$ = [
+      3,
+      n05,
+      _GLADR,
+      0,
+      [_aDA],
+      [0],
+      1
+    ];
+    exports2.GetLogAnomalyDetectorResponse$ = [
+      3,
+      n05,
+      _GLADRe,
+      0,
+      [_dN, _lGAL, _eF, _fP, _aDS, _kKI, _cTS, _lMTS, _aVT],
+      [0, 64 | 0, 0, 0, 0, 0, 1, 1, 1]
+    ];
+    exports2.GetLogEventsRequest$ = [
+      3,
+      n05,
+      _GLER,
+      0,
+      [_lSN, _lGN, _lGIo, _sTt, _eTn, _nT, _li, _sFH, _u],
+      [0, 0, 0, 1, 1, 0, 1, 2, 2],
+      1
+    ];
+    exports2.GetLogEventsResponse$ = [
+      3,
+      n05,
+      _GLERe,
+      0,
+      [_ev, _nFT, _nBT],
+      [() => OutputLogEvents, 0, 0]
+    ];
+    exports2.GetLogFieldsRequest$ = [
+      3,
+      n05,
+      _GLFR,
+      0,
+      [_dSNa, _dST],
+      [0, 0],
+      2
+    ];
+    exports2.GetLogFieldsResponse$ = [
+      3,
+      n05,
+      _GLFRe,
+      0,
+      [_lF],
+      [() => LogFieldsList]
+    ];
+    exports2.GetLogGroupFieldsRequest$ = [
+      3,
+      n05,
+      _GLGFR,
+      0,
+      [_lGN, _time, _lGIo],
+      [0, 1, 0]
+    ];
+    exports2.GetLogGroupFieldsResponse$ = [
+      3,
+      n05,
+      _GLGFRe,
+      0,
+      [_lGF],
+      [() => LogGroupFieldList]
+    ];
+    exports2.GetLogObjectRequest$ = [
+      3,
+      n05,
+      _GLOR,
+      0,
+      [_lOP, _u],
+      [0, 2],
+      1
+    ];
+    exports2.GetLogObjectResponse$ = [
+      3,
+      n05,
+      _GLORe,
+      0,
+      [_fSi],
+      [[() => exports2.GetLogObjectResponseStream$, 0]]
+    ];
+    exports2.GetLogRecordRequest$ = [
+      3,
+      n05,
+      _GLRR,
+      0,
+      [_lRP, _u],
+      [0, 2],
+      1
+    ];
+    exports2.GetLogRecordResponse$ = [
+      3,
+      n05,
+      _GLRRe,
+      0,
+      [_lR],
+      [128 | 0]
+    ];
+    exports2.GetLookupTableRequest$ = [
+      3,
+      n05,
+      _GLTR,
+      0,
+      [_lTA],
+      [0],
+      1
+    ];
+    exports2.GetLookupTableResponse$ = [
+      3,
+      n05,
+      _GLTRe,
+      0,
+      [_lTA, _lTN, _d, _tB, _sB, _lUT, _kKI],
+      [0, 0, 0, 0, 1, 1, 0]
+    ];
+    exports2.GetQueryResultsRequest$ = [
+      3,
+      n05,
+      _GQRR,
+      0,
+      [_qI],
+      [0],
+      1
+    ];
+    exports2.GetQueryResultsResponse$ = [
+      3,
+      n05,
+      _GQRRe,
+      0,
+      [_qL, _r2, _stat, _sta, _eK],
+      [0, () => QueryResults, () => exports2.QueryStatistics$, 0, 0]
+    ];
+    exports2.GetScheduledQueryHistoryRequest$ = [
+      3,
+      n05,
+      _GSQHR,
+      0,
+      [_i, _sTt, _eTn, _eS, _mR, _nT],
+      [0, 1, 1, 64 | 0, 1, 0],
+      3
+    ];
+    exports2.GetScheduledQueryHistoryResponse$ = [
+      3,
+      n05,
+      _GSQHRe,
+      0,
+      [_n, _sQA, _tH, _nT],
+      [0, 0, () => TriggerHistoryRecordList, 0]
+    ];
+    exports2.GetScheduledQueryRequest$ = [
+      3,
+      n05,
+      _GSQR,
+      0,
+      [_i],
+      [0],
+      1
+    ];
+    exports2.GetScheduledQueryResponse$ = [
+      3,
+      n05,
+      _GSQRe,
+      0,
+      [_sQA, _n, _d, _qL, _qS, _lGI, _sE, _ti, _sTO, _dC2, _st, _lTT, _lES, _sST, _sET, _eRA, _cT, _lUT],
+      [0, 0, 0, 0, 0, 64 | 0, 0, 0, 1, () => exports2.DestinationConfiguration$, 0, 1, 0, 1, 1, 0, 1, 1]
+    ];
+    exports2.GetTransformerRequest$ = [
+      3,
+      n05,
+      _GTR,
+      0,
+      [_lGIo],
+      [0],
+      1
+    ];
+    exports2.GetTransformerResponse$ = [
+      3,
+      n05,
+      _GTRe,
+      0,
+      [_lGIo, _cT, _lMT, _tC],
+      [0, 1, 1, () => Processors]
+    ];
+    exports2.Grok$ = [
+      3,
+      n05,
+      _G,
+      0,
+      [_ma, _so],
+      [0, 0],
+      1
+    ];
+    exports2.GroupingIdentifier$ = [
+      3,
+      n05,
+      _GI,
+      0,
+      [_k, _v],
+      [0, 0]
+    ];
+    exports2.Import$ = [
+      3,
+      n05,
+      _I,
+      0,
+      [_iI, _iSA, _iSm, _iDA, _iS, _iF, _cT, _lUT, _eM],
+      [0, 0, 0, 0, () => exports2.ImportStatistics$, () => exports2.ImportFilter$, 1, 1, 0]
+    ];
+    exports2.ImportBatch$ = [
+      3,
+      n05,
+      _IB,
+      0,
+      [_bI, _sta, _eM],
+      [0, 0, 0],
+      2
+    ];
+    exports2.ImportFilter$ = [
+      3,
+      n05,
+      _IF,
+      0,
+      [_sETt, _eET],
+      [1, 1]
+    ];
+    exports2.ImportStatistics$ = [
+      3,
+      n05,
+      _IS,
+      0,
+      [_bIy],
+      [1]
+    ];
+    exports2.IndexPolicy$ = [
+      3,
+      n05,
+      _IP,
+      0,
+      [_lGIo, _lUTa, _pD, _pN, _so],
+      [0, 1, 0, 0, 0]
+    ];
+    exports2.InputLogEvent$ = [
+      3,
+      n05,
+      _ILE,
+      0,
+      [_tim, _m4],
+      [1, 0],
+      2
+    ];
+    exports2.IntegrationSummary$ = [
+      3,
+      n05,
+      _ISn,
+      0,
+      [_iN, _iTn, _iSn],
+      [0, 0, 0]
+    ];
+    exports2.ListAggregateLogGroupSummariesRequest$ = [
+      3,
+      n05,
+      _LALGSR,
+      0,
+      [_gB, _aIc, _iLA, _lGCo, _lGNPo, _dSa, _nT, _li],
+      [0, 64 | 0, 2, 0, 0, () => DataSourceFilters, 0, 1],
+      1
+    ];
+    exports2.ListAggregateLogGroupSummariesResponse$ = [
+      3,
+      n05,
+      _LALGSRi,
+      0,
+      [_aLGS, _nT],
+      [() => AggregateLogGroupSummaries, 0]
+    ];
+    exports2.ListAnomaliesRequest$ = [
+      3,
+      n05,
+      _LAR,
+      0,
+      [_aDA, _sS, _li, _nT],
+      [0, 0, 1, 0]
+    ];
+    exports2.ListAnomaliesResponse$ = [
+      3,
+      n05,
+      _LARi,
+      0,
+      [_an, _nT],
+      [() => Anomalies, 0]
+    ];
+    exports2.ListIntegrationsRequest$ = [
+      3,
+      n05,
+      _LIR,
+      0,
+      [_iNP, _iTn, _iSn],
+      [0, 0, 0]
+    ];
+    exports2.ListIntegrationsResponse$ = [
+      3,
+      n05,
+      _LIRi,
+      0,
+      [_iSnt],
+      [() => IntegrationSummaries]
+    ];
+    exports2.ListLogAnomalyDetectorsRequest$ = [
+      3,
+      n05,
+      _LLADR,
+      0,
+      [_fLGA, _li, _nT],
+      [0, 1, 0]
+    ];
+    exports2.ListLogAnomalyDetectorsResponse$ = [
+      3,
+      n05,
+      _LLADRi,
+      0,
+      [_aD, _nT],
+      [() => AnomalyDetectors, 0]
+    ];
+    exports2.ListLogGroupsForQueryRequest$ = [
+      3,
+      n05,
+      _LLGFQR,
+      0,
+      [_qI, _nT, _mR],
+      [0, 0, 1],
+      1
+    ];
+    exports2.ListLogGroupsForQueryResponse$ = [
+      3,
+      n05,
+      _LLGFQRi,
+      0,
+      [_lGI, _nT],
+      [64 | 0, 0]
+    ];
+    exports2.ListLogGroupsRequest$ = [
+      3,
+      n05,
+      _LLGR,
+      0,
+      [_lGNPo, _lGCo, _iLA, _aIc, _nT, _li, _dSa, _fINi],
+      [0, 0, 2, 64 | 0, 0, 1, () => DataSourceFilters, 64 | 0]
+    ];
+    exports2.ListLogGroupsResponse$ = [
+      3,
+      n05,
+      _LLGRi,
+      0,
+      [_lG, _nT],
+      [() => LogGroupSummaries, 0]
+    ];
+    exports2.ListScheduledQueriesRequest$ = [
+      3,
+      n05,
+      _LSQR,
+      0,
+      [_mR, _nT, _st],
+      [1, 0, 0]
+    ];
+    exports2.ListScheduledQueriesResponse$ = [
+      3,
+      n05,
+      _LSQRi,
+      0,
+      [_nT, _sQ],
+      [0, () => ScheduledQuerySummaryList]
+    ];
+    exports2.ListSourcesForS3TableIntegrationRequest$ = [
+      3,
+      n05,
+      _LSFSTIR,
+      0,
+      [_iA, _mR, _nT],
+      [0, 1, 0],
+      1
+    ];
+    exports2.ListSourcesForS3TableIntegrationResponse$ = [
+      3,
+      n05,
+      _LSFSTIRi,
+      0,
+      [_sou, _nT],
+      [() => S3TableIntegrationSources, 0]
+    ];
+    exports2.ListTagsForResourceRequest$ = [
+      3,
+      n05,
+      _LTFRR,
+      0,
+      [_rA],
+      [0],
+      1
+    ];
+    exports2.ListTagsForResourceResponse$ = [
+      3,
+      n05,
+      _LTFRRi,
+      0,
+      [_ta],
+      [128 | 0]
+    ];
+    exports2.ListTagsLogGroupRequest$ = [
+      3,
+      n05,
+      _LTLGR,
+      0,
+      [_lGN],
+      [0],
+      1
+    ];
+    exports2.ListTagsLogGroupResponse$ = [
+      3,
+      n05,
+      _LTLGRi,
+      0,
+      [_ta],
+      [128 | 0]
+    ];
+    exports2.ListToMap$ = [
+      3,
+      n05,
+      _LTM,
+      0,
+      [_so, _k, _vK, _t, _fl, _fE],
+      [0, 0, 0, 0, 2, 0],
+      2
+    ];
+    exports2.LiveTailSessionLogEvent$ = [
+      3,
+      n05,
+      _LTSLE,
+      0,
+      [_lSN, _lGIo, _m4, _tim, _iT3],
+      [0, 0, 0, 1, 1]
+    ];
+    exports2.LiveTailSessionMetadata$ = [
+      3,
+      n05,
+      _LTSM,
+      0,
+      [_sa],
+      [2]
+    ];
+    exports2.LiveTailSessionStart$ = [
+      3,
+      n05,
+      _LTSS,
+      0,
+      [_rIe, _sI, _lGI, _lSNo, _lSNPo, _lEFP],
+      [0, 0, 64 | 0, 64 | 0, 64 | 0, 0]
+    ];
+    exports2.LiveTailSessionUpdate$ = [
+      3,
+      n05,
+      _LTSU,
+      0,
+      [_sM, _sR],
+      [() => exports2.LiveTailSessionMetadata$, () => LiveTailSessionResults]
+    ];
+    exports2.LogEvent$ = [
+      3,
+      n05,
+      _LE,
+      0,
+      [_tim, _m4],
+      [1, 0]
+    ];
+    exports2.LogFieldsListItem$ = [
+      3,
+      n05,
+      _LFLI,
+      0,
+      [_lFN, _lFT],
+      [0, () => exports2.LogFieldType$]
+    ];
+    exports2.LogFieldType$ = [
+      3,
+      n05,
+      _LFT,
+      0,
+      [_ty, _el, _fi],
+      [0, () => exports2.LogFieldType$, () => LogFieldsList]
+    ];
+    exports2.LogGroup$ = [
+      3,
+      n05,
+      _LG,
+      0,
+      [_lGN, _cT, _rID, _mFC, _ar, _sBt, _kKI, _dPS, _iPn, _lGCo, _lGA, _dPE, _bTAE],
+      [0, 1, 1, 1, 0, 1, 0, 0, 64 | 0, 0, 0, 2, 2]
+    ];
+    exports2.LogGroupField$ = [
+      3,
+      n05,
+      _LGF,
+      0,
+      [_n, _pe],
+      [0, 1]
+    ];
+    exports2.LogGroupSummary$ = [
+      3,
+      n05,
+      _LGS,
+      0,
+      [_lGN, _lGA, _lGCo],
+      [0, 0, 0]
+    ];
+    exports2.LogStream$ = [
+      3,
+      n05,
+      _LS,
+      0,
+      [_lSN, _cT, _fETi, _lETa, _lIT, _uST, _ar, _sBt],
+      [0, 1, 1, 1, 1, 0, 0, 1]
+    ];
+    exports2.LookupTable$ = [
+      3,
+      n05,
+      _LT,
+      0,
+      [_lTA, _lTN, _d, _tFa, _rC2, _sB, _lUT, _kKI],
+      [0, 0, 0, 64 | 0, 1, 1, 1, 0]
+    ];
+    exports2.LowerCaseString$ = [
+      3,
+      n05,
+      _LCS,
+      0,
+      [_wK],
+      [64 | 0],
+      1
+    ];
+    exports2.MetricFilter$ = [
+      3,
+      n05,
+      _MF,
+      0,
+      [_fN, _fP, _mT, _cT, _lGN, _aOTL, _fSC, _eSFD],
+      [0, 0, () => MetricTransformations, 1, 0, 2, 0, 64 | 0]
+    ];
+    exports2.MetricFilterMatchRecord$ = [
+      3,
+      n05,
+      _MFMR,
+      0,
+      [_eN, _eMv, _eV],
+      [1, 0, 128 | 0]
+    ];
+    exports2.MetricTransformation$ = [
+      3,
+      n05,
+      _MT,
+      0,
+      [_mN, _mNe, _mV, _dV, _di, _un],
+      [0, 0, 0, 1, 128 | 0, 0],
+      3
+    ];
+    exports2.MoveKeyEntry$ = [
+      3,
+      n05,
+      _MKE,
+      0,
+      [_so, _t, _oIE],
+      [0, 0, 2],
+      2
+    ];
+    exports2.MoveKeys$ = [
+      3,
+      n05,
+      _MK,
+      0,
+      [_en],
+      [() => MoveKeyEntries],
+      1
+    ];
+    exports2.OpenSearchApplication$ = [
+      3,
+      n05,
+      _OSA,
+      0,
+      [_aE, _aA, _aIp, _sta],
+      [0, 0, 0, () => exports2.OpenSearchResourceStatus$]
+    ];
+    exports2.OpenSearchCollection$ = [
+      3,
+      n05,
+      _OSC,
+      0,
+      [_cE, _cAo, _sta],
+      [0, 0, () => exports2.OpenSearchResourceStatus$]
+    ];
+    exports2.OpenSearchDataAccessPolicy$ = [
+      3,
+      n05,
+      _OSDAP,
+      0,
+      [_pN, _sta],
+      [0, () => exports2.OpenSearchResourceStatus$]
+    ];
+    exports2.OpenSearchDataSource$ = [
+      3,
+      n05,
+      _OSDS,
+      0,
+      [_dSNa, _sta],
+      [0, () => exports2.OpenSearchResourceStatus$]
+    ];
+    exports2.OpenSearchEncryptionPolicy$ = [
+      3,
+      n05,
+      _OSEP,
+      0,
+      [_pN, _sta],
+      [0, () => exports2.OpenSearchResourceStatus$]
+    ];
+    exports2.OpenSearchIntegrationDetails$ = [
+      3,
+      n05,
+      _OSID,
+      0,
+      [_dS, _ap, _col, _w, _eP, _nP, _aPc, _lP],
+      [() => exports2.OpenSearchDataSource$, () => exports2.OpenSearchApplication$, () => exports2.OpenSearchCollection$, () => exports2.OpenSearchWorkspace$, () => exports2.OpenSearchEncryptionPolicy$, () => exports2.OpenSearchNetworkPolicy$, () => exports2.OpenSearchDataAccessPolicy$, () => exports2.OpenSearchLifecyclePolicy$]
+    ];
+    exports2.OpenSearchLifecyclePolicy$ = [
+      3,
+      n05,
+      _OSLP,
+      0,
+      [_pN, _sta],
+      [0, () => exports2.OpenSearchResourceStatus$]
+    ];
+    exports2.OpenSearchNetworkPolicy$ = [
+      3,
+      n05,
+      _OSNP,
+      0,
+      [_pN, _sta],
+      [0, () => exports2.OpenSearchResourceStatus$]
+    ];
+    exports2.OpenSearchResourceConfig$ = [
+      3,
+      n05,
+      _OSRC,
+      0,
+      [_dSRA, _dVP, _rD, _kKA, _aA],
+      [0, 64 | 0, 1, 0, 0],
+      3
+    ];
+    exports2.OpenSearchResourceStatus$ = [
+      3,
+      n05,
+      _OSRS,
+      0,
+      [_sta, _sMt],
+      [0, 0]
+    ];
+    exports2.OpenSearchWorkspace$ = [
+      3,
+      n05,
+      _OSW,
+      0,
+      [_wI, _sta],
+      [0, () => exports2.OpenSearchResourceStatus$]
+    ];
+    exports2.OutputLogEvent$ = [
+      3,
+      n05,
+      _OLE,
+      0,
+      [_tim, _m4, _iT3],
+      [1, 0, 1]
+    ];
+    exports2.ParseCloudfront$ = [
+      3,
+      n05,
+      _PC2,
+      0,
+      [_so],
+      [0]
+    ];
+    exports2.ParseJSON$ = [
+      3,
+      n05,
+      _PJSON,
+      0,
+      [_so, _des],
+      [0, 0]
+    ];
+    exports2.ParseKeyValue$ = [
+      3,
+      n05,
+      _PKV,
+      0,
+      [_so, _des, _fD, _kVD, _kP, _nMV, _oIE],
+      [0, 0, 0, 0, 0, 0, 2]
+    ];
+    exports2.ParsePostgres$ = [
+      3,
+      n05,
+      _PP,
+      0,
+      [_so],
+      [0]
+    ];
+    exports2.ParseRoute53$ = [
+      3,
+      n05,
+      _PR,
+      0,
+      [_so],
+      [0]
+    ];
+    exports2.ParseToOCSF$ = [
+      3,
+      n05,
+      _PTOCSF,
+      0,
+      [_eSv, _oV, _so, _mVa],
+      [0, 0, 0, 0],
+      2
+    ];
+    exports2.ParseVPC$ = [
+      3,
+      n05,
+      _PVPC,
+      0,
+      [_so],
+      [0]
+    ];
+    exports2.ParseWAF$ = [
+      3,
+      n05,
+      _PWAF,
+      0,
+      [_so],
+      [0]
+    ];
+    exports2.PatternToken$ = [
+      3,
+      n05,
+      _PT,
+      0,
+      [_dTP, _iDs, _tS, _enu, _iTN],
+      [1, 2, 0, 128 | 1, 0]
+    ];
+    exports2.Policy$ = [
+      3,
+      n05,
+      _P2,
+      0,
+      [_dDP],
+      [0]
+    ];
+    exports2.Processor$ = [
+      3,
+      n05,
+      _Pr2,
+      0,
+      [_aK, _cV3, _cs, _dTC, _dK, _g, _lTM, _lCS, _mK, _pC, _pJSON, _pKV, _pRa, _pTOCSF, _pP, _pVPC, _pWAF, _rK, _sSp, _sSu, _tSr, _tCy, _uCS],
+      [() => exports2.AddKeys$, () => exports2.CopyValue$, () => exports2.CSV$, () => exports2.DateTimeConverter$, () => exports2.DeleteKeys$, () => exports2.Grok$, () => exports2.ListToMap$, () => exports2.LowerCaseString$, () => exports2.MoveKeys$, () => exports2.ParseCloudfront$, () => exports2.ParseJSON$, () => exports2.ParseKeyValue$, () => exports2.ParseRoute53$, () => exports2.ParseToOCSF$, () => exports2.ParsePostgres$, () => exports2.ParseVPC$, () => exports2.ParseWAF$, () => exports2.RenameKeys$, () => exports2.SplitString$, () => exports2.SubstituteString$, () => exports2.TrimString$, () => exports2.TypeConverter$, () => exports2.UpperCaseString$]
+    ];
+    exports2.PutAccountPolicyRequest$ = [
+      3,
+      n05,
+      _PAPR,
+      0,
+      [_pN, _pD, _pT, _sc2, _sC],
+      [0, 0, 0, 0, 0],
+      3
+    ];
+    exports2.PutAccountPolicyResponse$ = [
+      3,
+      n05,
+      _PAPRu,
+      0,
+      [_aPcc],
+      [() => exports2.AccountPolicy$]
+    ];
+    exports2.PutBearerTokenAuthenticationRequest$ = [
+      3,
+      n05,
+      _PBTAR,
+      0,
+      [_lGIo, _bTAE],
+      [0, 2],
+      2
+    ];
+    exports2.PutDataProtectionPolicyRequest$ = [
+      3,
+      n05,
+      _PDPPR,
+      0,
+      [_lGIo, _pD],
+      [0, 0],
+      2
+    ];
+    exports2.PutDataProtectionPolicyResponse$ = [
+      3,
+      n05,
+      _PDPPRu,
+      0,
+      [_lGIo, _pD, _lUT],
+      [0, 0, 1]
+    ];
+    exports2.PutDeliveryDestinationPolicyRequest$ = [
+      3,
+      n05,
+      _PDDPR,
+      0,
+      [_dDN, _dDP],
+      [0, 0],
+      2
+    ];
+    exports2.PutDeliveryDestinationPolicyResponse$ = [
+      3,
+      n05,
+      _PDDPRu,
+      0,
+      [_po],
+      [() => exports2.Policy$]
+    ];
+    exports2.PutDeliveryDestinationRequest$ = [
+      3,
+      n05,
+      _PDDR,
+      0,
+      [_n, _oF, _dDC, _dDT, _ta],
+      [0, 0, () => exports2.DeliveryDestinationConfiguration$, 0, 128 | 0],
+      1
+    ];
+    exports2.PutDeliveryDestinationResponse$ = [
+      3,
+      n05,
+      _PDDRu,
+      0,
+      [_dDe],
+      [() => exports2.DeliveryDestination$]
+    ];
+    exports2.PutDeliverySourceRequest$ = [
+      3,
+      n05,
+      _PDSR,
+      0,
+      [_n, _rA, _lT, _ta],
+      [0, 0, 0, 128 | 0],
+      3
+    ];
+    exports2.PutDeliverySourceResponse$ = [
+      3,
+      n05,
+      _PDSRu,
+      0,
+      [_dSel],
+      [() => exports2.DeliverySource$]
+    ];
+    exports2.PutDestinationPolicyRequest$ = [
+      3,
+      n05,
+      _PDPR,
+      0,
+      [_dNe, _aPc, _fU],
+      [0, 0, 2],
+      2
+    ];
+    exports2.PutDestinationRequest$ = [
+      3,
+      n05,
+      _PDR,
+      0,
+      [_dNe, _tA, _rAo, _ta],
+      [0, 0, 0, 128 | 0],
+      3
+    ];
+    exports2.PutDestinationResponse$ = [
+      3,
+      n05,
+      _PDRu,
+      0,
+      [_des],
+      [() => exports2.Destination$]
+    ];
+    exports2.PutIndexPolicyRequest$ = [
+      3,
+      n05,
+      _PIPR,
+      0,
+      [_lGIo, _pD],
+      [0, 0],
+      2
+    ];
+    exports2.PutIndexPolicyResponse$ = [
+      3,
+      n05,
+      _PIPRu,
+      0,
+      [_iPnd],
+      [() => exports2.IndexPolicy$]
+    ];
+    exports2.PutIntegrationRequest$ = [
+      3,
+      n05,
+      _PIR,
+      0,
+      [_iN, _rCe, _iTn],
+      [0, () => exports2.ResourceConfig$, 0],
+      3
+    ];
+    exports2.PutIntegrationResponse$ = [
+      3,
+      n05,
+      _PIRu,
+      0,
+      [_iN, _iSn],
+      [0, 0]
+    ];
+    exports2.PutLogEventsRequest$ = [
+      3,
+      n05,
+      _PLER,
+      0,
+      [_lGN, _lSN, _lE, _sTe, _ent],
+      [0, 0, () => InputLogEvents, 0, () => exports2.Entity$],
+      3
+    ];
+    exports2.PutLogEventsResponse$ = [
+      3,
+      n05,
+      _PLERu,
+      0,
+      [_nST, _rLEI, _rEI],
+      [0, () => exports2.RejectedLogEventsInfo$, () => exports2.RejectedEntityInfo$]
+    ];
+    exports2.PutLogGroupDeletionProtectionRequest$ = [
+      3,
+      n05,
+      _PLGDPR,
+      0,
+      [_lGIo, _dPE],
+      [0, 2],
+      2
+    ];
+    exports2.PutMetricFilterRequest$ = [
+      3,
+      n05,
+      _PMFR,
+      0,
+      [_lGN, _fN, _fP, _mT, _aOTL, _fSC, _eSFD],
+      [0, 0, 0, () => MetricTransformations, 2, 0, 64 | 0],
+      4
+    ];
+    exports2.PutQueryDefinitionRequest$ = [
+      3,
+      n05,
+      _PQDR,
+      0,
+      [_n, _qS, _qL, _qDI, _lGNo, _cTl, _pa],
+      [0, 0, 0, 0, 64 | 0, [0, 4], () => QueryParameterList],
+      2
+    ];
+    exports2.PutQueryDefinitionResponse$ = [
+      3,
+      n05,
+      _PQDRu,
+      0,
+      [_qDI],
+      [0]
+    ];
+    exports2.PutResourcePolicyRequest$ = [
+      3,
+      n05,
+      _PRPR,
+      0,
+      [_pN, _pD, _rA, _eRI],
+      [0, 0, 0, 0]
+    ];
+    exports2.PutResourcePolicyResponse$ = [
+      3,
+      n05,
+      _PRPRu,
+      0,
+      [_rPe, _rIev],
+      [() => exports2.ResourcePolicy$, 0]
+    ];
+    exports2.PutRetentionPolicyRequest$ = [
+      3,
+      n05,
+      _PRPRut,
+      0,
+      [_lGN, _rID],
+      [0, 1],
+      2
+    ];
+    exports2.PutSubscriptionFilterRequest$ = [
+      3,
+      n05,
+      _PSFR,
+      0,
+      [_lGN, _fN, _fP, _dA, _rAo, _dis, _aOTL, _fSC, _eSF],
+      [0, 0, 0, 0, 0, 0, 2, 0, 64 | 0],
+      4
+    ];
+    exports2.PutTransformerRequest$ = [
+      3,
+      n05,
+      _PTR,
+      0,
+      [_lGIo, _tC],
+      [0, () => Processors],
+      2
+    ];
+    exports2.QueryCompileError$ = [
+      3,
+      n05,
+      _QCE,
+      0,
+      [_lo, _m4],
+      [() => exports2.QueryCompileErrorLocation$, 0]
+    ];
+    exports2.QueryCompileErrorLocation$ = [
+      3,
+      n05,
+      _QCEL,
+      0,
+      [_sCO, _eCO],
+      [1, 1]
+    ];
+    exports2.QueryDefinition$ = [
+      3,
+      n05,
+      _QD,
+      0,
+      [_qL, _qDI, _n, _qS, _lM, _lGNo, _pa],
+      [0, 0, 0, 0, 1, 64 | 0, () => QueryParameterList]
+    ];
+    exports2.QueryInfo$ = [
+      3,
+      n05,
+      _QI,
+      0,
+      [_qL, _qI, _qS, _sta, _cTr, _lGN, _qDu, _bS, _uI],
+      [0, 0, 0, 0, 1, 0, 1, 1, 0]
+    ];
+    exports2.QueryParameter$ = [
+      3,
+      n05,
+      _QP,
+      0,
+      [_n, _dV, _d],
+      [0, 0, 0],
+      1
+    ];
+    exports2.QueryStatistics$ = [
+      3,
+      n05,
+      _QS,
+      0,
+      [_rM, _rS, _eRS, _bS, _eBS, _lGS],
+      [1, 1, 1, 1, 1, 1]
+    ];
+    exports2.RecordField$ = [
+      3,
+      n05,
+      _RF,
+      0,
+      [_n, _man],
+      [0, 2]
+    ];
+    exports2.RejectedEntityInfo$ = [
+      3,
+      n05,
+      _REI,
+      0,
+      [_eTr],
+      [0],
+      1
+    ];
+    exports2.RejectedLogEventsInfo$ = [
+      3,
+      n05,
+      _RLEI,
+      0,
+      [_tNLESI, _tOLEEI, _eLEEI],
+      [1, 1, 1]
+    ];
+    exports2.RenameKeyEntry$ = [
+      3,
+      n05,
+      _RKE,
+      0,
+      [_k, _rTen, _oIE],
+      [0, 0, 2],
+      2
+    ];
+    exports2.RenameKeys$ = [
+      3,
+      n05,
+      _RK,
+      0,
+      [_en],
+      [() => RenameKeyEntries],
+      1
+    ];
+    exports2.ResourcePolicy$ = [
+      3,
+      n05,
+      _RP,
+      0,
+      [_pN, _pD, _lUT, _pSo, _rA, _rIev],
+      [0, 0, 1, 0, 0, 0]
+    ];
+    exports2.ResultField$ = [
+      3,
+      n05,
+      _RFe,
+      0,
+      [_fie, _v],
+      [0, 0]
+    ];
+    exports2.S3Configuration$ = [
+      3,
+      n05,
+      _SC,
+      0,
+      [_dI, _rAo, _oAI, _kKI],
+      [0, 0, 0, 0],
+      2
+    ];
+    exports2.S3DeliveryConfiguration$ = [
+      3,
+      n05,
+      _SDC,
+      0,
+      [_sP, _eHCP],
+      [0, 2]
+    ];
+    exports2.S3TableIntegrationSource$ = [
+      3,
+      n05,
+      _STIS,
+      0,
+      [_i, _dS, _sta, _sRt, _cTSr],
+      [0, () => exports2.DataSource$, 0, 0, 1]
+    ];
+    exports2.ScheduledQueryDestination$ = [
+      3,
+      n05,
+      _SQD,
+      0,
+      [_dT, _dI, _sta, _pIr, _eM],
+      [0, 0, 0, 0, 0]
+    ];
+    exports2.ScheduledQuerySummary$ = [
+      3,
+      n05,
+      _SQS,
+      0,
+      [_sQA, _n, _st, _lTT, _lES, _sE, _ti, _dC2, _cT, _lUT],
+      [0, 0, 0, 1, 0, 0, 0, () => exports2.DestinationConfiguration$, 1, 1]
+    ];
+    exports2.SearchedLogStream$ = [
+      3,
+      n05,
+      _SLS,
+      0,
+      [_lSN, _sCe],
+      [0, 2]
+    ];
+    exports2.SplitString$ = [
+      3,
+      n05,
+      _SS,
+      0,
+      [_en],
+      [() => SplitStringEntries],
+      1
+    ];
+    exports2.SplitStringEntry$ = [
+      3,
+      n05,
+      _SSEp,
+      0,
+      [_so, _del],
+      [0, 0],
+      2
+    ];
+    exports2.StartLiveTailRequest$ = [
+      3,
+      n05,
+      _SLTR,
+      0,
+      [_lGI, _lSNo, _lSNPo, _lEFP],
+      [64 | 0, 64 | 0, 64 | 0, 0],
+      1
+    ];
+    exports2.StartLiveTailResponse$ = [
+      3,
+      n05,
+      _SLTRt,
+      0,
+      [_rSe],
+      [[() => exports2.StartLiveTailResponseStream$, 0]]
+    ];
+    exports2.StartQueryRequest$ = [
+      3,
+      n05,
+      _SQR,
+      0,
+      [_sTt, _eTn, _qS, _qL, _lGN, _lGNo, _lGI, _li],
+      [1, 1, 0, 0, 0, 64 | 0, 64 | 0, 1],
+      3
+    ];
+    exports2.StartQueryResponse$ = [
+      3,
+      n05,
+      _SQRt,
+      0,
+      [_qI],
+      [0]
+    ];
+    exports2.StopQueryRequest$ = [
+      3,
+      n05,
+      _SQRto,
+      0,
+      [_qI],
+      [0],
+      1
+    ];
+    exports2.StopQueryResponse$ = [
+      3,
+      n05,
+      _SQRtop,
+      0,
+      [_suc],
+      [2]
+    ];
+    exports2.SubscriptionFilter$ = [
+      3,
+      n05,
+      _SF,
+      0,
+      [_fN, _lGN, _fP, _dA, _rAo, _dis, _aOTL, _cT, _fSC, _eSF],
+      [0, 0, 0, 0, 0, 0, 2, 1, 0, 64 | 0]
+    ];
+    exports2.SubstituteString$ = [
+      3,
+      n05,
+      _SSu,
+      0,
+      [_en],
+      [() => SubstituteStringEntries],
+      1
+    ];
+    exports2.SubstituteStringEntry$ = [
+      3,
+      n05,
+      _SSEu,
+      0,
+      [_so, _f, _to],
+      [0, 0, 0],
+      3
+    ];
+    exports2.SuppressionPeriod$ = [
+      3,
+      n05,
+      _SP,
+      0,
+      [_v, _sUu],
+      [1, 0]
+    ];
+    exports2.TagLogGroupRequest$ = [
+      3,
+      n05,
+      _TLGR,
+      0,
+      [_lGN, _ta],
+      [0, 128 | 0],
+      2
+    ];
+    exports2.TagResourceRequest$ = [
+      3,
+      n05,
+      _TRR,
+      0,
+      [_rA, _ta],
+      [0, 128 | 0],
+      2
+    ];
+    exports2.TestMetricFilterRequest$ = [
+      3,
+      n05,
+      _TMFR,
+      0,
+      [_fP, _lEM],
+      [0, 64 | 0],
+      2
+    ];
+    exports2.TestMetricFilterResponse$ = [
+      3,
+      n05,
+      _TMFRe,
+      0,
+      [_mat],
+      [() => MetricFilterMatches]
+    ];
+    exports2.TestTransformerRequest$ = [
+      3,
+      n05,
+      _TTR,
+      0,
+      [_tC, _lEM],
+      [() => Processors, 64 | 0],
+      2
+    ];
+    exports2.TestTransformerResponse$ = [
+      3,
+      n05,
+      _TTRe,
+      0,
+      [_tL],
+      [() => TransformedLogs]
+    ];
+    exports2.TransformedLogRecord$ = [
+      3,
+      n05,
+      _TLR,
+      0,
+      [_eN, _eMv, _tEM],
+      [1, 0, 0]
+    ];
+    exports2.TriggerHistoryRecord$ = [
+      3,
+      n05,
+      _THR,
+      0,
+      [_qI, _eSx, _tTr, _eM, _dest],
+      [0, 0, 1, 0, () => ScheduledQueryDestinationList]
+    ];
+    exports2.TrimString$ = [
+      3,
+      n05,
+      _TS,
+      0,
+      [_wK],
+      [64 | 0],
+      1
+    ];
+    exports2.TypeConverter$ = [
+      3,
+      n05,
+      _TC2,
+      0,
+      [_en],
+      [() => TypeConverterEntries],
+      1
+    ];
+    exports2.TypeConverterEntry$ = [
+      3,
+      n05,
+      _TCE,
+      0,
+      [_k, _ty],
+      [0, 0],
+      2
+    ];
+    exports2.UntagLogGroupRequest$ = [
+      3,
+      n05,
+      _ULGR,
+      0,
+      [_lGN, _ta],
+      [0, 64 | 0],
+      2
+    ];
+    exports2.UntagResourceRequest$ = [
+      3,
+      n05,
+      _URR,
+      0,
+      [_rA, _tK],
+      [0, 64 | 0],
+      2
+    ];
+    exports2.UpdateAnomalyRequest$ = [
+      3,
+      n05,
+      _UAR,
+      0,
+      [_aDA, _aIn, _pI, _sTu, _sPu, _b],
+      [0, 0, 0, 0, () => exports2.SuppressionPeriod$, 2],
+      1
+    ];
+    exports2.UpdateDeliveryConfigurationRequest$ = [
+      3,
+      n05,
+      _UDCR,
+      0,
+      [_id, _rF, _fD, _sDC],
+      [0, 64 | 0, 0, () => exports2.S3DeliveryConfiguration$],
+      1
+    ];
+    exports2.UpdateDeliveryConfigurationResponse$ = [
+      3,
+      n05,
+      _UDCRp,
+      0,
+      [],
+      []
+    ];
+    exports2.UpdateLogAnomalyDetectorRequest$ = [
+      3,
+      n05,
+      _ULADR,
+      0,
+      [_aDA, _ena, _eF, _fP, _aVT],
+      [0, 2, 0, 0, 1],
+      2
+    ];
+    exports2.UpdateLookupTableRequest$ = [
+      3,
+      n05,
+      _ULTR,
+      0,
+      [_lTA, _tB, _d, _kKI],
+      [0, 0, 0, 0],
+      2
+    ];
+    exports2.UpdateLookupTableResponse$ = [
+      3,
+      n05,
+      _ULTRp,
+      0,
+      [_lTA, _lUT],
+      [0, 1]
+    ];
+    exports2.UpdateScheduledQueryRequest$ = [
+      3,
+      n05,
+      _USQR,
+      0,
+      [_i, _qL, _qS, _sE, _eRA, _d, _lGI, _ti, _sTO, _dC2, _sST, _sET, _st],
+      [0, 0, 0, 0, 0, 0, 64 | 0, 0, 1, () => exports2.DestinationConfiguration$, 1, 1, 0],
+      5
+    ];
+    exports2.UpdateScheduledQueryResponse$ = [
+      3,
+      n05,
+      _USQRp,
+      0,
+      [_sQA, _n, _d, _qL, _qS, _lGI, _sE, _ti, _sTO, _dC2, _st, _lTT, _lES, _sST, _sET, _eRA, _cT, _lUT],
+      [0, 0, 0, 0, 0, 64 | 0, 0, 0, 1, () => exports2.DestinationConfiguration$, 0, 1, 0, 1, 1, 0, 1, 1]
+    ];
+    exports2.UpperCaseString$ = [
+      3,
+      n05,
+      _UCS,
+      0,
+      [_wK],
+      [64 | 0],
+      1
+    ];
+    var __Unit = "unit";
+    var AccountIds = 64 | 0;
+    var AccountPolicies = [
+      1,
+      n05,
+      _APc,
+      0,
+      () => exports2.AccountPolicy$
+    ];
+    var AddKeyEntries = [
+      1,
+      n05,
+      _AKEd,
+      0,
+      () => exports2.AddKeyEntry$
+    ];
+    var AggregateLogGroupSummaries = [
+      1,
+      n05,
+      _ALGSg,
+      0,
+      () => exports2.AggregateLogGroupSummary$
+    ];
+    var AllowedFieldDelimiters = 64 | 0;
+    var AllowedFields = [
+      1,
+      n05,
+      _AF,
+      0,
+      () => exports2.RecordField$
+    ];
+    var Anomalies = [
+      1,
+      n05,
+      _An,
+      0,
+      () => exports2.Anomaly$
+    ];
+    var AnomalyDetectors = [
+      1,
+      n05,
+      _ADn,
+      0,
+      () => exports2.AnomalyDetector$
+    ];
+    var Columns = 64 | 0;
+    var ConfigurationTemplates = [
+      1,
+      n05,
+      _CTo,
+      0,
+      () => exports2.ConfigurationTemplate$
+    ];
+    var CopyValueEntries = [
+      1,
+      n05,
+      _CVEo,
+      0,
+      () => exports2.CopyValueEntry$
+    ];
+    var DashboardViewerPrincipals = 64 | 0;
+    var DataSourceFilters = [
+      1,
+      n05,
+      _DSFa,
+      0,
+      () => exports2.DataSourceFilter$
+    ];
+    var DeleteWithKeys = 64 | 0;
+    var Deliveries = [
+      1,
+      n05,
+      _Del,
+      0,
+      () => exports2.Delivery$
+    ];
+    var DeliveryDestinations = [
+      1,
+      n05,
+      _DDe,
+      0,
+      () => exports2.DeliveryDestination$
+    ];
+    var DeliveryDestinationTypes = 64 | 0;
+    var DeliverySources = [
+      1,
+      n05,
+      _DSel,
+      0,
+      () => exports2.DeliverySource$
+    ];
+    var DescribeFieldIndexesLogGroupIdentifiers = 64 | 0;
+    var DescribeIndexPoliciesLogGroupIdentifiers = 64 | 0;
+    var DescribeLogGroupsLogGroupIdentifiers = 64 | 0;
+    var Destinations = [
+      1,
+      n05,
+      _Des,
+      0,
+      () => exports2.Destination$
+    ];
+    var EmitSystemFields = 64 | 0;
+    var ExecutionStatusList = 64 | 0;
+    var ExportTasks = [
+      1,
+      n05,
+      _ETx,
+      0,
+      () => exports2.ExportTask$
+    ];
+    var FieldIndexes = [
+      1,
+      n05,
+      _FIi,
+      0,
+      () => exports2.FieldIndex$
+    ];
+    var FieldIndexNames = 64 | 0;
+    var FilteredLogEvents = [
+      1,
+      n05,
+      _FLEi,
+      0,
+      () => exports2.FilteredLogEvent$
+    ];
+    var GroupingIdentifiers = [
+      1,
+      n05,
+      _GIr,
+      0,
+      () => exports2.GroupingIdentifier$
+    ];
+    var ImportBatchList = [
+      1,
+      n05,
+      _IBL,
+      0,
+      () => exports2.ImportBatch$
+    ];
+    var ImportList = [
+      1,
+      n05,
+      _IL,
+      0,
+      () => exports2.Import$
+    ];
+    var ImportStatusList = 64 | 0;
+    var IndexPolicies = [
+      1,
+      n05,
+      _IPn,
+      0,
+      () => exports2.IndexPolicy$
+    ];
+    var InheritedProperties = 64 | 0;
+    var InputLogEvents = [
+      1,
+      n05,
+      _ILEn,
+      0,
+      () => exports2.InputLogEvent$
+    ];
+    var InputLogStreamNames = 64 | 0;
+    var IntegrationSummaries = [
+      1,
+      n05,
+      _ISnt,
+      0,
+      () => exports2.IntegrationSummary$
+    ];
+    var LiveTailSessionResults = [
+      1,
+      n05,
+      _LTSR,
+      0,
+      () => exports2.LiveTailSessionLogEvent$
+    ];
+    var LogFieldsList = [
+      1,
+      n05,
+      _LFL,
+      0,
+      () => exports2.LogFieldsListItem$
+    ];
+    var LogGroupArnList = 64 | 0;
+    var LogGroupFieldList = [
+      1,
+      n05,
+      _LGFL,
+      0,
+      () => exports2.LogGroupField$
+    ];
+    var LogGroupIdentifiers = 64 | 0;
+    var LogGroupNames = 64 | 0;
+    var LogGroups = [
+      1,
+      n05,
+      _LGo,
+      0,
+      () => exports2.LogGroup$
+    ];
+    var LogGroupSummaries = [
+      1,
+      n05,
+      _LGSo,
+      0,
+      () => exports2.LogGroupSummary$
+    ];
+    var LogSamples = [
+      1,
+      n05,
+      _LSo,
+      0,
+      () => exports2.LogEvent$
+    ];
+    var LogStreams = [
+      1,
+      n05,
+      _LSog,
+      0,
+      () => exports2.LogStream$
+    ];
+    var LogTypes = 64 | 0;
+    var LookupTables = [
+      1,
+      n05,
+      _LTo,
+      0,
+      () => exports2.LookupTable$
+    ];
+    var LowerCaseStringWithKeys = 64 | 0;
+    var MatchPatterns = 64 | 0;
+    var MetricFilterMatches = [
+      1,
+      n05,
+      _MFM,
+      0,
+      () => exports2.MetricFilterMatchRecord$
+    ];
+    var MetricFilters = [
+      1,
+      n05,
+      _MFe,
+      0,
+      () => exports2.MetricFilter$
+    ];
+    var MetricTransformations = [
+      1,
+      n05,
+      _MTe,
+      0,
+      () => exports2.MetricTransformation$
+    ];
+    var MoveKeyEntries = [
+      1,
+      n05,
+      _MKEo,
+      0,
+      () => exports2.MoveKeyEntry$
+    ];
+    var OutputFormats = 64 | 0;
+    var OutputLogEvents = [
+      1,
+      n05,
+      _OLEu,
+      0,
+      () => exports2.OutputLogEvent$
+    ];
+    var PatternTokens = [
+      1,
+      n05,
+      _PTa,
+      0,
+      () => exports2.PatternToken$
+    ];
+    var Processors = [
+      1,
+      n05,
+      _Pro,
+      0,
+      () => exports2.Processor$
+    ];
+    var QueryDefinitionList = [
+      1,
+      n05,
+      _QDL,
+      0,
+      () => exports2.QueryDefinition$
+    ];
+    var QueryInfoList = [
+      1,
+      n05,
+      _QIL,
+      0,
+      () => exports2.QueryInfo$
+    ];
+    var QueryParameterList = [
+      1,
+      n05,
+      _QPL,
+      0,
+      () => exports2.QueryParameter$
+    ];
+    var QueryResults = [
+      1,
+      n05,
+      _QR,
+      0,
+      () => ResultRows
+    ];
+    var RecordFields = 64 | 0;
+    var RenameKeyEntries = [
+      1,
+      n05,
+      _RKEe,
+      0,
+      () => exports2.RenameKeyEntry$
+    ];
+    var ResourceArns = 64 | 0;
+    var ResourcePolicies = [
+      1,
+      n05,
+      _RPe,
+      0,
+      () => exports2.ResourcePolicy$
+    ];
+    var ResourceTypes = 64 | 0;
+    var ResultRows = [
+      1,
+      n05,
+      _RR,
+      0,
+      () => exports2.ResultField$
+    ];
+    var S3TableIntegrationSources = [
+      1,
+      n05,
+      _STISa,
+      0,
+      () => exports2.S3TableIntegrationSource$
+    ];
+    var ScheduledQueryDestinationList = [
+      1,
+      n05,
+      _SQDL,
+      0,
+      () => exports2.ScheduledQueryDestination$
+    ];
+    var ScheduledQueryLogGroupIdentifiers = 64 | 0;
+    var ScheduledQuerySummaryList = [
+      1,
+      n05,
+      _SQSL,
+      0,
+      () => exports2.ScheduledQuerySummary$
+    ];
+    var SearchedLogStreams = [
+      1,
+      n05,
+      _SLSe,
+      0,
+      () => exports2.SearchedLogStream$
+    ];
+    var SplitStringEntries = [
+      1,
+      n05,
+      _SSEpl,
+      0,
+      () => exports2.SplitStringEntry$
+    ];
+    var StartLiveTailLogGroupIdentifiers = 64 | 0;
+    var SubscriptionFilters = [
+      1,
+      n05,
+      _SFu,
+      0,
+      () => exports2.SubscriptionFilter$
+    ];
+    var SubstituteStringEntries = [
+      1,
+      n05,
+      _SSEub,
+      0,
+      () => exports2.SubstituteStringEntry$
+    ];
+    var TableFields = 64 | 0;
+    var TagKeyList = 64 | 0;
+    var TagList = 64 | 0;
+    var TestEventMessages = 64 | 0;
+    var TransformedLogs = [
+      1,
+      n05,
+      _TL,
+      0,
+      () => exports2.TransformedLogRecord$
+    ];
+    var TriggerHistoryRecordList = [
+      1,
+      n05,
+      _THRL,
+      0,
+      () => exports2.TriggerHistoryRecord$
+    ];
+    var TrimStringWithKeys = 64 | 0;
+    var TypeConverterEntries = [
+      1,
+      n05,
+      _TCEy,
+      0,
+      () => exports2.TypeConverterEntry$
+    ];
+    var UpperCaseStringWithKeys = 64 | 0;
+    var Dimensions = 128 | 0;
+    var EntityAttributes = 128 | 0;
+    var EntityKeyAttributes = 128 | 0;
+    var Enumerations = 128 | 1;
+    var ExtractedValues = 128 | 0;
+    var Histogram = 128 | 1;
+    var LogRecord = 128 | 0;
+    var Tags = 128 | 0;
+    exports2.GetLogObjectResponseStream$ = [
+      4,
+      n05,
+      _GLORS,
+      { [_str]: 1 },
+      [_fi, _ISEn2],
+      [() => exports2.FieldsData$, [() => exports2.InternalStreamingException$, 0]]
+    ];
+    exports2.IntegrationDetails$ = [
+      4,
+      n05,
+      _ID,
+      0,
+      [_oSID],
+      [() => exports2.OpenSearchIntegrationDetails$]
+    ];
+    exports2.ResourceConfig$ = [
+      4,
+      n05,
+      _RC2,
+      0,
+      [_oSRC],
+      [() => exports2.OpenSearchResourceConfig$]
+    ];
+    exports2.StartLiveTailResponseStream$ = [
+      4,
+      n05,
+      _SLTRS,
+      { [_str]: 1 },
+      [_sSe, _sUe, _STE, _SSE],
+      [() => exports2.LiveTailSessionStart$, () => exports2.LiveTailSessionUpdate$, [() => exports2.SessionTimeoutException$, 0], [() => exports2.SessionStreamingException$, 0]]
+    ];
+    exports2.AssociateKmsKey$ = [
+      9,
+      n05,
+      _AKK,
+      0,
+      () => exports2.AssociateKmsKeyRequest$,
+      () => __Unit
+    ];
+    exports2.AssociateSourceToS3TableIntegration$ = [
+      9,
+      n05,
+      _ASTSTI,
+      0,
+      () => exports2.AssociateSourceToS3TableIntegrationRequest$,
+      () => exports2.AssociateSourceToS3TableIntegrationResponse$
+    ];
+    exports2.CancelExportTask$ = [
+      9,
+      n05,
+      _CET,
+      0,
+      () => exports2.CancelExportTaskRequest$,
+      () => __Unit
+    ];
+    exports2.CancelImportTask$ = [
+      9,
+      n05,
+      _CIT,
+      0,
+      () => exports2.CancelImportTaskRequest$,
+      () => exports2.CancelImportTaskResponse$
+    ];
+    exports2.CreateDelivery$ = [
+      9,
+      n05,
+      _CD,
+      0,
+      () => exports2.CreateDeliveryRequest$,
+      () => exports2.CreateDeliveryResponse$
+    ];
+    exports2.CreateExportTask$ = [
+      9,
+      n05,
+      _CETr,
+      0,
+      () => exports2.CreateExportTaskRequest$,
+      () => exports2.CreateExportTaskResponse$
+    ];
+    exports2.CreateImportTask$ = [
+      9,
+      n05,
+      _CITr,
+      0,
+      () => exports2.CreateImportTaskRequest$,
+      () => exports2.CreateImportTaskResponse$
+    ];
+    exports2.CreateLogAnomalyDetector$ = [
+      9,
+      n05,
+      _CLAD,
+      0,
+      () => exports2.CreateLogAnomalyDetectorRequest$,
+      () => exports2.CreateLogAnomalyDetectorResponse$
+    ];
+    exports2.CreateLogGroup$ = [
+      9,
+      n05,
+      _CLG,
+      0,
+      () => exports2.CreateLogGroupRequest$,
+      () => __Unit
+    ];
+    exports2.CreateLogStream$ = [
+      9,
+      n05,
+      _CLS,
+      0,
+      () => exports2.CreateLogStreamRequest$,
+      () => __Unit
+    ];
+    exports2.CreateLookupTable$ = [
+      9,
+      n05,
+      _CLT,
+      0,
+      () => exports2.CreateLookupTableRequest$,
+      () => exports2.CreateLookupTableResponse$
+    ];
+    exports2.CreateScheduledQuery$ = [
+      9,
+      n05,
+      _CSQ,
+      0,
+      () => exports2.CreateScheduledQueryRequest$,
+      () => exports2.CreateScheduledQueryResponse$
+    ];
+    exports2.DeleteAccountPolicy$ = [
+      9,
+      n05,
+      _DAP,
+      0,
+      () => exports2.DeleteAccountPolicyRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteDataProtectionPolicy$ = [
+      9,
+      n05,
+      _DDPP,
+      0,
+      () => exports2.DeleteDataProtectionPolicyRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteDelivery$ = [
+      9,
+      n05,
+      _DDel,
+      0,
+      () => exports2.DeleteDeliveryRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteDeliveryDestination$ = [
+      9,
+      n05,
+      _DDD,
+      0,
+      () => exports2.DeleteDeliveryDestinationRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteDeliveryDestinationPolicy$ = [
+      9,
+      n05,
+      _DDDP,
+      0,
+      () => exports2.DeleteDeliveryDestinationPolicyRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteDeliverySource$ = [
+      9,
+      n05,
+      _DDS,
+      0,
+      () => exports2.DeleteDeliverySourceRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteDestination$ = [
+      9,
+      n05,
+      _DDele,
+      0,
+      () => exports2.DeleteDestinationRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteIndexPolicy$ = [
+      9,
+      n05,
+      _DIP,
+      0,
+      () => exports2.DeleteIndexPolicyRequest$,
+      () => exports2.DeleteIndexPolicyResponse$
+    ];
+    exports2.DeleteIntegration$ = [
+      9,
+      n05,
+      _DI,
+      0,
+      () => exports2.DeleteIntegrationRequest$,
+      () => exports2.DeleteIntegrationResponse$
+    ];
+    exports2.DeleteLogAnomalyDetector$ = [
+      9,
+      n05,
+      _DLAD,
+      0,
+      () => exports2.DeleteLogAnomalyDetectorRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteLogGroup$ = [
+      9,
+      n05,
+      _DLG,
+      0,
+      () => exports2.DeleteLogGroupRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteLogStream$ = [
+      9,
+      n05,
+      _DLS,
+      0,
+      () => exports2.DeleteLogStreamRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteLookupTable$ = [
+      9,
+      n05,
+      _DLT,
+      0,
+      () => exports2.DeleteLookupTableRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteMetricFilter$ = [
+      9,
+      n05,
+      _DMF,
+      0,
+      () => exports2.DeleteMetricFilterRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteQueryDefinition$ = [
+      9,
+      n05,
+      _DQD,
+      0,
+      () => exports2.DeleteQueryDefinitionRequest$,
+      () => exports2.DeleteQueryDefinitionResponse$
+    ];
+    exports2.DeleteResourcePolicy$ = [
+      9,
+      n05,
+      _DRP,
+      0,
+      () => exports2.DeleteResourcePolicyRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteRetentionPolicy$ = [
+      9,
+      n05,
+      _DRPe,
+      0,
+      () => exports2.DeleteRetentionPolicyRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteScheduledQuery$ = [
+      9,
+      n05,
+      _DSQ,
+      0,
+      () => exports2.DeleteScheduledQueryRequest$,
+      () => exports2.DeleteScheduledQueryResponse$
+    ];
+    exports2.DeleteSubscriptionFilter$ = [
+      9,
+      n05,
+      _DSFe,
+      0,
+      () => exports2.DeleteSubscriptionFilterRequest$,
+      () => __Unit
+    ];
+    exports2.DeleteTransformer$ = [
+      9,
+      n05,
+      _DT,
+      0,
+      () => exports2.DeleteTransformerRequest$,
+      () => __Unit
+    ];
+    exports2.DescribeAccountPolicies$ = [
+      9,
+      n05,
+      _DAPe,
+      0,
+      () => exports2.DescribeAccountPoliciesRequest$,
+      () => exports2.DescribeAccountPoliciesResponse$
+    ];
+    exports2.DescribeConfigurationTemplates$ = [
+      9,
+      n05,
+      _DCT,
+      0,
+      () => exports2.DescribeConfigurationTemplatesRequest$,
+      () => exports2.DescribeConfigurationTemplatesResponse$
+    ];
+    exports2.DescribeDeliveries$ = [
+      9,
+      n05,
+      _DDes,
+      0,
+      () => exports2.DescribeDeliveriesRequest$,
+      () => exports2.DescribeDeliveriesResponse$
+    ];
+    exports2.DescribeDeliveryDestinations$ = [
+      9,
+      n05,
+      _DDDe,
+      0,
+      () => exports2.DescribeDeliveryDestinationsRequest$,
+      () => exports2.DescribeDeliveryDestinationsResponse$
+    ];
+    exports2.DescribeDeliverySources$ = [
+      9,
+      n05,
+      _DDSe,
+      0,
+      () => exports2.DescribeDeliverySourcesRequest$,
+      () => exports2.DescribeDeliverySourcesResponse$
+    ];
+    exports2.DescribeDestinations$ = [
+      9,
+      n05,
+      _DDesc,
+      0,
+      () => exports2.DescribeDestinationsRequest$,
+      () => exports2.DescribeDestinationsResponse$
+    ];
+    exports2.DescribeExportTasks$ = [
+      9,
+      n05,
+      _DET,
+      0,
+      () => exports2.DescribeExportTasksRequest$,
+      () => exports2.DescribeExportTasksResponse$
+    ];
+    exports2.DescribeFieldIndexes$ = [
+      9,
+      n05,
+      _DFI,
+      0,
+      () => exports2.DescribeFieldIndexesRequest$,
+      () => exports2.DescribeFieldIndexesResponse$
+    ];
+    exports2.DescribeImportTaskBatches$ = [
+      9,
+      n05,
+      _DITB,
+      0,
+      () => exports2.DescribeImportTaskBatchesRequest$,
+      () => exports2.DescribeImportTaskBatchesResponse$
+    ];
+    exports2.DescribeImportTasks$ = [
+      9,
+      n05,
+      _DIT,
+      0,
+      () => exports2.DescribeImportTasksRequest$,
+      () => exports2.DescribeImportTasksResponse$
+    ];
+    exports2.DescribeIndexPolicies$ = [
+      9,
+      n05,
+      _DIPe,
+      0,
+      () => exports2.DescribeIndexPoliciesRequest$,
+      () => exports2.DescribeIndexPoliciesResponse$
+    ];
+    exports2.DescribeLogGroups$ = [
+      9,
+      n05,
+      _DLGe,
+      0,
+      () => exports2.DescribeLogGroupsRequest$,
+      () => exports2.DescribeLogGroupsResponse$
+    ];
+    exports2.DescribeLogStreams$ = [
+      9,
+      n05,
+      _DLSe,
+      0,
+      () => exports2.DescribeLogStreamsRequest$,
+      () => exports2.DescribeLogStreamsResponse$
+    ];
+    exports2.DescribeLookupTables$ = [
+      9,
+      n05,
+      _DLTe,
+      0,
+      () => exports2.DescribeLookupTablesRequest$,
+      () => exports2.DescribeLookupTablesResponse$
+    ];
+    exports2.DescribeMetricFilters$ = [
+      9,
+      n05,
+      _DMFe,
+      0,
+      () => exports2.DescribeMetricFiltersRequest$,
+      () => exports2.DescribeMetricFiltersResponse$
+    ];
+    exports2.DescribeQueries$ = [
+      9,
+      n05,
+      _DQ,
+      0,
+      () => exports2.DescribeQueriesRequest$,
+      () => exports2.DescribeQueriesResponse$
+    ];
+    exports2.DescribeQueryDefinitions$ = [
+      9,
+      n05,
+      _DQDe,
+      0,
+      () => exports2.DescribeQueryDefinitionsRequest$,
+      () => exports2.DescribeQueryDefinitionsResponse$
+    ];
+    exports2.DescribeResourcePolicies$ = [
+      9,
+      n05,
+      _DRPes,
+      0,
+      () => exports2.DescribeResourcePoliciesRequest$,
+      () => exports2.DescribeResourcePoliciesResponse$
+    ];
+    exports2.DescribeSubscriptionFilters$ = [
+      9,
+      n05,
+      _DSFes,
+      0,
+      () => exports2.DescribeSubscriptionFiltersRequest$,
+      () => exports2.DescribeSubscriptionFiltersResponse$
+    ];
+    exports2.DisassociateKmsKey$ = [
+      9,
+      n05,
+      _DKK,
+      0,
+      () => exports2.DisassociateKmsKeyRequest$,
+      () => __Unit
+    ];
+    exports2.DisassociateSourceFromS3TableIntegration$ = [
+      9,
+      n05,
+      _DSFSTI,
+      0,
+      () => exports2.DisassociateSourceFromS3TableIntegrationRequest$,
+      () => exports2.DisassociateSourceFromS3TableIntegrationResponse$
+    ];
+    exports2.FilterLogEvents$ = [
+      9,
+      n05,
+      _FLEil,
+      0,
+      () => exports2.FilterLogEventsRequest$,
+      () => exports2.FilterLogEventsResponse$
+    ];
+    exports2.GetDataProtectionPolicy$ = [
+      9,
+      n05,
+      _GDPP,
+      0,
+      () => exports2.GetDataProtectionPolicyRequest$,
+      () => exports2.GetDataProtectionPolicyResponse$
+    ];
+    exports2.GetDelivery$ = [
+      9,
+      n05,
+      _GD,
+      0,
+      () => exports2.GetDeliveryRequest$,
+      () => exports2.GetDeliveryResponse$
+    ];
+    exports2.GetDeliveryDestination$ = [
+      9,
+      n05,
+      _GDD,
+      0,
+      () => exports2.GetDeliveryDestinationRequest$,
+      () => exports2.GetDeliveryDestinationResponse$
+    ];
+    exports2.GetDeliveryDestinationPolicy$ = [
+      9,
+      n05,
+      _GDDP,
+      0,
+      () => exports2.GetDeliveryDestinationPolicyRequest$,
+      () => exports2.GetDeliveryDestinationPolicyResponse$
+    ];
+    exports2.GetDeliverySource$ = [
+      9,
+      n05,
+      _GDS,
+      0,
+      () => exports2.GetDeliverySourceRequest$,
+      () => exports2.GetDeliverySourceResponse$
+    ];
+    exports2.GetIntegration$ = [
+      9,
+      n05,
+      _GIe,
+      0,
+      () => exports2.GetIntegrationRequest$,
+      () => exports2.GetIntegrationResponse$
+    ];
+    exports2.GetLogAnomalyDetector$ = [
+      9,
+      n05,
+      _GLAD,
+      0,
+      () => exports2.GetLogAnomalyDetectorRequest$,
+      () => exports2.GetLogAnomalyDetectorResponse$
+    ];
+    exports2.GetLogEvents$ = [
+      9,
+      n05,
+      _GLE,
+      0,
+      () => exports2.GetLogEventsRequest$,
+      () => exports2.GetLogEventsResponse$
+    ];
+    exports2.GetLogFields$ = [
+      9,
+      n05,
+      _GLF,
+      0,
+      () => exports2.GetLogFieldsRequest$,
+      () => exports2.GetLogFieldsResponse$
+    ];
+    exports2.GetLogGroupFields$ = [
+      9,
+      n05,
+      _GLGF,
+      0,
+      () => exports2.GetLogGroupFieldsRequest$,
+      () => exports2.GetLogGroupFieldsResponse$
+    ];
+    exports2.GetLogObject$ = [
+      9,
+      n05,
+      _GLO,
+      { [_end]: ["streaming-"] },
+      () => exports2.GetLogObjectRequest$,
+      () => exports2.GetLogObjectResponse$
+    ];
+    exports2.GetLogRecord$ = [
+      9,
+      n05,
+      _GLR,
+      0,
+      () => exports2.GetLogRecordRequest$,
+      () => exports2.GetLogRecordResponse$
+    ];
+    exports2.GetLookupTable$ = [
+      9,
+      n05,
+      _GLT,
+      0,
+      () => exports2.GetLookupTableRequest$,
+      () => exports2.GetLookupTableResponse$
+    ];
+    exports2.GetQueryResults$ = [
+      9,
+      n05,
+      _GQR,
+      0,
+      () => exports2.GetQueryResultsRequest$,
+      () => exports2.GetQueryResultsResponse$
+    ];
+    exports2.GetScheduledQuery$ = [
+      9,
+      n05,
+      _GSQ,
+      0,
+      () => exports2.GetScheduledQueryRequest$,
+      () => exports2.GetScheduledQueryResponse$
+    ];
+    exports2.GetScheduledQueryHistory$ = [
+      9,
+      n05,
+      _GSQH,
+      0,
+      () => exports2.GetScheduledQueryHistoryRequest$,
+      () => exports2.GetScheduledQueryHistoryResponse$
+    ];
+    exports2.GetTransformer$ = [
+      9,
+      n05,
+      _GT,
+      0,
+      () => exports2.GetTransformerRequest$,
+      () => exports2.GetTransformerResponse$
+    ];
+    exports2.ListAggregateLogGroupSummaries$ = [
+      9,
+      n05,
+      _LALGS,
+      0,
+      () => exports2.ListAggregateLogGroupSummariesRequest$,
+      () => exports2.ListAggregateLogGroupSummariesResponse$
+    ];
+    exports2.ListAnomalies$ = [
+      9,
+      n05,
+      _LA,
+      0,
+      () => exports2.ListAnomaliesRequest$,
+      () => exports2.ListAnomaliesResponse$
+    ];
+    exports2.ListIntegrations$ = [
+      9,
+      n05,
+      _LI,
+      0,
+      () => exports2.ListIntegrationsRequest$,
+      () => exports2.ListIntegrationsResponse$
+    ];
+    exports2.ListLogAnomalyDetectors$ = [
+      9,
+      n05,
+      _LLAD,
+      0,
+      () => exports2.ListLogAnomalyDetectorsRequest$,
+      () => exports2.ListLogAnomalyDetectorsResponse$
+    ];
+    exports2.ListLogGroups$ = [
+      9,
+      n05,
+      _LLG,
+      0,
+      () => exports2.ListLogGroupsRequest$,
+      () => exports2.ListLogGroupsResponse$
+    ];
+    exports2.ListLogGroupsForQuery$ = [
+      9,
+      n05,
+      _LLGFQ,
+      0,
+      () => exports2.ListLogGroupsForQueryRequest$,
+      () => exports2.ListLogGroupsForQueryResponse$
+    ];
+    exports2.ListScheduledQueries$ = [
+      9,
+      n05,
+      _LSQ,
+      0,
+      () => exports2.ListScheduledQueriesRequest$,
+      () => exports2.ListScheduledQueriesResponse$
+    ];
+    exports2.ListSourcesForS3TableIntegration$ = [
+      9,
+      n05,
+      _LSFSTI,
+      0,
+      () => exports2.ListSourcesForS3TableIntegrationRequest$,
+      () => exports2.ListSourcesForS3TableIntegrationResponse$
+    ];
+    exports2.ListTagsForResource$ = [
+      9,
+      n05,
+      _LTFR,
+      0,
+      () => exports2.ListTagsForResourceRequest$,
+      () => exports2.ListTagsForResourceResponse$
+    ];
+    exports2.ListTagsLogGroup$ = [
+      9,
+      n05,
+      _LTLG,
+      0,
+      () => exports2.ListTagsLogGroupRequest$,
+      () => exports2.ListTagsLogGroupResponse$
+    ];
+    exports2.PutAccountPolicy$ = [
+      9,
+      n05,
+      _PAP,
+      0,
+      () => exports2.PutAccountPolicyRequest$,
+      () => exports2.PutAccountPolicyResponse$
+    ];
+    exports2.PutBearerTokenAuthentication$ = [
+      9,
+      n05,
+      _PBTA,
+      0,
+      () => exports2.PutBearerTokenAuthenticationRequest$,
+      () => __Unit
+    ];
+    exports2.PutDataProtectionPolicy$ = [
+      9,
+      n05,
+      _PDPP,
+      0,
+      () => exports2.PutDataProtectionPolicyRequest$,
+      () => exports2.PutDataProtectionPolicyResponse$
+    ];
+    exports2.PutDeliveryDestination$ = [
+      9,
+      n05,
+      _PDD,
+      0,
+      () => exports2.PutDeliveryDestinationRequest$,
+      () => exports2.PutDeliveryDestinationResponse$
+    ];
+    exports2.PutDeliveryDestinationPolicy$ = [
+      9,
+      n05,
+      _PDDP,
+      0,
+      () => exports2.PutDeliveryDestinationPolicyRequest$,
+      () => exports2.PutDeliveryDestinationPolicyResponse$
+    ];
+    exports2.PutDeliverySource$ = [
+      9,
+      n05,
+      _PDS,
+      0,
+      () => exports2.PutDeliverySourceRequest$,
+      () => exports2.PutDeliverySourceResponse$
+    ];
+    exports2.PutDestination$ = [
+      9,
+      n05,
+      _PD,
+      0,
+      () => exports2.PutDestinationRequest$,
+      () => exports2.PutDestinationResponse$
+    ];
+    exports2.PutDestinationPolicy$ = [
+      9,
+      n05,
+      _PDP,
+      0,
+      () => exports2.PutDestinationPolicyRequest$,
+      () => __Unit
+    ];
+    exports2.PutIndexPolicy$ = [
+      9,
+      n05,
+      _PIP,
+      0,
+      () => exports2.PutIndexPolicyRequest$,
+      () => exports2.PutIndexPolicyResponse$
+    ];
+    exports2.PutIntegration$ = [
+      9,
+      n05,
+      _PI2,
+      0,
+      () => exports2.PutIntegrationRequest$,
+      () => exports2.PutIntegrationResponse$
+    ];
+    exports2.PutLogEvents$ = [
+      9,
+      n05,
+      _PLE,
+      0,
+      () => exports2.PutLogEventsRequest$,
+      () => exports2.PutLogEventsResponse$
+    ];
+    exports2.PutLogGroupDeletionProtection$ = [
+      9,
+      n05,
+      _PLGDP,
+      0,
+      () => exports2.PutLogGroupDeletionProtectionRequest$,
+      () => __Unit
+    ];
+    exports2.PutMetricFilter$ = [
+      9,
+      n05,
+      _PMF,
+      0,
+      () => exports2.PutMetricFilterRequest$,
+      () => __Unit
+    ];
+    exports2.PutQueryDefinition$ = [
+      9,
+      n05,
+      _PQD,
+      0,
+      () => exports2.PutQueryDefinitionRequest$,
+      () => exports2.PutQueryDefinitionResponse$
+    ];
+    exports2.PutResourcePolicy$ = [
+      9,
+      n05,
+      _PRP,
+      0,
+      () => exports2.PutResourcePolicyRequest$,
+      () => exports2.PutResourcePolicyResponse$
+    ];
+    exports2.PutRetentionPolicy$ = [
+      9,
+      n05,
+      _PRPu,
+      0,
+      () => exports2.PutRetentionPolicyRequest$,
+      () => __Unit
+    ];
+    exports2.PutSubscriptionFilter$ = [
+      9,
+      n05,
+      _PSF,
+      0,
+      () => exports2.PutSubscriptionFilterRequest$,
+      () => __Unit
+    ];
+    exports2.PutTransformer$ = [
+      9,
+      n05,
+      _PTu,
+      0,
+      () => exports2.PutTransformerRequest$,
+      () => __Unit
+    ];
+    exports2.StartLiveTail$ = [
+      9,
+      n05,
+      _SLT,
+      { [_end]: ["streaming-"] },
+      () => exports2.StartLiveTailRequest$,
+      () => exports2.StartLiveTailResponse$
+    ];
+    exports2.StartQuery$ = [
+      9,
+      n05,
+      _SQ,
+      0,
+      () => exports2.StartQueryRequest$,
+      () => exports2.StartQueryResponse$
+    ];
+    exports2.StopQuery$ = [
+      9,
+      n05,
+      _SQt,
+      0,
+      () => exports2.StopQueryRequest$,
+      () => exports2.StopQueryResponse$
+    ];
+    exports2.TagLogGroup$ = [
+      9,
+      n05,
+      _TLG,
+      0,
+      () => exports2.TagLogGroupRequest$,
+      () => __Unit
+    ];
+    exports2.TagResource$ = [
+      9,
+      n05,
+      _TR,
+      0,
+      () => exports2.TagResourceRequest$,
+      () => __Unit
+    ];
+    exports2.TestMetricFilter$ = [
+      9,
+      n05,
+      _TMF,
+      0,
+      () => exports2.TestMetricFilterRequest$,
+      () => exports2.TestMetricFilterResponse$
+    ];
+    exports2.TestTransformer$ = [
+      9,
+      n05,
+      _TT,
+      0,
+      () => exports2.TestTransformerRequest$,
+      () => exports2.TestTransformerResponse$
+    ];
+    exports2.UntagLogGroup$ = [
+      9,
+      n05,
+      _ULG,
+      0,
+      () => exports2.UntagLogGroupRequest$,
+      () => __Unit
+    ];
+    exports2.UntagResource$ = [
+      9,
+      n05,
+      _UR,
+      0,
+      () => exports2.UntagResourceRequest$,
+      () => __Unit
+    ];
+    exports2.UpdateAnomaly$ = [
+      9,
+      n05,
+      _UA,
+      0,
+      () => exports2.UpdateAnomalyRequest$,
+      () => __Unit
+    ];
+    exports2.UpdateDeliveryConfiguration$ = [
+      9,
+      n05,
+      _UDC,
+      0,
+      () => exports2.UpdateDeliveryConfigurationRequest$,
+      () => exports2.UpdateDeliveryConfigurationResponse$
+    ];
+    exports2.UpdateLogAnomalyDetector$ = [
+      9,
+      n05,
+      _ULAD,
+      0,
+      () => exports2.UpdateLogAnomalyDetectorRequest$,
+      () => __Unit
+    ];
+    exports2.UpdateLookupTable$ = [
+      9,
+      n05,
+      _ULT,
+      0,
+      () => exports2.UpdateLookupTableRequest$,
+      () => exports2.UpdateLookupTableResponse$
+    ];
+    exports2.UpdateScheduledQuery$ = [
+      9,
+      n05,
+      _USQ,
+      0,
+      () => exports2.UpdateScheduledQueryRequest$,
+      () => exports2.UpdateScheduledQueryResponse$
+    ];
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/runtimeConfig.shared.js
+var require_runtimeConfig_shared3 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/runtimeConfig.shared.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.getRuntimeConfig = void 0;
+    var httpAuthSchemes_1 = (init_httpAuthSchemes2(), __toCommonJS(httpAuthSchemes_exports));
+    var protocols_1 = (init_protocols2(), __toCommonJS(protocols_exports2));
+    var smithy_client_1 = require_dist_cjs34();
+    var url_parser_1 = require_dist_cjs18();
+    var util_base64_1 = require_dist_cjs10();
+    var util_utf8_1 = require_dist_cjs9();
+    var httpAuthSchemeProvider_1 = require_httpAuthSchemeProvider3();
+    var endpointResolver_1 = require_endpointResolver3();
+    var schemas_0_1 = require_schemas_03();
+    var getRuntimeConfig9 = (config) => {
+      return {
+        apiVersion: "2014-03-28",
+        base64Decoder: config?.base64Decoder ?? util_base64_1.fromBase64,
+        base64Encoder: config?.base64Encoder ?? util_base64_1.toBase64,
+        disableHostPrefix: config?.disableHostPrefix ?? false,
+        endpointProvider: config?.endpointProvider ?? endpointResolver_1.defaultEndpointResolver,
+        extensions: config?.extensions ?? [],
+        httpAuthSchemeProvider: config?.httpAuthSchemeProvider ?? httpAuthSchemeProvider_1.defaultCloudWatchLogsHttpAuthSchemeProvider,
+        httpAuthSchemes: config?.httpAuthSchemes ?? [
+          {
+            schemeId: "aws.auth#sigv4",
+            identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4"),
+            signer: new httpAuthSchemes_1.AwsSdkSigV4Signer()
+          }
+        ],
+        logger: config?.logger ?? new smithy_client_1.NoOpLogger(),
+        protocol: config?.protocol ?? protocols_1.AwsJson1_1Protocol,
+        protocolSettings: config?.protocolSettings ?? {
+          defaultNamespace: "com.amazonaws.cloudwatchlogs",
+          errorTypeRegistries: schemas_0_1.errorTypeRegistries,
+          xmlNamespace: "http://monitoring.amazonaws.com/doc/2014-03-28/",
+          version: "2014-03-28",
+          serviceTarget: "Logs_20140328"
+        },
+        serviceId: config?.serviceId ?? "CloudWatch Logs",
+        urlParser: config?.urlParser ?? url_parser_1.parseUrl,
+        utf8Decoder: config?.utf8Decoder ?? util_utf8_1.fromUtf8,
+        utf8Encoder: config?.utf8Encoder ?? util_utf8_1.toUtf8
+      };
+    };
+    exports2.getRuntimeConfig = getRuntimeConfig9;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/runtimeConfig.js
+var require_runtimeConfig3 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/runtimeConfig.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.getRuntimeConfig = void 0;
+    var tslib_1 = (init_tslib_es6(), __toCommonJS(tslib_es6_exports));
+    var package_json_1 = tslib_1.__importDefault(require_package3());
+    var client_1 = (init_client(), __toCommonJS(client_exports));
+    var httpAuthSchemes_1 = (init_httpAuthSchemes2(), __toCommonJS(httpAuthSchemes_exports));
+    var credential_provider_node_1 = require_dist_cjs52();
+    var util_user_agent_node_1 = require_dist_cjs40();
+    var config_resolver_1 = require_dist_cjs26();
+    var eventstream_serde_node_1 = require_dist_cjs64();
+    var hash_node_1 = require_dist_cjs41();
+    var middleware_retry_1 = require_dist_cjs35();
+    var node_config_provider_1 = require_dist_cjs30();
+    var node_http_handler_1 = require_dist_cjs13();
+    var smithy_client_1 = require_dist_cjs34();
+    var util_body_length_node_1 = require_dist_cjs42();
+    var util_defaults_mode_node_1 = require_dist_cjs43();
+    var util_retry_1 = require_dist_cjs23();
+    var runtimeConfig_shared_1 = require_runtimeConfig_shared3();
+    var getRuntimeConfig9 = (config) => {
+      (0, smithy_client_1.emitWarningIfUnsupportedVersion)(process.version);
+      const defaultsMode = (0, util_defaults_mode_node_1.resolveDefaultsModeConfig)(config);
+      const defaultConfigProvider = () => defaultsMode().then(smithy_client_1.loadConfigsForDefaultMode);
+      const clientSharedValues = (0, runtimeConfig_shared_1.getRuntimeConfig)(config);
+      (0, client_1.emitWarningIfUnsupportedVersion)(process.version);
+      const loaderConfig = {
+        profile: config?.profile,
+        logger: clientSharedValues.logger
+      };
+      return {
+        ...clientSharedValues,
+        ...config,
+        runtime: "node",
+        defaultsMode,
+        authSchemePreference: config?.authSchemePreference ?? (0, node_config_provider_1.loadConfig)(httpAuthSchemes_1.NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
+        bodyLengthChecker: config?.bodyLengthChecker ?? util_body_length_node_1.calculateBodyLength,
+        credentialDefaultProvider: config?.credentialDefaultProvider ?? credential_provider_node_1.defaultProvider,
+        defaultUserAgentProvider: config?.defaultUserAgentProvider ?? (0, util_user_agent_node_1.createDefaultUserAgentProvider)({ serviceId: clientSharedValues.serviceId, clientVersion: package_json_1.default.version }),
+        eventStreamSerdeProvider: config?.eventStreamSerdeProvider ?? eventstream_serde_node_1.eventStreamSerdeProvider,
+        maxAttempts: config?.maxAttempts ?? (0, node_config_provider_1.loadConfig)(middleware_retry_1.NODE_MAX_ATTEMPT_CONFIG_OPTIONS, config),
+        region: config?.region ?? (0, node_config_provider_1.loadConfig)(config_resolver_1.NODE_REGION_CONFIG_OPTIONS, { ...config_resolver_1.NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),
+        requestHandler: node_http_handler_1.NodeHttpHandler.create(config?.requestHandler ?? defaultConfigProvider),
+        retryMode: config?.retryMode ?? (0, node_config_provider_1.loadConfig)({
+          ...middleware_retry_1.NODE_RETRY_MODE_CONFIG_OPTIONS,
+          default: async () => (await defaultConfigProvider()).retryMode || util_retry_1.DEFAULT_RETRY_MODE
+        }, config),
+        sha256: config?.sha256 ?? hash_node_1.Hash.bind(null, "sha256"),
+        streamCollector: config?.streamCollector ?? node_http_handler_1.streamCollector,
+        useDualstackEndpoint: config?.useDualstackEndpoint ?? (0, node_config_provider_1.loadConfig)(config_resolver_1.NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, loaderConfig),
+        useFipsEndpoint: config?.useFipsEndpoint ?? (0, node_config_provider_1.loadConfig)(config_resolver_1.NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, loaderConfig),
+        userAgentAppId: config?.userAgentAppId ?? (0, node_config_provider_1.loadConfig)(util_user_agent_node_1.NODE_APP_ID_CONFIG_OPTIONS, loaderConfig)
+      };
+    };
+    exports2.getRuntimeConfig = getRuntimeConfig9;
+  }
+});
+
+// node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/index.js
+var require_dist_cjs65 = __commonJS({
+  "node_modules/@aws-sdk/client-cloudwatch-logs/dist-cjs/index.js"(exports2) {
+    "use strict";
+    var middlewareHostHeader = require_dist_cjs3();
+    var middlewareLogger = require_dist_cjs4();
+    var middlewareRecursionDetection = require_dist_cjs5();
+    var middlewareUserAgent = require_dist_cjs24();
+    var configResolver = require_dist_cjs26();
+    var core = (init_dist_es(), __toCommonJS(dist_es_exports));
+    var schema = (init_schema(), __toCommonJS(schema_exports));
+    var eventstreamSerdeConfigResolver = require_dist_cjs58();
+    var middlewareContentLength = require_dist_cjs27();
+    var middlewareEndpoint = require_dist_cjs32();
+    var middlewareRetry = require_dist_cjs35();
+    var smithyClient = require_dist_cjs34();
+    var httpAuthSchemeProvider = require_httpAuthSchemeProvider3();
+    var runtimeConfig = require_runtimeConfig3();
+    var regionConfigResolver = require_dist_cjs45();
+    var protocolHttp = require_dist_cjs2();
+    var schemas_0 = require_schemas_03();
+    var errors = require_errors2();
+    var CloudWatchLogsServiceException = require_CloudWatchLogsServiceException();
+    var resolveClientEndpointParameters5 = (options) => {
+      return Object.assign(options, {
+        useDualstackEndpoint: options.useDualstackEndpoint ?? false,
+        useFipsEndpoint: options.useFipsEndpoint ?? false,
+        defaultSigningName: "logs"
+      });
+    };
+    var commonParams5 = {
+      UseFIPS: { type: "builtInParams", name: "useFipsEndpoint" },
+      Endpoint: { type: "builtInParams", name: "endpoint" },
+      Region: { type: "builtInParams", name: "region" },
+      UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" }
+    };
+    var getHttpAuthExtensionConfiguration5 = (runtimeConfig2) => {
+      const _httpAuthSchemes = runtimeConfig2.httpAuthSchemes;
+      let _httpAuthSchemeProvider = runtimeConfig2.httpAuthSchemeProvider;
+      let _credentials = runtimeConfig2.credentials;
+      return {
+        setHttpAuthScheme(httpAuthScheme) {
+          const index = _httpAuthSchemes.findIndex((scheme) => scheme.schemeId === httpAuthScheme.schemeId);
+          if (index === -1) {
+            _httpAuthSchemes.push(httpAuthScheme);
+          } else {
+            _httpAuthSchemes.splice(index, 1, httpAuthScheme);
+          }
+        },
+        httpAuthSchemes() {
+          return _httpAuthSchemes;
+        },
+        setHttpAuthSchemeProvider(httpAuthSchemeProvider2) {
+          _httpAuthSchemeProvider = httpAuthSchemeProvider2;
+        },
+        httpAuthSchemeProvider() {
+          return _httpAuthSchemeProvider;
+        },
+        setCredentials(credentials) {
+          _credentials = credentials;
+        },
+        credentials() {
+          return _credentials;
+        }
+      };
+    };
+    var resolveHttpAuthRuntimeConfig5 = (config) => {
+      return {
+        httpAuthSchemes: config.httpAuthSchemes(),
+        httpAuthSchemeProvider: config.httpAuthSchemeProvider(),
+        credentials: config.credentials()
+      };
+    };
+    var resolveRuntimeExtensions5 = (runtimeConfig2, extensions) => {
+      const extensionConfiguration = Object.assign(regionConfigResolver.getAwsRegionExtensionConfiguration(runtimeConfig2), smithyClient.getDefaultExtensionConfiguration(runtimeConfig2), protocolHttp.getHttpHandlerExtensionConfiguration(runtimeConfig2), getHttpAuthExtensionConfiguration5(runtimeConfig2));
+      extensions.forEach((extension) => extension.configure(extensionConfiguration));
+      return Object.assign(runtimeConfig2, regionConfigResolver.resolveAwsRegionExtensionConfiguration(extensionConfiguration), smithyClient.resolveDefaultRuntimeConfig(extensionConfiguration), protocolHttp.resolveHttpHandlerRuntimeConfig(extensionConfiguration), resolveHttpAuthRuntimeConfig5(extensionConfiguration));
+    };
+    var CloudWatchLogsClient2 = class extends smithyClient.Client {
+      config;
+      constructor(...[configuration]) {
+        const _config_0 = runtimeConfig.getRuntimeConfig(configuration || {});
+        super(_config_0);
+        this.initConfig = _config_0;
+        const _config_1 = resolveClientEndpointParameters5(_config_0);
+        const _config_2 = middlewareUserAgent.resolveUserAgentConfig(_config_1);
+        const _config_3 = middlewareRetry.resolveRetryConfig(_config_2);
+        const _config_4 = configResolver.resolveRegionConfig(_config_3);
+        const _config_5 = middlewareHostHeader.resolveHostHeaderConfig(_config_4);
+        const _config_6 = middlewareEndpoint.resolveEndpointConfig(_config_5);
+        const _config_7 = eventstreamSerdeConfigResolver.resolveEventStreamSerdeConfig(_config_6);
+        const _config_8 = httpAuthSchemeProvider.resolveHttpAuthSchemeConfig(_config_7);
+        const _config_9 = resolveRuntimeExtensions5(_config_8, configuration?.extensions || []);
+        this.config = _config_9;
+        this.middlewareStack.use(schema.getSchemaSerdePlugin(this.config));
+        this.middlewareStack.use(middlewareUserAgent.getUserAgentPlugin(this.config));
+        this.middlewareStack.use(middlewareRetry.getRetryPlugin(this.config));
+        this.middlewareStack.use(middlewareContentLength.getContentLengthPlugin(this.config));
+        this.middlewareStack.use(middlewareHostHeader.getHostHeaderPlugin(this.config));
+        this.middlewareStack.use(middlewareLogger.getLoggerPlugin(this.config));
+        this.middlewareStack.use(middlewareRecursionDetection.getRecursionDetectionPlugin(this.config));
+        this.middlewareStack.use(core.getHttpAuthSchemeEndpointRuleSetPlugin(this.config, {
+          httpAuthSchemeParametersProvider: httpAuthSchemeProvider.defaultCloudWatchLogsHttpAuthSchemeParametersProvider,
+          identityProviderConfigProvider: async (config) => new core.DefaultIdentityProviderConfig({
+            "aws.auth#sigv4": config.credentials
+          })
+        }));
+        this.middlewareStack.use(core.getHttpSigningPlugin(this.config));
+      }
+      destroy() {
+        super.destroy();
+      }
+    };
+    var AssociateKmsKeyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "AssociateKmsKey", {}).n("CloudWatchLogsClient", "AssociateKmsKeyCommand").sc(schemas_0.AssociateKmsKey$).build() {
+    };
+    var AssociateSourceToS3TableIntegrationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "AssociateSourceToS3TableIntegration", {}).n("CloudWatchLogsClient", "AssociateSourceToS3TableIntegrationCommand").sc(schemas_0.AssociateSourceToS3TableIntegration$).build() {
+    };
+    var CancelExportTaskCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CancelExportTask", {}).n("CloudWatchLogsClient", "CancelExportTaskCommand").sc(schemas_0.CancelExportTask$).build() {
+    };
+    var CancelImportTaskCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CancelImportTask", {}).n("CloudWatchLogsClient", "CancelImportTaskCommand").sc(schemas_0.CancelImportTask$).build() {
+    };
+    var CreateDeliveryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CreateDelivery", {}).n("CloudWatchLogsClient", "CreateDeliveryCommand").sc(schemas_0.CreateDelivery$).build() {
+    };
+    var CreateExportTaskCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CreateExportTask", {}).n("CloudWatchLogsClient", "CreateExportTaskCommand").sc(schemas_0.CreateExportTask$).build() {
+    };
+    var CreateImportTaskCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CreateImportTask", {}).n("CloudWatchLogsClient", "CreateImportTaskCommand").sc(schemas_0.CreateImportTask$).build() {
+    };
+    var CreateLogAnomalyDetectorCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CreateLogAnomalyDetector", {}).n("CloudWatchLogsClient", "CreateLogAnomalyDetectorCommand").sc(schemas_0.CreateLogAnomalyDetector$).build() {
+    };
+    var CreateLogGroupCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CreateLogGroup", {}).n("CloudWatchLogsClient", "CreateLogGroupCommand").sc(schemas_0.CreateLogGroup$).build() {
+    };
+    var CreateLogStreamCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CreateLogStream", {}).n("CloudWatchLogsClient", "CreateLogStreamCommand").sc(schemas_0.CreateLogStream$).build() {
+    };
+    var CreateLookupTableCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CreateLookupTable", {}).n("CloudWatchLogsClient", "CreateLookupTableCommand").sc(schemas_0.CreateLookupTable$).build() {
+    };
+    var CreateScheduledQueryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "CreateScheduledQuery", {}).n("CloudWatchLogsClient", "CreateScheduledQueryCommand").sc(schemas_0.CreateScheduledQuery$).build() {
+    };
+    var DeleteAccountPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteAccountPolicy", {}).n("CloudWatchLogsClient", "DeleteAccountPolicyCommand").sc(schemas_0.DeleteAccountPolicy$).build() {
+    };
+    var DeleteDataProtectionPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteDataProtectionPolicy", {}).n("CloudWatchLogsClient", "DeleteDataProtectionPolicyCommand").sc(schemas_0.DeleteDataProtectionPolicy$).build() {
+    };
+    var DeleteDeliveryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteDelivery", {}).n("CloudWatchLogsClient", "DeleteDeliveryCommand").sc(schemas_0.DeleteDelivery$).build() {
+    };
+    var DeleteDeliveryDestinationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteDeliveryDestination", {}).n("CloudWatchLogsClient", "DeleteDeliveryDestinationCommand").sc(schemas_0.DeleteDeliveryDestination$).build() {
+    };
+    var DeleteDeliveryDestinationPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteDeliveryDestinationPolicy", {}).n("CloudWatchLogsClient", "DeleteDeliveryDestinationPolicyCommand").sc(schemas_0.DeleteDeliveryDestinationPolicy$).build() {
+    };
+    var DeleteDeliverySourceCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteDeliverySource", {}).n("CloudWatchLogsClient", "DeleteDeliverySourceCommand").sc(schemas_0.DeleteDeliverySource$).build() {
+    };
+    var DeleteDestinationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteDestination", {}).n("CloudWatchLogsClient", "DeleteDestinationCommand").sc(schemas_0.DeleteDestination$).build() {
+    };
+    var DeleteIndexPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteIndexPolicy", {}).n("CloudWatchLogsClient", "DeleteIndexPolicyCommand").sc(schemas_0.DeleteIndexPolicy$).build() {
+    };
+    var DeleteIntegrationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteIntegration", {}).n("CloudWatchLogsClient", "DeleteIntegrationCommand").sc(schemas_0.DeleteIntegration$).build() {
+    };
+    var DeleteLogAnomalyDetectorCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteLogAnomalyDetector", {}).n("CloudWatchLogsClient", "DeleteLogAnomalyDetectorCommand").sc(schemas_0.DeleteLogAnomalyDetector$).build() {
+    };
+    var DeleteLogGroupCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteLogGroup", {}).n("CloudWatchLogsClient", "DeleteLogGroupCommand").sc(schemas_0.DeleteLogGroup$).build() {
+    };
+    var DeleteLogStreamCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteLogStream", {}).n("CloudWatchLogsClient", "DeleteLogStreamCommand").sc(schemas_0.DeleteLogStream$).build() {
+    };
+    var DeleteLookupTableCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteLookupTable", {}).n("CloudWatchLogsClient", "DeleteLookupTableCommand").sc(schemas_0.DeleteLookupTable$).build() {
+    };
+    var DeleteMetricFilterCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteMetricFilter", {}).n("CloudWatchLogsClient", "DeleteMetricFilterCommand").sc(schemas_0.DeleteMetricFilter$).build() {
+    };
+    var DeleteQueryDefinitionCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteQueryDefinition", {}).n("CloudWatchLogsClient", "DeleteQueryDefinitionCommand").sc(schemas_0.DeleteQueryDefinition$).build() {
+    };
+    var DeleteResourcePolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteResourcePolicy", {}).n("CloudWatchLogsClient", "DeleteResourcePolicyCommand").sc(schemas_0.DeleteResourcePolicy$).build() {
+    };
+    var DeleteRetentionPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteRetentionPolicy", {}).n("CloudWatchLogsClient", "DeleteRetentionPolicyCommand").sc(schemas_0.DeleteRetentionPolicy$).build() {
+    };
+    var DeleteScheduledQueryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteScheduledQuery", {}).n("CloudWatchLogsClient", "DeleteScheduledQueryCommand").sc(schemas_0.DeleteScheduledQuery$).build() {
+    };
+    var DeleteSubscriptionFilterCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteSubscriptionFilter", {}).n("CloudWatchLogsClient", "DeleteSubscriptionFilterCommand").sc(schemas_0.DeleteSubscriptionFilter$).build() {
+    };
+    var DeleteTransformerCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DeleteTransformer", {}).n("CloudWatchLogsClient", "DeleteTransformerCommand").sc(schemas_0.DeleteTransformer$).build() {
+    };
+    var DescribeAccountPoliciesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeAccountPolicies", {}).n("CloudWatchLogsClient", "DescribeAccountPoliciesCommand").sc(schemas_0.DescribeAccountPolicies$).build() {
+    };
+    var DescribeConfigurationTemplatesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeConfigurationTemplates", {}).n("CloudWatchLogsClient", "DescribeConfigurationTemplatesCommand").sc(schemas_0.DescribeConfigurationTemplates$).build() {
+    };
+    var DescribeDeliveriesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeDeliveries", {}).n("CloudWatchLogsClient", "DescribeDeliveriesCommand").sc(schemas_0.DescribeDeliveries$).build() {
+    };
+    var DescribeDeliveryDestinationsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeDeliveryDestinations", {}).n("CloudWatchLogsClient", "DescribeDeliveryDestinationsCommand").sc(schemas_0.DescribeDeliveryDestinations$).build() {
+    };
+    var DescribeDeliverySourcesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeDeliverySources", {}).n("CloudWatchLogsClient", "DescribeDeliverySourcesCommand").sc(schemas_0.DescribeDeliverySources$).build() {
+    };
+    var DescribeDestinationsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeDestinations", {}).n("CloudWatchLogsClient", "DescribeDestinationsCommand").sc(schemas_0.DescribeDestinations$).build() {
+    };
+    var DescribeExportTasksCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeExportTasks", {}).n("CloudWatchLogsClient", "DescribeExportTasksCommand").sc(schemas_0.DescribeExportTasks$).build() {
+    };
+    var DescribeFieldIndexesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeFieldIndexes", {}).n("CloudWatchLogsClient", "DescribeFieldIndexesCommand").sc(schemas_0.DescribeFieldIndexes$).build() {
+    };
+    var DescribeImportTaskBatchesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeImportTaskBatches", {}).n("CloudWatchLogsClient", "DescribeImportTaskBatchesCommand").sc(schemas_0.DescribeImportTaskBatches$).build() {
+    };
+    var DescribeImportTasksCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeImportTasks", {}).n("CloudWatchLogsClient", "DescribeImportTasksCommand").sc(schemas_0.DescribeImportTasks$).build() {
+    };
+    var DescribeIndexPoliciesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeIndexPolicies", {}).n("CloudWatchLogsClient", "DescribeIndexPoliciesCommand").sc(schemas_0.DescribeIndexPolicies$).build() {
+    };
+    var DescribeLogGroupsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeLogGroups", {}).n("CloudWatchLogsClient", "DescribeLogGroupsCommand").sc(schemas_0.DescribeLogGroups$).build() {
+    };
+    var DescribeLogStreamsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeLogStreams", {}).n("CloudWatchLogsClient", "DescribeLogStreamsCommand").sc(schemas_0.DescribeLogStreams$).build() {
+    };
+    var DescribeLookupTablesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeLookupTables", {}).n("CloudWatchLogsClient", "DescribeLookupTablesCommand").sc(schemas_0.DescribeLookupTables$).build() {
+    };
+    var DescribeMetricFiltersCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeMetricFilters", {}).n("CloudWatchLogsClient", "DescribeMetricFiltersCommand").sc(schemas_0.DescribeMetricFilters$).build() {
+    };
+    var DescribeQueriesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeQueries", {}).n("CloudWatchLogsClient", "DescribeQueriesCommand").sc(schemas_0.DescribeQueries$).build() {
+    };
+    var DescribeQueryDefinitionsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeQueryDefinitions", {}).n("CloudWatchLogsClient", "DescribeQueryDefinitionsCommand").sc(schemas_0.DescribeQueryDefinitions$).build() {
+    };
+    var DescribeResourcePoliciesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeResourcePolicies", {}).n("CloudWatchLogsClient", "DescribeResourcePoliciesCommand").sc(schemas_0.DescribeResourcePolicies$).build() {
+    };
+    var DescribeSubscriptionFiltersCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DescribeSubscriptionFilters", {}).n("CloudWatchLogsClient", "DescribeSubscriptionFiltersCommand").sc(schemas_0.DescribeSubscriptionFilters$).build() {
+    };
+    var DisassociateKmsKeyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DisassociateKmsKey", {}).n("CloudWatchLogsClient", "DisassociateKmsKeyCommand").sc(schemas_0.DisassociateKmsKey$).build() {
+    };
+    var DisassociateSourceFromS3TableIntegrationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "DisassociateSourceFromS3TableIntegration", {}).n("CloudWatchLogsClient", "DisassociateSourceFromS3TableIntegrationCommand").sc(schemas_0.DisassociateSourceFromS3TableIntegration$).build() {
+    };
+    var FilterLogEventsCommand2 = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "FilterLogEvents", {}).n("CloudWatchLogsClient", "FilterLogEventsCommand").sc(schemas_0.FilterLogEvents$).build() {
+    };
+    var GetDataProtectionPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetDataProtectionPolicy", {}).n("CloudWatchLogsClient", "GetDataProtectionPolicyCommand").sc(schemas_0.GetDataProtectionPolicy$).build() {
+    };
+    var GetDeliveryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetDelivery", {}).n("CloudWatchLogsClient", "GetDeliveryCommand").sc(schemas_0.GetDelivery$).build() {
+    };
+    var GetDeliveryDestinationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetDeliveryDestination", {}).n("CloudWatchLogsClient", "GetDeliveryDestinationCommand").sc(schemas_0.GetDeliveryDestination$).build() {
+    };
+    var GetDeliveryDestinationPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetDeliveryDestinationPolicy", {}).n("CloudWatchLogsClient", "GetDeliveryDestinationPolicyCommand").sc(schemas_0.GetDeliveryDestinationPolicy$).build() {
+    };
+    var GetDeliverySourceCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetDeliverySource", {}).n("CloudWatchLogsClient", "GetDeliverySourceCommand").sc(schemas_0.GetDeliverySource$).build() {
+    };
+    var GetIntegrationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetIntegration", {}).n("CloudWatchLogsClient", "GetIntegrationCommand").sc(schemas_0.GetIntegration$).build() {
+    };
+    var GetLogAnomalyDetectorCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetLogAnomalyDetector", {}).n("CloudWatchLogsClient", "GetLogAnomalyDetectorCommand").sc(schemas_0.GetLogAnomalyDetector$).build() {
+    };
+    var GetLogEventsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetLogEvents", {}).n("CloudWatchLogsClient", "GetLogEventsCommand").sc(schemas_0.GetLogEvents$).build() {
+    };
+    var GetLogFieldsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetLogFields", {}).n("CloudWatchLogsClient", "GetLogFieldsCommand").sc(schemas_0.GetLogFields$).build() {
+    };
+    var GetLogGroupFieldsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetLogGroupFields", {}).n("CloudWatchLogsClient", "GetLogGroupFieldsCommand").sc(schemas_0.GetLogGroupFields$).build() {
+    };
+    var GetLogObjectCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetLogObject", {
+      eventStream: {
+        output: true
+      }
+    }).n("CloudWatchLogsClient", "GetLogObjectCommand").sc(schemas_0.GetLogObject$).build() {
+    };
+    var GetLogRecordCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetLogRecord", {}).n("CloudWatchLogsClient", "GetLogRecordCommand").sc(schemas_0.GetLogRecord$).build() {
+    };
+    var GetLookupTableCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetLookupTable", {}).n("CloudWatchLogsClient", "GetLookupTableCommand").sc(schemas_0.GetLookupTable$).build() {
+    };
+    var GetQueryResultsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetQueryResults", {}).n("CloudWatchLogsClient", "GetQueryResultsCommand").sc(schemas_0.GetQueryResults$).build() {
+    };
+    var GetScheduledQueryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetScheduledQuery", {}).n("CloudWatchLogsClient", "GetScheduledQueryCommand").sc(schemas_0.GetScheduledQuery$).build() {
+    };
+    var GetScheduledQueryHistoryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetScheduledQueryHistory", {}).n("CloudWatchLogsClient", "GetScheduledQueryHistoryCommand").sc(schemas_0.GetScheduledQueryHistory$).build() {
+    };
+    var GetTransformerCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "GetTransformer", {}).n("CloudWatchLogsClient", "GetTransformerCommand").sc(schemas_0.GetTransformer$).build() {
+    };
+    var ListAggregateLogGroupSummariesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListAggregateLogGroupSummaries", {}).n("CloudWatchLogsClient", "ListAggregateLogGroupSummariesCommand").sc(schemas_0.ListAggregateLogGroupSummaries$).build() {
+    };
+    var ListAnomaliesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListAnomalies", {}).n("CloudWatchLogsClient", "ListAnomaliesCommand").sc(schemas_0.ListAnomalies$).build() {
+    };
+    var ListIntegrationsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListIntegrations", {}).n("CloudWatchLogsClient", "ListIntegrationsCommand").sc(schemas_0.ListIntegrations$).build() {
+    };
+    var ListLogAnomalyDetectorsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListLogAnomalyDetectors", {}).n("CloudWatchLogsClient", "ListLogAnomalyDetectorsCommand").sc(schemas_0.ListLogAnomalyDetectors$).build() {
+    };
+    var ListLogGroupsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListLogGroups", {}).n("CloudWatchLogsClient", "ListLogGroupsCommand").sc(schemas_0.ListLogGroups$).build() {
+    };
+    var ListLogGroupsForQueryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListLogGroupsForQuery", {}).n("CloudWatchLogsClient", "ListLogGroupsForQueryCommand").sc(schemas_0.ListLogGroupsForQuery$).build() {
+    };
+    var ListScheduledQueriesCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListScheduledQueries", {}).n("CloudWatchLogsClient", "ListScheduledQueriesCommand").sc(schemas_0.ListScheduledQueries$).build() {
+    };
+    var ListSourcesForS3TableIntegrationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListSourcesForS3TableIntegration", {}).n("CloudWatchLogsClient", "ListSourcesForS3TableIntegrationCommand").sc(schemas_0.ListSourcesForS3TableIntegration$).build() {
+    };
+    var ListTagsForResourceCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListTagsForResource", {}).n("CloudWatchLogsClient", "ListTagsForResourceCommand").sc(schemas_0.ListTagsForResource$).build() {
+    };
+    var ListTagsLogGroupCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "ListTagsLogGroup", {}).n("CloudWatchLogsClient", "ListTagsLogGroupCommand").sc(schemas_0.ListTagsLogGroup$).build() {
+    };
+    var PutAccountPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutAccountPolicy", {}).n("CloudWatchLogsClient", "PutAccountPolicyCommand").sc(schemas_0.PutAccountPolicy$).build() {
+    };
+    var PutBearerTokenAuthenticationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutBearerTokenAuthentication", {}).n("CloudWatchLogsClient", "PutBearerTokenAuthenticationCommand").sc(schemas_0.PutBearerTokenAuthentication$).build() {
+    };
+    var PutDataProtectionPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutDataProtectionPolicy", {}).n("CloudWatchLogsClient", "PutDataProtectionPolicyCommand").sc(schemas_0.PutDataProtectionPolicy$).build() {
+    };
+    var PutDeliveryDestinationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutDeliveryDestination", {}).n("CloudWatchLogsClient", "PutDeliveryDestinationCommand").sc(schemas_0.PutDeliveryDestination$).build() {
+    };
+    var PutDeliveryDestinationPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutDeliveryDestinationPolicy", {}).n("CloudWatchLogsClient", "PutDeliveryDestinationPolicyCommand").sc(schemas_0.PutDeliveryDestinationPolicy$).build() {
+    };
+    var PutDeliverySourceCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutDeliverySource", {}).n("CloudWatchLogsClient", "PutDeliverySourceCommand").sc(schemas_0.PutDeliverySource$).build() {
+    };
+    var PutDestinationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutDestination", {}).n("CloudWatchLogsClient", "PutDestinationCommand").sc(schemas_0.PutDestination$).build() {
+    };
+    var PutDestinationPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutDestinationPolicy", {}).n("CloudWatchLogsClient", "PutDestinationPolicyCommand").sc(schemas_0.PutDestinationPolicy$).build() {
+    };
+    var PutIndexPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutIndexPolicy", {}).n("CloudWatchLogsClient", "PutIndexPolicyCommand").sc(schemas_0.PutIndexPolicy$).build() {
+    };
+    var PutIntegrationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutIntegration", {}).n("CloudWatchLogsClient", "PutIntegrationCommand").sc(schemas_0.PutIntegration$).build() {
+    };
+    var PutLogEventsCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutLogEvents", {}).n("CloudWatchLogsClient", "PutLogEventsCommand").sc(schemas_0.PutLogEvents$).build() {
+    };
+    var PutLogGroupDeletionProtectionCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutLogGroupDeletionProtection", {}).n("CloudWatchLogsClient", "PutLogGroupDeletionProtectionCommand").sc(schemas_0.PutLogGroupDeletionProtection$).build() {
+    };
+    var PutMetricFilterCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutMetricFilter", {}).n("CloudWatchLogsClient", "PutMetricFilterCommand").sc(schemas_0.PutMetricFilter$).build() {
+    };
+    var PutQueryDefinitionCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutQueryDefinition", {}).n("CloudWatchLogsClient", "PutQueryDefinitionCommand").sc(schemas_0.PutQueryDefinition$).build() {
+    };
+    var PutResourcePolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutResourcePolicy", {}).n("CloudWatchLogsClient", "PutResourcePolicyCommand").sc(schemas_0.PutResourcePolicy$).build() {
+    };
+    var PutRetentionPolicyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutRetentionPolicy", {}).n("CloudWatchLogsClient", "PutRetentionPolicyCommand").sc(schemas_0.PutRetentionPolicy$).build() {
+    };
+    var PutSubscriptionFilterCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutSubscriptionFilter", {}).n("CloudWatchLogsClient", "PutSubscriptionFilterCommand").sc(schemas_0.PutSubscriptionFilter$).build() {
+    };
+    var PutTransformerCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "PutTransformer", {}).n("CloudWatchLogsClient", "PutTransformerCommand").sc(schemas_0.PutTransformer$).build() {
+    };
+    var StartLiveTailCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "StartLiveTail", {
+      eventStream: {
+        output: true
+      }
+    }).n("CloudWatchLogsClient", "StartLiveTailCommand").sc(schemas_0.StartLiveTail$).build() {
+    };
+    var StartQueryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "StartQuery", {}).n("CloudWatchLogsClient", "StartQueryCommand").sc(schemas_0.StartQuery$).build() {
+    };
+    var StopQueryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "StopQuery", {}).n("CloudWatchLogsClient", "StopQueryCommand").sc(schemas_0.StopQuery$).build() {
+    };
+    var TagLogGroupCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "TagLogGroup", {}).n("CloudWatchLogsClient", "TagLogGroupCommand").sc(schemas_0.TagLogGroup$).build() {
+    };
+    var TagResourceCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "TagResource", {}).n("CloudWatchLogsClient", "TagResourceCommand").sc(schemas_0.TagResource$).build() {
+    };
+    var TestMetricFilterCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "TestMetricFilter", {}).n("CloudWatchLogsClient", "TestMetricFilterCommand").sc(schemas_0.TestMetricFilter$).build() {
+    };
+    var TestTransformerCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "TestTransformer", {}).n("CloudWatchLogsClient", "TestTransformerCommand").sc(schemas_0.TestTransformer$).build() {
+    };
+    var UntagLogGroupCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "UntagLogGroup", {}).n("CloudWatchLogsClient", "UntagLogGroupCommand").sc(schemas_0.UntagLogGroup$).build() {
+    };
+    var UntagResourceCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "UntagResource", {}).n("CloudWatchLogsClient", "UntagResourceCommand").sc(schemas_0.UntagResource$).build() {
+    };
+    var UpdateAnomalyCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "UpdateAnomaly", {}).n("CloudWatchLogsClient", "UpdateAnomalyCommand").sc(schemas_0.UpdateAnomaly$).build() {
+    };
+    var UpdateDeliveryConfigurationCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "UpdateDeliveryConfiguration", {}).n("CloudWatchLogsClient", "UpdateDeliveryConfigurationCommand").sc(schemas_0.UpdateDeliveryConfiguration$).build() {
+    };
+    var UpdateLogAnomalyDetectorCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "UpdateLogAnomalyDetector", {}).n("CloudWatchLogsClient", "UpdateLogAnomalyDetectorCommand").sc(schemas_0.UpdateLogAnomalyDetector$).build() {
+    };
+    var UpdateLookupTableCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "UpdateLookupTable", {}).n("CloudWatchLogsClient", "UpdateLookupTableCommand").sc(schemas_0.UpdateLookupTable$).build() {
+    };
+    var UpdateScheduledQueryCommand = class extends smithyClient.Command.classBuilder().ep(commonParams5).m(function(Command, cs, config, o5) {
+      return [middlewareEndpoint.getEndpointPlugin(config, Command.getEndpointParameterInstructions())];
+    }).s("Logs_20140328", "UpdateScheduledQuery", {}).n("CloudWatchLogsClient", "UpdateScheduledQueryCommand").sc(schemas_0.UpdateScheduledQuery$).build() {
+    };
+    var paginateDescribeConfigurationTemplates = core.createPaginator(CloudWatchLogsClient2, DescribeConfigurationTemplatesCommand, "nextToken", "nextToken", "limit");
+    var paginateDescribeDeliveries = core.createPaginator(CloudWatchLogsClient2, DescribeDeliveriesCommand, "nextToken", "nextToken", "limit");
+    var paginateDescribeDeliveryDestinations = core.createPaginator(CloudWatchLogsClient2, DescribeDeliveryDestinationsCommand, "nextToken", "nextToken", "limit");
+    var paginateDescribeDeliverySources = core.createPaginator(CloudWatchLogsClient2, DescribeDeliverySourcesCommand, "nextToken", "nextToken", "limit");
+    var paginateDescribeDestinations = core.createPaginator(CloudWatchLogsClient2, DescribeDestinationsCommand, "nextToken", "nextToken", "limit");
+    var paginateDescribeLogGroups = core.createPaginator(CloudWatchLogsClient2, DescribeLogGroupsCommand, "nextToken", "nextToken", "limit");
+    var paginateDescribeLogStreams = core.createPaginator(CloudWatchLogsClient2, DescribeLogStreamsCommand, "nextToken", "nextToken", "limit");
+    var paginateDescribeMetricFilters = core.createPaginator(CloudWatchLogsClient2, DescribeMetricFiltersCommand, "nextToken", "nextToken", "limit");
+    var paginateDescribeSubscriptionFilters = core.createPaginator(CloudWatchLogsClient2, DescribeSubscriptionFiltersCommand, "nextToken", "nextToken", "limit");
+    var paginateFilterLogEvents = core.createPaginator(CloudWatchLogsClient2, FilterLogEventsCommand2, "nextToken", "nextToken", "limit");
+    var paginateGetLogEvents = core.createPaginator(CloudWatchLogsClient2, GetLogEventsCommand, "nextToken", "nextForwardToken", "limit");
+    var paginateGetScheduledQueryHistory = core.createPaginator(CloudWatchLogsClient2, GetScheduledQueryHistoryCommand, "nextToken", "nextToken", "maxResults");
+    var paginateListAggregateLogGroupSummaries = core.createPaginator(CloudWatchLogsClient2, ListAggregateLogGroupSummariesCommand, "nextToken", "nextToken", "limit");
+    var paginateListAnomalies = core.createPaginator(CloudWatchLogsClient2, ListAnomaliesCommand, "nextToken", "nextToken", "limit");
+    var paginateListLogAnomalyDetectors = core.createPaginator(CloudWatchLogsClient2, ListLogAnomalyDetectorsCommand, "nextToken", "nextToken", "limit");
+    var paginateListLogGroupsForQuery = core.createPaginator(CloudWatchLogsClient2, ListLogGroupsForQueryCommand, "nextToken", "nextToken", "maxResults");
+    var paginateListScheduledQueries = core.createPaginator(CloudWatchLogsClient2, ListScheduledQueriesCommand, "nextToken", "nextToken", "maxResults");
+    var paginateListSourcesForS3TableIntegration = core.createPaginator(CloudWatchLogsClient2, ListSourcesForS3TableIntegrationCommand, "nextToken", "nextToken", "maxResults");
+    var commands5 = {
+      AssociateKmsKeyCommand,
+      AssociateSourceToS3TableIntegrationCommand,
+      CancelExportTaskCommand,
+      CancelImportTaskCommand,
+      CreateDeliveryCommand,
+      CreateExportTaskCommand,
+      CreateImportTaskCommand,
+      CreateLogAnomalyDetectorCommand,
+      CreateLogGroupCommand,
+      CreateLogStreamCommand,
+      CreateLookupTableCommand,
+      CreateScheduledQueryCommand,
+      DeleteAccountPolicyCommand,
+      DeleteDataProtectionPolicyCommand,
+      DeleteDeliveryCommand,
+      DeleteDeliveryDestinationCommand,
+      DeleteDeliveryDestinationPolicyCommand,
+      DeleteDeliverySourceCommand,
+      DeleteDestinationCommand,
+      DeleteIndexPolicyCommand,
+      DeleteIntegrationCommand,
+      DeleteLogAnomalyDetectorCommand,
+      DeleteLogGroupCommand,
+      DeleteLogStreamCommand,
+      DeleteLookupTableCommand,
+      DeleteMetricFilterCommand,
+      DeleteQueryDefinitionCommand,
+      DeleteResourcePolicyCommand,
+      DeleteRetentionPolicyCommand,
+      DeleteScheduledQueryCommand,
+      DeleteSubscriptionFilterCommand,
+      DeleteTransformerCommand,
+      DescribeAccountPoliciesCommand,
+      DescribeConfigurationTemplatesCommand,
+      DescribeDeliveriesCommand,
+      DescribeDeliveryDestinationsCommand,
+      DescribeDeliverySourcesCommand,
+      DescribeDestinationsCommand,
+      DescribeExportTasksCommand,
+      DescribeFieldIndexesCommand,
+      DescribeImportTaskBatchesCommand,
+      DescribeImportTasksCommand,
+      DescribeIndexPoliciesCommand,
+      DescribeLogGroupsCommand,
+      DescribeLogStreamsCommand,
+      DescribeLookupTablesCommand,
+      DescribeMetricFiltersCommand,
+      DescribeQueriesCommand,
+      DescribeQueryDefinitionsCommand,
+      DescribeResourcePoliciesCommand,
+      DescribeSubscriptionFiltersCommand,
+      DisassociateKmsKeyCommand,
+      DisassociateSourceFromS3TableIntegrationCommand,
+      FilterLogEventsCommand: FilterLogEventsCommand2,
+      GetDataProtectionPolicyCommand,
+      GetDeliveryCommand,
+      GetDeliveryDestinationCommand,
+      GetDeliveryDestinationPolicyCommand,
+      GetDeliverySourceCommand,
+      GetIntegrationCommand,
+      GetLogAnomalyDetectorCommand,
+      GetLogEventsCommand,
+      GetLogFieldsCommand,
+      GetLogGroupFieldsCommand,
+      GetLogObjectCommand,
+      GetLogRecordCommand,
+      GetLookupTableCommand,
+      GetQueryResultsCommand,
+      GetScheduledQueryCommand,
+      GetScheduledQueryHistoryCommand,
+      GetTransformerCommand,
+      ListAggregateLogGroupSummariesCommand,
+      ListAnomaliesCommand,
+      ListIntegrationsCommand,
+      ListLogAnomalyDetectorsCommand,
+      ListLogGroupsCommand,
+      ListLogGroupsForQueryCommand,
+      ListScheduledQueriesCommand,
+      ListSourcesForS3TableIntegrationCommand,
+      ListTagsForResourceCommand,
+      ListTagsLogGroupCommand,
+      PutAccountPolicyCommand,
+      PutBearerTokenAuthenticationCommand,
+      PutDataProtectionPolicyCommand,
+      PutDeliveryDestinationCommand,
+      PutDeliveryDestinationPolicyCommand,
+      PutDeliverySourceCommand,
+      PutDestinationCommand,
+      PutDestinationPolicyCommand,
+      PutIndexPolicyCommand,
+      PutIntegrationCommand,
+      PutLogEventsCommand,
+      PutLogGroupDeletionProtectionCommand,
+      PutMetricFilterCommand,
+      PutQueryDefinitionCommand,
+      PutResourcePolicyCommand,
+      PutRetentionPolicyCommand,
+      PutSubscriptionFilterCommand,
+      PutTransformerCommand,
+      StartLiveTailCommand,
+      StartQueryCommand,
+      StopQueryCommand,
+      TagLogGroupCommand,
+      TagResourceCommand,
+      TestMetricFilterCommand,
+      TestTransformerCommand,
+      UntagLogGroupCommand,
+      UntagResourceCommand,
+      UpdateAnomalyCommand,
+      UpdateDeliveryConfigurationCommand,
+      UpdateLogAnomalyDetectorCommand,
+      UpdateLookupTableCommand,
+      UpdateScheduledQueryCommand
+    };
+    var paginators = {
+      paginateDescribeConfigurationTemplates,
+      paginateDescribeDeliveries,
+      paginateDescribeDeliveryDestinations,
+      paginateDescribeDeliverySources,
+      paginateDescribeDestinations,
+      paginateDescribeLogGroups,
+      paginateDescribeLogStreams,
+      paginateDescribeMetricFilters,
+      paginateDescribeSubscriptionFilters,
+      paginateFilterLogEvents,
+      paginateGetLogEvents,
+      paginateGetScheduledQueryHistory,
+      paginateListAggregateLogGroupSummaries,
+      paginateListAnomalies,
+      paginateListLogAnomalyDetectors,
+      paginateListLogGroupsForQuery,
+      paginateListScheduledQueries,
+      paginateListSourcesForS3TableIntegration
+    };
+    var CloudWatchLogs = class extends CloudWatchLogsClient2 {
+    };
+    smithyClient.createAggregatedClient(commands5, CloudWatchLogs, { paginators });
+    var PolicyType = {
+      DATA_PROTECTION_POLICY: "DATA_PROTECTION_POLICY",
+      FIELD_INDEX_POLICY: "FIELD_INDEX_POLICY",
+      METRIC_EXTRACTION_POLICY: "METRIC_EXTRACTION_POLICY",
+      SUBSCRIPTION_FILTER_POLICY: "SUBSCRIPTION_FILTER_POLICY",
+      TRANSFORMER_POLICY: "TRANSFORMER_POLICY"
+    };
+    var Scope = {
+      ALL: "ALL"
+    };
+    var ActionStatus = {
+      CLIENT_ERROR: "CLIENT_ERROR",
+      COMPLETE: "COMPLETE",
+      FAILED: "FAILED",
+      IN_PROGRESS: "IN_PROGRESS"
+    };
+    var State = {
+      Active: "Active",
+      Baseline: "Baseline",
+      Suppressed: "Suppressed"
+    };
+    var AnomalyDetectorStatus = {
+      ANALYZING: "ANALYZING",
+      DELETED: "DELETED",
+      FAILED: "FAILED",
+      INITIALIZING: "INITIALIZING",
+      PAUSED: "PAUSED",
+      TRAINING: "TRAINING"
+    };
+    var EvaluationFrequency = {
+      FIFTEEN_MIN: "FIFTEEN_MIN",
+      FIVE_MIN: "FIVE_MIN",
+      ONE_HOUR: "ONE_HOUR",
+      ONE_MIN: "ONE_MIN",
+      TEN_MIN: "TEN_MIN",
+      THIRTY_MIN: "THIRTY_MIN"
+    };
+    var ImportStatus = {
+      CANCELLED: "CANCELLED",
+      COMPLETED: "COMPLETED",
+      FAILED: "FAILED",
+      IN_PROGRESS: "IN_PROGRESS"
+    };
+    var OutputFormat = {
+      JSON: "json",
+      PARQUET: "parquet",
+      PLAIN: "plain",
+      RAW: "raw",
+      W3C: "w3c"
+    };
+    var DeliveryDestinationType = {
+      CWL: "CWL",
+      FH: "FH",
+      S3: "S3",
+      XRAY: "XRAY"
+    };
+    var LogGroupClass = {
+      DELIVERY: "DELIVERY",
+      INFREQUENT_ACCESS: "INFREQUENT_ACCESS",
+      STANDARD: "STANDARD"
+    };
+    var QueryLanguage = {
+      CWLI: "CWLI",
+      PPL: "PPL",
+      SQL: "SQL"
+    };
+    var ScheduledQueryState = {
+      DISABLED: "DISABLED",
+      ENABLED: "ENABLED"
+    };
+    var DataProtectionStatus = {
+      ACTIVATED: "ACTIVATED",
+      ARCHIVED: "ARCHIVED",
+      DELETED: "DELETED",
+      DISABLED: "DISABLED"
+    };
+    var ExportTaskStatusCode = {
+      CANCELLED: "CANCELLED",
+      COMPLETED: "COMPLETED",
+      FAILED: "FAILED",
+      PENDING: "PENDING",
+      PENDING_CANCEL: "PENDING_CANCEL",
+      RUNNING: "RUNNING"
+    };
+    var IndexType = {
+      FACET: "FACET",
+      FIELD_INDEX: "FIELD_INDEX"
+    };
+    var IndexSource = {
+      ACCOUNT: "ACCOUNT",
+      LOG_GROUP: "LOG_GROUP"
+    };
+    var InheritedProperty = {
+      ACCOUNT_DATA_PROTECTION: "ACCOUNT_DATA_PROTECTION"
+    };
+    var OrderBy = {
+      LastEventTime: "LastEventTime",
+      LogStreamName: "LogStreamName"
+    };
+    var StandardUnit = {
+      Bits: "Bits",
+      BitsSecond: "Bits/Second",
+      Bytes: "Bytes",
+      BytesSecond: "Bytes/Second",
+      Count: "Count",
+      CountSecond: "Count/Second",
+      Gigabits: "Gigabits",
+      GigabitsSecond: "Gigabits/Second",
+      Gigabytes: "Gigabytes",
+      GigabytesSecond: "Gigabytes/Second",
+      Kilobits: "Kilobits",
+      KilobitsSecond: "Kilobits/Second",
+      Kilobytes: "Kilobytes",
+      KilobytesSecond: "Kilobytes/Second",
+      Megabits: "Megabits",
+      MegabitsSecond: "Megabits/Second",
+      Megabytes: "Megabytes",
+      MegabytesSecond: "Megabytes/Second",
+      Microseconds: "Microseconds",
+      Milliseconds: "Milliseconds",
+      None: "None",
+      Percent: "Percent",
+      Seconds: "Seconds",
+      Terabits: "Terabits",
+      TerabitsSecond: "Terabits/Second",
+      Terabytes: "Terabytes",
+      TerabytesSecond: "Terabytes/Second"
+    };
+    var QueryStatus = {
+      Cancelled: "Cancelled",
+      Complete: "Complete",
+      Failed: "Failed",
+      Running: "Running",
+      Scheduled: "Scheduled",
+      Timeout: "Timeout",
+      Unknown: "Unknown"
+    };
+    var PolicyScope = {
+      ACCOUNT: "ACCOUNT",
+      RESOURCE: "RESOURCE"
+    };
+    var Distribution = {
+      ByLogStream: "ByLogStream",
+      Random: "Random"
+    };
+    var EntityRejectionErrorType = {
+      ENTITY_SIZE_TOO_LARGE: "EntitySizeTooLarge",
+      INVALID_ATTRIBUTES: "InvalidAttributes",
+      INVALID_ENTITY: "InvalidEntity",
+      INVALID_KEY_ATTRIBUTE: "InvalidKeyAttributes",
+      INVALID_TYPE_VALUE: "InvalidTypeValue",
+      MISSING_REQUIRED_FIELDS: "MissingRequiredFields",
+      UNSUPPORTED_LOG_GROUP_TYPE: "UnsupportedLogGroupType"
+    };
+    var EventSource = {
+      AWSWAF: "AWSWAF",
+      CLOUD_TRAIL: "CloudTrail",
+      EKS_AUDIT: "EKSAudit",
+      ROUTE53_RESOLVER: "Route53Resolver",
+      VPC_FLOW: "VPCFlow"
+    };
+    var ExecutionStatus = {
+      Complete: "Complete",
+      Failed: "Failed",
+      InvalidQuery: "InvalidQuery",
+      Running: "Running",
+      Timeout: "Timeout"
+    };
+    var FlattenedElement = {
+      FIRST: "first",
+      LAST: "last"
+    };
+    var OpenSearchResourceStatusType = {
+      ACTIVE: "ACTIVE",
+      ERROR: "ERROR",
+      NOT_FOUND: "NOT_FOUND"
+    };
+    var IntegrationStatus = {
+      ACTIVE: "ACTIVE",
+      FAILED: "FAILED",
+      PROVISIONING: "PROVISIONING"
+    };
+    var IntegrationType = {
+      OPENSEARCH: "OPENSEARCH"
+    };
+    var ScheduledQueryDestinationType = {
+      S3: "S3"
+    };
+    var OCSFVersion = {
+      V1_1: "V1.1",
+      V1_5: "V1.5"
+    };
+    var Type = {
+      BOOLEAN: "boolean",
+      DOUBLE: "double",
+      INTEGER: "integer",
+      STRING: "string"
+    };
+    var ListAggregateLogGroupSummariesGroupBy = {
+      DATA_SOURCE_NAME_AND_TYPE: "DATA_SOURCE_NAME_AND_TYPE",
+      DATA_SOURCE_NAME_TYPE_AND_FORMAT: "DATA_SOURCE_NAME_TYPE_AND_FORMAT"
+    };
+    var SuppressionState = {
+      SUPPRESSED: "SUPPRESSED",
+      UNSUPPRESSED: "UNSUPPRESSED"
+    };
+    var S3TableIntegrationSourceStatus = {
+      ACTIVE: "ACTIVE",
+      DATA_SOURCE_DELETE_IN_PROGRESS: "DATA_SOURCE_DELETE_IN_PROGRESS",
+      FAILED: "FAILED",
+      UNHEALTHY: "UNHEALTHY"
+    };
+    var SuppressionUnit = {
+      HOURS: "HOURS",
+      MINUTES: "MINUTES",
+      SECONDS: "SECONDS"
+    };
+    var SuppressionType = {
+      INFINITE: "INFINITE",
+      LIMITED: "LIMITED"
+    };
+    exports2.$Command = smithyClient.Command;
+    exports2.__Client = smithyClient.Client;
+    exports2.CloudWatchLogsServiceException = CloudWatchLogsServiceException.CloudWatchLogsServiceException;
+    exports2.ActionStatus = ActionStatus;
+    exports2.AnomalyDetectorStatus = AnomalyDetectorStatus;
+    exports2.AssociateKmsKeyCommand = AssociateKmsKeyCommand;
+    exports2.AssociateSourceToS3TableIntegrationCommand = AssociateSourceToS3TableIntegrationCommand;
+    exports2.CancelExportTaskCommand = CancelExportTaskCommand;
+    exports2.CancelImportTaskCommand = CancelImportTaskCommand;
+    exports2.CloudWatchLogs = CloudWatchLogs;
+    exports2.CloudWatchLogsClient = CloudWatchLogsClient2;
+    exports2.CreateDeliveryCommand = CreateDeliveryCommand;
+    exports2.CreateExportTaskCommand = CreateExportTaskCommand;
+    exports2.CreateImportTaskCommand = CreateImportTaskCommand;
+    exports2.CreateLogAnomalyDetectorCommand = CreateLogAnomalyDetectorCommand;
+    exports2.CreateLogGroupCommand = CreateLogGroupCommand;
+    exports2.CreateLogStreamCommand = CreateLogStreamCommand;
+    exports2.CreateLookupTableCommand = CreateLookupTableCommand;
+    exports2.CreateScheduledQueryCommand = CreateScheduledQueryCommand;
+    exports2.DataProtectionStatus = DataProtectionStatus;
+    exports2.DeleteAccountPolicyCommand = DeleteAccountPolicyCommand;
+    exports2.DeleteDataProtectionPolicyCommand = DeleteDataProtectionPolicyCommand;
+    exports2.DeleteDeliveryCommand = DeleteDeliveryCommand;
+    exports2.DeleteDeliveryDestinationCommand = DeleteDeliveryDestinationCommand;
+    exports2.DeleteDeliveryDestinationPolicyCommand = DeleteDeliveryDestinationPolicyCommand;
+    exports2.DeleteDeliverySourceCommand = DeleteDeliverySourceCommand;
+    exports2.DeleteDestinationCommand = DeleteDestinationCommand;
+    exports2.DeleteIndexPolicyCommand = DeleteIndexPolicyCommand;
+    exports2.DeleteIntegrationCommand = DeleteIntegrationCommand;
+    exports2.DeleteLogAnomalyDetectorCommand = DeleteLogAnomalyDetectorCommand;
+    exports2.DeleteLogGroupCommand = DeleteLogGroupCommand;
+    exports2.DeleteLogStreamCommand = DeleteLogStreamCommand;
+    exports2.DeleteLookupTableCommand = DeleteLookupTableCommand;
+    exports2.DeleteMetricFilterCommand = DeleteMetricFilterCommand;
+    exports2.DeleteQueryDefinitionCommand = DeleteQueryDefinitionCommand;
+    exports2.DeleteResourcePolicyCommand = DeleteResourcePolicyCommand;
+    exports2.DeleteRetentionPolicyCommand = DeleteRetentionPolicyCommand;
+    exports2.DeleteScheduledQueryCommand = DeleteScheduledQueryCommand;
+    exports2.DeleteSubscriptionFilterCommand = DeleteSubscriptionFilterCommand;
+    exports2.DeleteTransformerCommand = DeleteTransformerCommand;
+    exports2.DeliveryDestinationType = DeliveryDestinationType;
+    exports2.DescribeAccountPoliciesCommand = DescribeAccountPoliciesCommand;
+    exports2.DescribeConfigurationTemplatesCommand = DescribeConfigurationTemplatesCommand;
+    exports2.DescribeDeliveriesCommand = DescribeDeliveriesCommand;
+    exports2.DescribeDeliveryDestinationsCommand = DescribeDeliveryDestinationsCommand;
+    exports2.DescribeDeliverySourcesCommand = DescribeDeliverySourcesCommand;
+    exports2.DescribeDestinationsCommand = DescribeDestinationsCommand;
+    exports2.DescribeExportTasksCommand = DescribeExportTasksCommand;
+    exports2.DescribeFieldIndexesCommand = DescribeFieldIndexesCommand;
+    exports2.DescribeImportTaskBatchesCommand = DescribeImportTaskBatchesCommand;
+    exports2.DescribeImportTasksCommand = DescribeImportTasksCommand;
+    exports2.DescribeIndexPoliciesCommand = DescribeIndexPoliciesCommand;
+    exports2.DescribeLogGroupsCommand = DescribeLogGroupsCommand;
+    exports2.DescribeLogStreamsCommand = DescribeLogStreamsCommand;
+    exports2.DescribeLookupTablesCommand = DescribeLookupTablesCommand;
+    exports2.DescribeMetricFiltersCommand = DescribeMetricFiltersCommand;
+    exports2.DescribeQueriesCommand = DescribeQueriesCommand;
+    exports2.DescribeQueryDefinitionsCommand = DescribeQueryDefinitionsCommand;
+    exports2.DescribeResourcePoliciesCommand = DescribeResourcePoliciesCommand;
+    exports2.DescribeSubscriptionFiltersCommand = DescribeSubscriptionFiltersCommand;
+    exports2.DisassociateKmsKeyCommand = DisassociateKmsKeyCommand;
+    exports2.DisassociateSourceFromS3TableIntegrationCommand = DisassociateSourceFromS3TableIntegrationCommand;
+    exports2.Distribution = Distribution;
+    exports2.EntityRejectionErrorType = EntityRejectionErrorType;
+    exports2.EvaluationFrequency = EvaluationFrequency;
+    exports2.EventSource = EventSource;
+    exports2.ExecutionStatus = ExecutionStatus;
+    exports2.ExportTaskStatusCode = ExportTaskStatusCode;
+    exports2.FilterLogEventsCommand = FilterLogEventsCommand2;
+    exports2.FlattenedElement = FlattenedElement;
+    exports2.GetDataProtectionPolicyCommand = GetDataProtectionPolicyCommand;
+    exports2.GetDeliveryCommand = GetDeliveryCommand;
+    exports2.GetDeliveryDestinationCommand = GetDeliveryDestinationCommand;
+    exports2.GetDeliveryDestinationPolicyCommand = GetDeliveryDestinationPolicyCommand;
+    exports2.GetDeliverySourceCommand = GetDeliverySourceCommand;
+    exports2.GetIntegrationCommand = GetIntegrationCommand;
+    exports2.GetLogAnomalyDetectorCommand = GetLogAnomalyDetectorCommand;
+    exports2.GetLogEventsCommand = GetLogEventsCommand;
+    exports2.GetLogFieldsCommand = GetLogFieldsCommand;
+    exports2.GetLogGroupFieldsCommand = GetLogGroupFieldsCommand;
+    exports2.GetLogObjectCommand = GetLogObjectCommand;
+    exports2.GetLogRecordCommand = GetLogRecordCommand;
+    exports2.GetLookupTableCommand = GetLookupTableCommand;
+    exports2.GetQueryResultsCommand = GetQueryResultsCommand;
+    exports2.GetScheduledQueryCommand = GetScheduledQueryCommand;
+    exports2.GetScheduledQueryHistoryCommand = GetScheduledQueryHistoryCommand;
+    exports2.GetTransformerCommand = GetTransformerCommand;
+    exports2.ImportStatus = ImportStatus;
+    exports2.IndexSource = IndexSource;
+    exports2.IndexType = IndexType;
+    exports2.InheritedProperty = InheritedProperty;
+    exports2.IntegrationStatus = IntegrationStatus;
+    exports2.IntegrationType = IntegrationType;
+    exports2.ListAggregateLogGroupSummariesCommand = ListAggregateLogGroupSummariesCommand;
+    exports2.ListAggregateLogGroupSummariesGroupBy = ListAggregateLogGroupSummariesGroupBy;
+    exports2.ListAnomaliesCommand = ListAnomaliesCommand;
+    exports2.ListIntegrationsCommand = ListIntegrationsCommand;
+    exports2.ListLogAnomalyDetectorsCommand = ListLogAnomalyDetectorsCommand;
+    exports2.ListLogGroupsCommand = ListLogGroupsCommand;
+    exports2.ListLogGroupsForQueryCommand = ListLogGroupsForQueryCommand;
+    exports2.ListScheduledQueriesCommand = ListScheduledQueriesCommand;
+    exports2.ListSourcesForS3TableIntegrationCommand = ListSourcesForS3TableIntegrationCommand;
+    exports2.ListTagsForResourceCommand = ListTagsForResourceCommand;
+    exports2.ListTagsLogGroupCommand = ListTagsLogGroupCommand;
+    exports2.LogGroupClass = LogGroupClass;
+    exports2.OCSFVersion = OCSFVersion;
+    exports2.OpenSearchResourceStatusType = OpenSearchResourceStatusType;
+    exports2.OrderBy = OrderBy;
+    exports2.OutputFormat = OutputFormat;
+    exports2.PolicyScope = PolicyScope;
+    exports2.PolicyType = PolicyType;
+    exports2.PutAccountPolicyCommand = PutAccountPolicyCommand;
+    exports2.PutBearerTokenAuthenticationCommand = PutBearerTokenAuthenticationCommand;
+    exports2.PutDataProtectionPolicyCommand = PutDataProtectionPolicyCommand;
+    exports2.PutDeliveryDestinationCommand = PutDeliveryDestinationCommand;
+    exports2.PutDeliveryDestinationPolicyCommand = PutDeliveryDestinationPolicyCommand;
+    exports2.PutDeliverySourceCommand = PutDeliverySourceCommand;
+    exports2.PutDestinationCommand = PutDestinationCommand;
+    exports2.PutDestinationPolicyCommand = PutDestinationPolicyCommand;
+    exports2.PutIndexPolicyCommand = PutIndexPolicyCommand;
+    exports2.PutIntegrationCommand = PutIntegrationCommand;
+    exports2.PutLogEventsCommand = PutLogEventsCommand;
+    exports2.PutLogGroupDeletionProtectionCommand = PutLogGroupDeletionProtectionCommand;
+    exports2.PutMetricFilterCommand = PutMetricFilterCommand;
+    exports2.PutQueryDefinitionCommand = PutQueryDefinitionCommand;
+    exports2.PutResourcePolicyCommand = PutResourcePolicyCommand;
+    exports2.PutRetentionPolicyCommand = PutRetentionPolicyCommand;
+    exports2.PutSubscriptionFilterCommand = PutSubscriptionFilterCommand;
+    exports2.PutTransformerCommand = PutTransformerCommand;
+    exports2.QueryLanguage = QueryLanguage;
+    exports2.QueryStatus = QueryStatus;
+    exports2.S3TableIntegrationSourceStatus = S3TableIntegrationSourceStatus;
+    exports2.ScheduledQueryDestinationType = ScheduledQueryDestinationType;
+    exports2.ScheduledQueryState = ScheduledQueryState;
+    exports2.Scope = Scope;
+    exports2.StandardUnit = StandardUnit;
+    exports2.StartLiveTailCommand = StartLiveTailCommand;
+    exports2.StartQueryCommand = StartQueryCommand;
+    exports2.State = State;
+    exports2.StopQueryCommand = StopQueryCommand;
+    exports2.SuppressionState = SuppressionState;
+    exports2.SuppressionType = SuppressionType;
+    exports2.SuppressionUnit = SuppressionUnit;
+    exports2.TagLogGroupCommand = TagLogGroupCommand;
+    exports2.TagResourceCommand = TagResourceCommand;
+    exports2.TestMetricFilterCommand = TestMetricFilterCommand;
+    exports2.TestTransformerCommand = TestTransformerCommand;
+    exports2.Type = Type;
+    exports2.UntagLogGroupCommand = UntagLogGroupCommand;
+    exports2.UntagResourceCommand = UntagResourceCommand;
+    exports2.UpdateAnomalyCommand = UpdateAnomalyCommand;
+    exports2.UpdateDeliveryConfigurationCommand = UpdateDeliveryConfigurationCommand;
+    exports2.UpdateLogAnomalyDetectorCommand = UpdateLogAnomalyDetectorCommand;
+    exports2.UpdateLookupTableCommand = UpdateLookupTableCommand;
+    exports2.UpdateScheduledQueryCommand = UpdateScheduledQueryCommand;
+    exports2.paginateDescribeConfigurationTemplates = paginateDescribeConfigurationTemplates;
+    exports2.paginateDescribeDeliveries = paginateDescribeDeliveries;
+    exports2.paginateDescribeDeliveryDestinations = paginateDescribeDeliveryDestinations;
+    exports2.paginateDescribeDeliverySources = paginateDescribeDeliverySources;
+    exports2.paginateDescribeDestinations = paginateDescribeDestinations;
+    exports2.paginateDescribeLogGroups = paginateDescribeLogGroups;
+    exports2.paginateDescribeLogStreams = paginateDescribeLogStreams;
+    exports2.paginateDescribeMetricFilters = paginateDescribeMetricFilters;
+    exports2.paginateDescribeSubscriptionFilters = paginateDescribeSubscriptionFilters;
+    exports2.paginateFilterLogEvents = paginateFilterLogEvents;
+    exports2.paginateGetLogEvents = paginateGetLogEvents;
+    exports2.paginateGetScheduledQueryHistory = paginateGetScheduledQueryHistory;
+    exports2.paginateListAggregateLogGroupSummaries = paginateListAggregateLogGroupSummaries;
+    exports2.paginateListAnomalies = paginateListAnomalies;
+    exports2.paginateListLogAnomalyDetectors = paginateListLogAnomalyDetectors;
+    exports2.paginateListLogGroupsForQuery = paginateListLogGroupsForQuery;
+    exports2.paginateListScheduledQueries = paginateListScheduledQueries;
+    exports2.paginateListSourcesForS3TableIntegration = paginateListSourcesForS3TableIntegration;
+    Object.prototype.hasOwnProperty.call(schemas_0, "__proto__") && !Object.prototype.hasOwnProperty.call(exports2, "__proto__") && Object.defineProperty(exports2, "__proto__", {
+      enumerable: true,
+      value: schemas_0["__proto__"]
+    });
+    Object.keys(schemas_0).forEach(function(k5) {
+      if (k5 !== "default" && !Object.prototype.hasOwnProperty.call(exports2, k5)) exports2[k5] = schemas_0[k5];
+    });
+    Object.prototype.hasOwnProperty.call(errors, "__proto__") && !Object.prototype.hasOwnProperty.call(exports2, "__proto__") && Object.defineProperty(exports2, "__proto__", {
+      enumerable: true,
+      value: errors["__proto__"]
+    });
+    Object.keys(errors).forEach(function(k5) {
+      if (k5 !== "default" && !Object.prototype.hasOwnProperty.call(exports2, k5)) exports2[k5] = errors[k5];
+    });
+  }
+});
+
 // node_modules/discord-interactions/dist/util.js
 var require_util = __commonJS({
   "node_modules/discord-interactions/dist/util.js"(exports2) {
@@ -100402,6 +108358,7 @@ var EcsBackend = class {
       const ready = Boolean(sidecar.ready);
       return {
         status: running && ready ? "online" : "starting",
+        publicIp,
         players: Number(sidecar.players ?? 0),
         hostname: String(sidecar.hostname ?? ""),
         map: String(sidecar.map ?? ""),
@@ -103112,6 +111069,9 @@ var streamSSE = (c5, cb, onError) => {
   return c5.newResponse(stream2.responseReadable);
 };
 
+// src/app.ts
+var import_client_cloudwatch_logs = __toESM(require_dist_cjs65());
+
 // src/discord.ts
 var import_discord_interactions = __toESM(require_dist());
 var DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY ?? "";
@@ -103809,9 +111769,102 @@ var css = `
 var initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
+  var STATUS_POLL_INTERVAL_MS = 5000;
 
   function getPassphrase() {
     return sessionStorage.getItem(SESSION_KEY) || "";
+  }
+
+  function statusDot(status) {
+    if (status === "online") return "\u{1F7E2}";
+    if (status === "starting") return "\u{1F7E1}";
+    return "\u26AB";
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
+
+  function renderRowHeader(game, state) {
+    var meta = [];
+    if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
+    if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
+    if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
+    if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
+    return ""
+      + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
+      + "<span class=\\"game-name\\">" + escapeHtml(game) + "</span>"
+      + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
+      + "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">" + "[expand \u25BC]" + "</button>";
+  }
+
+  function syncExpandButton(game) {
+    var body = document.getElementById("row-body-" + game);
+    var btn = document.getElementById("expand-btn-" + game);
+    if (!body || !btn) return;
+    btn.textContent = body.classList.contains("open") ? "[collapse \u25B2]" : "[expand \u25BC]";
+  }
+
+  function refreshStatuses() {
+    fetch("/status")
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(payload) {
+        Object.entries(payload).forEach(function(entry) {
+          var game = entry[0];
+          var state = entry[1];
+          var header = document.getElementById("row-header-" + game);
+          if (!header) return;
+          header.innerHTML = renderRowHeader(game, state);
+          syncExpandButton(game);
+        });
+      })
+      .catch(function() {});
+    window.setTimeout(refreshStatuses, STATUS_POLL_INTERVAL_MS);
+  }
+
+  function appendLogLines(inner, lines) {
+    lines.forEach(function(line) {
+      var div = document.createElement("div");
+      div.className = "log-line";
+      div.textContent = line;
+      inner.appendChild(div);
+    });
+    inner.scrollTop = inner.scrollHeight;
+  }
+
+  function pollLogs(game, inner) {
+    if (inner.getAttribute("data-log-mode") !== "poll") return;
+    if (inner.getAttribute("data-log-open") !== "1") return;
+    var pp = getPassphrase();
+    var cursor = inner.getAttribute("data-log-cursor") || "";
+    var url = inner.getAttribute("data-log-url");
+    if (!url) return;
+    var sep = url.indexOf("?") >= 0 ? "&" : "?";
+    fetch(url + sep + "token=" + encodeURIComponent(pp) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""))
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(payload) {
+        if (Array.isArray(payload.lines) && payload.lines.length > 0) {
+          appendLogLines(inner, payload.lines);
+        }
+        if (payload.cursor) inner.setAttribute("data-log-cursor", payload.cursor);
+      })
+      .catch(function(error) {
+        appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
+      })
+      .finally(function() {
+        if (inner.getAttribute("data-log-open") === "1") {
+          window.setTimeout(function() { pollLogs(game, inner); }, 2000);
+        }
+      });
   }
 
   // Toggle accordion open/close
@@ -103868,13 +111921,22 @@ var initScript = `
   // Toggle inline log panel open/closed
   window.toggleLogs = function(game) {
     var section = document.getElementById("log-section-" + game);
+    var inner = document.getElementById("log-sse-" + game);
     var isOpen = section.classList.toggle("open");
+    inner.setAttribute("data-log-open", isOpen ? "1" : "0");
     if (isOpen) {
-      var pp = getPassphrase();
-      var inner = document.getElementById("log-sse-" + game);
-      if (!inner.getAttribute("sse-connect")) {
+      if (inner.getAttribute("data-log-mode") === "poll") {
+        if (!inner.getAttribute("data-log-started")) {
+          inner.setAttribute("data-log-started", "1");
+          appendLogLines(inner, ["[connecting to " + game + " logs]"]);
+          pollLogs(game, inner);
+        }
+      } else if (!inner.getAttribute("sse-connect")) {
+        var pp = getPassphrase();
+        var baseUrl = inner.getAttribute("data-log-url");
+        var separator = baseUrl && baseUrl.indexOf("?") >= 0 ? "&" : "?";
         inner.setAttribute("hx-ext", "sse");
-        inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
+        inner.setAttribute("sse-connect", (baseUrl || "/logs?game=" + game) + separator + "token=" + encodeURIComponent(pp));
         htmx.process(inner);
         var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
         observer.observe(inner, { childList: true });
@@ -103884,6 +111946,7 @@ var initScript = `
 
   // Restore auth on page load
   (function() {
+    refreshStatuses();
     var pp = getPassphrase();
     if (!pp) return;
     fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
@@ -103899,7 +111962,7 @@ var StatusDot = ({ status }) => {
   if (status === "starting") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E1}" });
   return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u26AB" });
 };
-var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDownloadUrl, startBlocked }) => {
+var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDownloadUrl, startBlocked, logsEnabled, logMode, logUrl }) => {
   const metaOnline = state2.status === "online";
   const indicator = `#status-result-${game}`;
   return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
@@ -103908,10 +111971,6 @@ var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDo
       {
         id: `row-header-${game}`,
         class: "row-header",
-        "hx-get": `/status?game=${game}`,
-        "hx-trigger": "every 5s",
-        "hx-target": `#row-header-${game}`,
-        "hx-swap": "outerHTML",
         onclick: `toggleRow('${game}')`,
         children: [
           /* @__PURE__ */ jsxDEV(StatusDot, { status: state2.status }),
@@ -103962,11 +112021,23 @@ var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDo
               children: "stop"
             }
           ),
-          /* @__PURE__ */ jsxDEV("button", { type: "button", onclick: `toggleLogs('${game}')`, children: "logs" })
+          logsEnabled ? /* @__PURE__ */ jsxDEV("button", { type: "button", onclick: `toggleLogs('${game}')`, children: "logs" }) : null
         ] }),
         /* @__PURE__ */ jsxDEV("div", { id: `status-result-${game}`, class: "status-frag", children: /* @__PURE__ */ jsxDEV("span", { class: "htmx-indicator", children: "working..." }) })
       ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV("div", { id: `log-sse-${game}`, class: "log-panel", "sse-swap": "log", "hx-swap": "beforeend" }) })
+      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: `log-section-${game}`, children: /* @__PURE__ */ jsxDEV(
+        "div",
+        {
+          id: `log-sse-${game}`,
+          class: "log-panel",
+          "data-log-mode": logMode,
+          "data-log-open": "0",
+          "data-log-url": logUrl,
+          "data-log-cursor": "",
+          "sse-swap": "log",
+          "hx-swap": "beforeend"
+        }
+      ) })
     ] })
   ] });
 };
@@ -104006,7 +112077,10 @@ function renderUi(games) {
           state: state2,
           connectAddress: ui.connectAddress,
           clientDownloadUrl: ui.clientDownloadUrl,
-          startBlocked: ui.startBlocked
+          startBlocked: ui.startBlocked,
+          logsEnabled: ui.logsEnabled,
+          logMode: ui.logMode,
+          logUrl: ui.logUrl
         },
         key
       )) }),
@@ -104017,58 +112091,44 @@ function renderUi(games) {
   ] });
   return "<!DOCTYPE html>" + page.toString();
 }
-function renderRowHeader(game, state2) {
-  const metaOnline = state2.status === "online";
-  const dot = state2.status === "online" ? "\u{1F7E2}" : state2.status === "starting" ? "\u{1F7E1}" : "\u26AB";
-  const frag = /* @__PURE__ */ jsxDEV(
-    "div",
-    {
-      id: `row-header-${game}`,
-      class: "row-header",
-      "hx-get": `/status?game=${game}`,
-      "hx-trigger": "every 5s",
-      "hx-target": `#row-header-${game}`,
-      "hx-swap": "outerHTML",
-      onclick: `toggleRow('${game}')`,
-      children: [
-        /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: dot }),
-        /* @__PURE__ */ jsxDEV("span", { class: "game-name", children: game }),
-        /* @__PURE__ */ jsxDEV("span", { class: "row-meta", children: [
-          metaOnline && state2.hostname ? /* @__PURE__ */ jsxDEV("span", { children: state2.hostname }) : null,
-          metaOnline && state2.map ? /* @__PURE__ */ jsxDEV("span", { children: state2.map }) : null,
-          metaOnline ? /* @__PURE__ */ jsxDEV("span", { children: [
-            state2.players,
-            " player",
-            state2.players !== 1 ? "s" : ""
-          ] }) : null,
-          !metaOnline ? /* @__PURE__ */ jsxDEV("span", { class: state2.status, children: state2.status }) : null
-        ] }),
-        /* @__PURE__ */ jsxDEV("button", { class: "expand-btn", id: `expand-btn-${game}`, children: "[expand \u25BC]" })
-      ]
-    }
-  );
-  return frag.toString();
-}
 
 // src/app.ts
 var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
 var SIDECAR_TOKEN3 = process.env.SIDECAR_TOKEN ?? "";
 var PUBLIC_HOST = process.env.PUBLIC_HOST ?? "localhost";
+var BACKEND = process.env.BACKEND ?? "ecs";
+var ENABLE_LOG_STREAMS = (process.env.ENABLE_LOG_STREAMS ?? "1") === "1";
+var REGION2 = process.env.AWS_REGION ?? "ca-central-1";
 var SIDECAR_HOST2 = process.env.SIDECAR_HOST ?? "localhost";
+var cloudwatchLogs = new import_client_cloudwatch_logs.CloudWatchLogsClient({ region: REGION2 });
 function statusFragment(state2) {
   const ip = state2.publicIp ? ` \u2014 ${state2.publicIp}` : "";
   const players = state2.players ? ` (${state2.players} players)` : "";
   return `<span class="status ${state2.status}">${state2.status}${ip}${players}</span>`;
 }
-function gameUiConfig(config, startBlocked) {
+function gameUiConfig(gameKey, config, state2, startBlocked) {
   const c5 = config;
+  const logMode = BACKEND === "ecs" ? "poll" : "sse";
   return {
     displayName: c5.displayName ?? null,
     connectAddress: c5.connectPort ? `${PUBLIC_HOST}:${c5.connectPort}` : null,
     clientDownloadUrl: c5.clientDownloadUrl ?? null,
-    startBlocked
+    startBlocked,
+    logsEnabled: ENABLE_LOG_STREAMS,
+    logMode,
+    logUrl: `/logs?game=${encodeURIComponent(gameKey)}`
   };
+}
+function splitLogMessages(events) {
+  const lines = [];
+  for (const event of events) {
+    const message = event.message ?? "";
+    for (const line of message.split("\n")) {
+      if (line !== "") lines.push(line);
+    }
+  }
+  return lines;
 }
 function occupiedHostPorts(games, cache6) {
   const occupied = /* @__PURE__ */ new Set();
@@ -104127,11 +112187,14 @@ function createApp(backend2, cache6) {
     }
     const games = backend2.getGames();
     const occupied = occupiedHostPorts(games, cache6);
-    const rows = Object.entries(games).map(([key, config]) => ({
-      key,
-      state: cache6.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() },
-      ui: gameUiConfig(config, hasPortConflict(config, occupied, key, games, cache6))
-    }));
+    const rows = Object.entries(games).map(([key, config]) => {
+      const state2 = cache6.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+      return {
+        key,
+        state: state2,
+        ui: gameUiConfig(key, config, state2, hasPortConflict(config, occupied, key, games, cache6))
+      };
+    });
     return c5.html(renderUi(rows));
   });
   app2.post("/", async (c5) => {
@@ -104179,19 +112242,38 @@ function createApp(backend2, cache6) {
     return c5.json(state2);
   });
   app2.get("/status", (c5) => {
-    const game = c5.req.query("game") ?? "";
     const games = backend2.getGames();
-    if (!games[game]) return c5.text(`unknown game: ${game}`, 400);
-    const state2 = cache6.get(game) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
-    return c5.html(renderRowHeader(game, state2));
+    const states = Object.fromEntries(
+      Object.keys(games).map((game) => [
+        game,
+        cache6.get(game) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() }
+      ])
+    );
+    return c5.json(states);
   });
   app2.get("/logs", async (c5) => {
+    if (!ENABLE_LOG_STREAMS) return c5.text("log streaming disabled for this deployment", 503);
     const token = c5.req.query("token") ?? "";
     if (token !== WEB_UI_PASSPHRASE) return c5.text("unauthorized", 401);
     const game = c5.req.query("game") ?? "";
     const games = backend2.getGames();
     const config = games[game];
     if (!config) return c5.text(`unknown game: ${game}`, 400);
+    if (BACKEND === "ecs") {
+      const ecsConfig = config;
+      if (!ecsConfig.logGroupName) return c5.json({ error: "log group not configured" }, 503);
+      const cursor2 = c5.req.query("cursor") ?? void 0;
+      const res = await cloudwatchLogs.send(new import_client_cloudwatch_logs.FilterLogEventsCommand({
+        logGroupName: ecsConfig.logGroupName,
+        nextToken: cursor2,
+        limit: 100,
+        startTime: cursor2 ? void 0 : Date.now() - 5 * 60 * 1e3
+      }));
+      return c5.json({
+        lines: splitLogMessages(res.events ?? []),
+        cursor: res.nextToken ?? cursor2 ?? null
+      });
+    }
     const cached = cache6.get(game);
     if (!cached || cached.status === "offline") return c5.text("game offline", 503);
     const sidecarUrl = `http://${SIDECAR_HOST2}:${config.sidecarPort}/logs`;
@@ -104266,13 +112348,13 @@ function createApp(backend2, cache6) {
 
 // src/server.ts
 var PORT = parseInt(process.env.PORT ?? "3000", 10);
-var BACKEND = process.env.BACKEND ?? "ecs";
+var BACKEND2 = process.env.BACKEND ?? "ecs";
 var backend = createBackend();
 var cache5 = new GameCache(backend);
 cache5.start();
 var app = createApp(backend, cache5);
 serve({ fetch: app.fetch, port: PORT }, (info) => {
-  log.info(`launcher listening on http://localhost:${info.port} (backend: ${BACKEND})`);
+  log.info(`launcher listening on http://localhost:${info.port} (backend: ${BACKEND2})`);
   const games = Object.keys(backend.getGames());
   log.info(`games: ${games.length > 0 ? games.join(", ") : "(none configured)"}`);
 });

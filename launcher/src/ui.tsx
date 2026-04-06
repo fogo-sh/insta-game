@@ -84,9 +84,102 @@ const css = `
 const initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
+  var STATUS_POLL_INTERVAL_MS = 5000;
 
   function getPassphrase() {
     return sessionStorage.getItem(SESSION_KEY) || "";
+  }
+
+  function statusDot(status) {
+    if (status === "online") return "🟢";
+    if (status === "starting") return "🟡";
+    return "⚫";
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
+
+  function renderRowHeader(game, state) {
+    var meta = [];
+    if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
+    if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
+    if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
+    if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
+    return ""
+      + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
+      + "<span class=\\"game-name\\">" + escapeHtml(game) + "</span>"
+      + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
+      + "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">" + "[expand ▼]" + "</button>";
+  }
+
+  function syncExpandButton(game) {
+    var body = document.getElementById("row-body-" + game);
+    var btn = document.getElementById("expand-btn-" + game);
+    if (!body || !btn) return;
+    btn.textContent = body.classList.contains("open") ? "[collapse ▲]" : "[expand ▼]";
+  }
+
+  function refreshStatuses() {
+    fetch("/status")
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(payload) {
+        Object.entries(payload).forEach(function(entry) {
+          var game = entry[0];
+          var state = entry[1];
+          var header = document.getElementById("row-header-" + game);
+          if (!header) return;
+          header.innerHTML = renderRowHeader(game, state);
+          syncExpandButton(game);
+        });
+      })
+      .catch(function() {});
+    window.setTimeout(refreshStatuses, STATUS_POLL_INTERVAL_MS);
+  }
+
+  function appendLogLines(inner, lines) {
+    lines.forEach(function(line) {
+      var div = document.createElement("div");
+      div.className = "log-line";
+      div.textContent = line;
+      inner.appendChild(div);
+    });
+    inner.scrollTop = inner.scrollHeight;
+  }
+
+  function pollLogs(game, inner) {
+    if (inner.getAttribute("data-log-mode") !== "poll") return;
+    if (inner.getAttribute("data-log-open") !== "1") return;
+    var pp = getPassphrase();
+    var cursor = inner.getAttribute("data-log-cursor") || "";
+    var url = inner.getAttribute("data-log-url");
+    if (!url) return;
+    var sep = url.indexOf("?") >= 0 ? "&" : "?";
+    fetch(url + sep + "token=" + encodeURIComponent(pp) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""))
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(payload) {
+        if (Array.isArray(payload.lines) && payload.lines.length > 0) {
+          appendLogLines(inner, payload.lines);
+        }
+        if (payload.cursor) inner.setAttribute("data-log-cursor", payload.cursor);
+      })
+      .catch(function(error) {
+        appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
+      })
+      .finally(function() {
+        if (inner.getAttribute("data-log-open") === "1") {
+          window.setTimeout(function() { pollLogs(game, inner); }, 2000);
+        }
+      });
   }
 
   // Toggle accordion open/close
@@ -143,13 +236,22 @@ const initScript = `
   // Toggle inline log panel open/closed
   window.toggleLogs = function(game) {
     var section = document.getElementById("log-section-" + game);
+    var inner = document.getElementById("log-sse-" + game);
     var isOpen = section.classList.toggle("open");
+    inner.setAttribute("data-log-open", isOpen ? "1" : "0");
     if (isOpen) {
-      var pp = getPassphrase();
-      var inner = document.getElementById("log-sse-" + game);
-      if (!inner.getAttribute("sse-connect")) {
+      if (inner.getAttribute("data-log-mode") === "poll") {
+        if (!inner.getAttribute("data-log-started")) {
+          inner.setAttribute("data-log-started", "1");
+          appendLogLines(inner, ["[connecting to " + game + " logs]"]);
+          pollLogs(game, inner);
+        }
+      } else if (!inner.getAttribute("sse-connect")) {
+        var pp = getPassphrase();
+        var baseUrl = inner.getAttribute("data-log-url");
+        var separator = baseUrl && baseUrl.indexOf("?") >= 0 ? "&" : "?";
         inner.setAttribute("hx-ext", "sse");
-        inner.setAttribute("sse-connect", "/logs?game=" + game + "&token=" + encodeURIComponent(pp));
+        inner.setAttribute("sse-connect", (baseUrl || "/logs?game=" + game) + separator + "token=" + encodeURIComponent(pp));
         htmx.process(inner);
         var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
         observer.observe(inner, { childList: true });
@@ -159,6 +261,7 @@ const initScript = `
 
   // Restore auth on page load
   (function() {
+    refreshStatuses();
     var pp = getPassphrase();
     if (!pp) return;
     fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
@@ -184,21 +287,20 @@ interface RowProps {
   connectAddress: string | null;
   clientDownloadUrl: string | null;
   startBlocked: boolean;
+  logsEnabled: boolean;
+  logMode: "sse" | "poll";
+  logUrl: string;
 }
 
-const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, clientDownloadUrl, startBlocked }) => {
+const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, clientDownloadUrl, startBlocked, logsEnabled, logMode, logUrl }) => {
   const metaOnline = state.status === "online";
   const indicator = `#status-result-${game}`;
   return (
     <div class="row" id={`row-${game}`}>
-      {/* Collapsed header — always visible, auto-refreshed by htmx every 30s */}
+      {/* Collapsed header — always visible, updated by one shared 5s poller. */}
       <div
         id={`row-header-${game}`}
         class="row-header"
-        hx-get={`/status?game=${game}`}
-        hx-trigger="every 5s"
-        hx-target={`#row-header-${game}`}
-        hx-swap="outerHTML"
         onclick={`toggleRow('${game}')`}
       >
         <StatusDot status={state.status} />
@@ -244,7 +346,7 @@ const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, 
               hx-indicator={indicator}
               hx-disabled-elt="this"
             >stop</button>
-            <button type="button" onclick={`toggleLogs('${game}')`}>logs</button>
+            {logsEnabled ? <button type="button" onclick={`toggleLogs('${game}')`}>logs</button> : null}
           </div>
           <div id={`status-result-${game}`} class="status-frag">
             <span class="htmx-indicator">working...</span>
@@ -254,8 +356,17 @@ const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, 
         {/* Inline log panel */}
         <div class="log-section" id={`log-section-${game}`}>
           {/* log-sse-* gets hx-ext="sse" + sse-connect set dynamically by toggleLogs()
-               sse-swap and hx-swap live on the same element so htmx.process() picks them up together */}
-          <div id={`log-sse-${game}`} class="log-panel" sse-swap="log" hx-swap="beforeend" />
+               sse-swap and hx-swap live on the same element so htmx.process() picks them up together. */}
+          <div
+            id={`log-sse-${game}`}
+            class="log-panel"
+            data-log-mode={logMode}
+            data-log-open="0"
+            data-log-url={logUrl}
+            data-log-cursor=""
+            sse-swap="log"
+            hx-swap="beforeend"
+          />
         </div>
       </div>
     </div>
@@ -267,6 +378,9 @@ export interface GameUiConfig {
   connectAddress: string | null;
   clientDownloadUrl: string | null;
   startBlocked: boolean;
+  logsEnabled: boolean;
+  logMode: "sse" | "poll";
+  logUrl: string;
 }
 
 export function renderUi(
@@ -307,6 +421,9 @@ export function renderUi(
               connectAddress={ui.connectAddress}
               clientDownloadUrl={ui.clientDownloadUrl}
               startBlocked={ui.startBlocked}
+              logsEnabled={ui.logsEnabled}
+              logMode={ui.logMode}
+              logUrl={ui.logUrl}
             />
           ))}
         </div>
@@ -317,34 +434,4 @@ export function renderUi(
     </html>
   );
   return "<!DOCTYPE html>" + page.toString();
-}
-
-export function renderRowHeader(
-  game: string,
-  state: CachedGameState
-): string {
-  const metaOnline = state.status === "online";
-  const dot = state.status === "online" ? "🟢" : state.status === "starting" ? "🟡" : "⚫";
-  const frag = (
-    <div
-      id={`row-header-${game}`}
-      class="row-header"
-      hx-get={`/status?game=${game}`}
-      hx-trigger="every 5s"
-      hx-target={`#row-header-${game}`}
-      hx-swap="outerHTML"
-      onclick={`toggleRow('${game}')`}
-    >
-      <span class="status-dot">{dot}</span>
-      <span class="game-name">{game}</span>
-      <span class="row-meta">
-        {metaOnline && state.hostname ? <span>{state.hostname}</span> : null}
-        {metaOnline && state.map ? <span>{state.map}</span> : null}
-        {metaOnline ? <span>{state.players} player{state.players !== 1 ? "s" : ""}</span> : null}
-        {!metaOnline ? <span class={state.status}>{state.status}</span> : null}
-      </span>
-      <button class="expand-btn" id={`expand-btn-${game}`}>[expand ▼]</button>
-    </div>
-  );
-  return frag.toString();
 }
