@@ -84,7 +84,12 @@ const css = `
 const initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var STATUS_POLL_INTERVAL_MS = 3000;
+  var STATUS_POLL_INTERVAL_MS = 10000;
+  var STATUS_RETRY_INTERVAL_MS = 30000;
+  var LOG_POLL_INTERVAL_MS = 5000;
+  var LOG_RETRY_INTERVAL_MS = 15000;
+  var POLL_PAUSE_AFTER_ADMIN_MS = 15000;
+  var suspendPollingUntil = 0;
 
   function getPassphrase() {
     return sessionStorage.getItem(SESSION_KEY) || "";
@@ -124,9 +129,18 @@ const initScript = `
   }
 
   function refreshStatuses() {
+    if (Date.now() < suspendPollingUntil) {
+      window.setTimeout(refreshStatuses, Math.max(1000, suspendPollingUntil - Date.now()));
+      return;
+    }
+    var retryDelay = STATUS_POLL_INTERVAL_MS;
     fetch("/status")
       .then(function(res) {
-        if (!res.ok) throw new Error("HTTP " + res.status);
+        if (!res.ok) {
+          var error = new Error("HTTP " + res.status);
+          error.status = res.status;
+          throw error;
+        }
         return res.json();
       })
       .then(function(payload) {
@@ -139,8 +153,16 @@ const initScript = `
           syncExpandButton(game);
         });
       })
-      .catch(function() {});
-    window.setTimeout(refreshStatuses, STATUS_POLL_INTERVAL_MS);
+      .catch(function(error) {
+        if (error.status === 429) retryDelay = STATUS_RETRY_INTERVAL_MS;
+      })
+      .finally(function() {
+        var delay = retryDelay;
+        if (Date.now() < suspendPollingUntil) {
+          delay = Math.max(1000, suspendPollingUntil - Date.now());
+        }
+        window.setTimeout(refreshStatuses, delay);
+      });
   }
 
   function appendLogLines(inner, lines) {
@@ -156,14 +178,23 @@ const initScript = `
   function pollLogs(game, inner) {
     if (inner.getAttribute("data-log-mode") !== "poll") return;
     if (inner.getAttribute("data-log-open") !== "1") return;
+    if (Date.now() < suspendPollingUntil) {
+      window.setTimeout(function() { pollLogs(game, inner); }, Math.max(1000, suspendPollingUntil - Date.now()));
+      return;
+    }
     var pp = getPassphrase();
     var cursor = inner.getAttribute("data-log-cursor") || "";
     var url = inner.getAttribute("data-log-url");
+    var retryDelay = LOG_POLL_INTERVAL_MS;
     if (!url) return;
     var sep = url.indexOf("?") >= 0 ? "&" : "?";
     fetch(url + sep + "token=" + encodeURIComponent(pp) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""))
       .then(function(res) {
-        if (!res.ok) throw new Error("HTTP " + res.status);
+        if (!res.ok) {
+          var error = new Error("HTTP " + res.status);
+          error.status = res.status;
+          throw error;
+        }
         return res.json();
       })
       .then(function(payload) {
@@ -173,11 +204,18 @@ const initScript = `
         if (payload.cursor) inner.setAttribute("data-log-cursor", payload.cursor);
       })
       .catch(function(error) {
-        appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
+        if (error.status === 429) retryDelay = LOG_RETRY_INTERVAL_MS;
+        if (error.status !== 429) {
+          appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
+        }
       })
       .finally(function() {
         if (inner.getAttribute("data-log-open") === "1") {
-          window.setTimeout(function() { pollLogs(game, inner); }, 2000);
+          var delay = retryDelay;
+          if (Date.now() < suspendPollingUntil) {
+            delay = Math.max(1000, suspendPollingUntil - Date.now());
+          }
+          window.setTimeout(function() { pollLogs(game, inner); }, delay);
         }
       });
   }
@@ -207,6 +245,13 @@ const initScript = `
     status.style.display = "";
     status.textContent = "admin";
   }
+
+  document.addEventListener("click", function(event) {
+    var target = event.target;
+    if (!(target instanceof Element)) return;
+    if (!target.closest("[data-admin-action]")) return;
+    suspendPollingUntil = Date.now() + POLL_PAUSE_AFTER_ADMIN_MS;
+  });
 
   // Top-level authenticate
   window.authenticate = function() {
@@ -334,6 +379,7 @@ const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, 
           <div class="admin-controls">
             <button
               hx-post={`/?game=${game}&operation=start`}
+              data-admin-action="start"
               hx-target={indicator}
               hx-indicator={indicator}
               hx-disabled-elt="this"
@@ -342,6 +388,7 @@ const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, 
             >start</button>
             <button
               hx-post={`/?game=${game}&operation=stop`}
+              data-admin-action="stop"
               hx-target={indicator}
               hx-indicator={indicator}
               hx-disabled-elt="this"
