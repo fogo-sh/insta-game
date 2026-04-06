@@ -37,6 +37,7 @@ function statusDot(status: string): string {
 
 export function renderRowHeaderContent(label: string, game: string, state: CachedGameState): string {
   const meta: string[] = [];
+  if (state.status === "online" && state.publicIp) meta.push(`<span>${escapeHtml(state.publicIp)}</span>`);
   if (state.status === "online" && state.hostname) meta.push(`<span>${escapeHtml(state.hostname)}</span>`);
   if (state.status === "online" && state.map) meta.push(`<span>${escapeHtml(state.map)}</span>`);
   if (state.status === "online") meta.push(`<span>${state.players} player${state.players !== 1 ? "s" : ""}</span>`);

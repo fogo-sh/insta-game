@@ -108674,6 +108674,7 @@ var DockerBackend = class {
       const ready = Boolean(sidecar.ready);
       return {
         status: running && ready ? "online" : "starting",
+        publicIp: "localhost",
         players: Number(sidecar.players ?? 0),
         hostname: String(sidecar.hostname ?? ""),
         map: String(sidecar.map ?? ""),
@@ -111178,6 +111179,7 @@ function statusDot(status) {
 }
 function renderRowHeaderContent(label, game, state2) {
   const meta2 = [];
+  if (state2.status === "online" && state2.publicIp) meta2.push(`<span>${escapeHtml(state2.publicIp)}</span>`);
   if (state2.status === "online" && state2.hostname) meta2.push(`<span>${escapeHtml(state2.hostname)}</span>`);
   if (state2.status === "online" && state2.map) meta2.push(`<span>${escapeHtml(state2.map)}</span>`);
   if (state2.status === "online") meta2.push(`<span>${state2.players} player${state2.players !== 1 ? "s" : ""}</span>`);
@@ -111220,6 +111222,7 @@ var initScript = `
 
   function renderRowHeader(label, game, state) {
     var meta = [];
+    if (state.status === "online" && state.publicIp) meta.push("<span>" + escapeHtml(state.publicIp) + "</span>");
     if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
     if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
     if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");

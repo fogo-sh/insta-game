@@ -29,6 +29,7 @@ export const initScript = `
 
   function renderRowHeader(label, game, state) {
     var meta = [];
+    if (state.status === "online" && state.publicIp) meta.push("<span>" + escapeHtml(state.publicIp) + "</span>");
     if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
     if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
     if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");

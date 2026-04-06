@@ -280,6 +280,7 @@ export class DockerBackend implements Backend {
       const ready = Boolean(sidecar.ready);
       return {
         status: running && ready ? "online" : "starting",
+        publicIp: "localhost",
         players: Number(sidecar.players ?? 0),
         hostname: String(sidecar.hostname ?? ""),
         map: String(sidecar.map ?? ""),
