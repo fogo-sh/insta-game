@@ -41,7 +41,7 @@ services:
       CONFIG_PATH: "/opt/id1/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      DATA_URL: "${FTEQW_DATA_URL}"
+      DATA_URL: "${FTEQW_DATA_URL:-}"
     volumes:
       - ./.cache/fteqw:/opt/id1
 
@@ -64,7 +64,7 @@ services:
       CONFIG_PATH: "/opt/baseq3/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      DATA_URL: "${IOQUAKE3_DATA_URL}"
+      DATA_URL: "${IOQUAKE3_DATA_URL:-}"
     volumes:
       - ./.cache/ioquake3:/opt/baseq3
 
@@ -109,7 +109,7 @@ services:
       CONFIG_PATH: "/opt/baseq2/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      DATA_URL: "${Q2REPRO_DATA_URL}"
+      DATA_URL: "${Q2REPRO_DATA_URL:-}"
     volumes:
       - ./.cache/q2repro:/opt/baseq2
 
@@ -136,7 +136,7 @@ services:
       CONFIG_PATH: "/opt/data/UnrealTournament.ini"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      DATA_URL: "${UT99_DATA_URL}"
+      DATA_URL: "${UT99_DATA_URL:-}"
     volumes:
       - ./.cache/ut99:/opt
 
@@ -158,7 +158,7 @@ services:
       GAME_PORT: "26000"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
-      DATA_URL: "${XONOTIC_DATA_URL}"
+      DATA_URL: "${XONOTIC_DATA_URL:-}"
 
   launcher:
     build:

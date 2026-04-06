@@ -74,7 +74,7 @@ def game_service(g: dict) -> str:
     lines.append(f'      RCON_PASSWORD: "${{RCON_PASSWORD:-abc123}}"')
     lines.append(f'      TOKEN: "abc123"')
     if data_url_env:
-        lines.append(f'      DATA_URL: "${{{data_url_env}}}"')
+        lines.append(f'      DATA_URL: "${{{data_url_env}:-}}"')
 
     # volumes
     if volumes:
