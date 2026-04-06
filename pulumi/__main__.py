@@ -366,6 +366,7 @@ launcher = aws.lambda_.Function(
     runtime="nodejs22.x",
     handler="index.handler",
     timeout=120,
+    reserved_concurrent_executions=5,
     role=lambda_role.arn,
     code=pulumi.FileArchive("../launcher/dist"),
     environment=aws.lambda_.FunctionEnvironmentArgs(
