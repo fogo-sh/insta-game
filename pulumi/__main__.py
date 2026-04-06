@@ -396,10 +396,13 @@ launcher = aws.lambda_.Function(
     reserved_concurrent_executions=launcher_reserved_concurrency,
 )
 
+launcher_log_group_name = f"/aws/lambda/{regional_name('launcher')}"
+
 launcher_log_group = aws.cloudwatch.LogGroup(
     "launcher-log-group",
-    name=launcher.name.apply(lambda name: f"/aws/lambda/{name}"),
+    name=launcher_log_group_name,
     retention_in_days=3,
+    opts=pulumi.ResourceOptions(import_=launcher_log_group_name),
 )
 
 # ---- Budget guardrail ----
