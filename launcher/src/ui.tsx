@@ -183,9 +183,10 @@ interface RowProps {
   state: CachedGameState;
   connectAddress: string | null;
   clientDownloadUrl: string | null;
+  startBlocked: boolean;
 }
 
-const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, clientDownloadUrl }) => {
+const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, clientDownloadUrl, startBlocked }) => {
   const metaOnline = state.status === "online";
   const indicator = `#status-result-${game}`;
   return (
@@ -234,6 +235,8 @@ const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, 
               hx-target={indicator}
               hx-indicator={indicator}
               hx-disabled-elt="this"
+              disabled={startBlocked || undefined}
+              title={startBlocked ? "a conflicting game is already running on the same port" : undefined}
             >start</button>
             <button
               hx-post={`/?game=${game}&operation=stop`}
@@ -263,6 +266,7 @@ export interface GameUiConfig {
   displayName: string | null;
   connectAddress: string | null;
   clientDownloadUrl: string | null;
+  startBlocked: boolean;
 }
 
 export function renderUi(
@@ -302,6 +306,7 @@ export function renderUi(
               state={state}
               connectAddress={ui.connectAddress}
               clientDownloadUrl={ui.clientDownloadUrl}
+              startBlocked={ui.startBlocked}
             />
           ))}
         </div>

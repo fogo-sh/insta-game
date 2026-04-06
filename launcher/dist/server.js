@@ -103899,7 +103899,7 @@ var StatusDot = ({ status }) => {
   if (status === "starting") return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u{1F7E1}" });
   return /* @__PURE__ */ jsxDEV("span", { class: "status-dot", children: "\u26AB" });
 };
-var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDownloadUrl }) => {
+var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDownloadUrl, startBlocked }) => {
   const metaOnline = state2.status === "online";
   const indicator = `#status-result-${game}`;
   return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
@@ -103947,6 +103947,8 @@ var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDo
               "hx-target": indicator,
               "hx-indicator": indicator,
               "hx-disabled-elt": "this",
+              disabled: startBlocked || void 0,
+              title: startBlocked ? "a conflicting game is already running on the same port" : void 0,
               children: "start"
             }
           ),
@@ -104003,7 +104005,8 @@ function renderUi(games) {
           displayName: ui.displayName,
           state: state2,
           connectAddress: ui.connectAddress,
-          clientDownloadUrl: ui.clientDownloadUrl
+          clientDownloadUrl: ui.clientDownloadUrl,
+          startBlocked: ui.startBlocked
         },
         key
       )) }),
@@ -104058,13 +104061,35 @@ function statusFragment(state2) {
   const players = state2.players ? ` (${state2.players} players)` : "";
   return `<span class="status ${state2.status}">${state2.status}${ip}${players}</span>`;
 }
-function gameUiConfig(config) {
+function gameUiConfig(config, startBlocked) {
   const c5 = config;
   return {
     displayName: c5.displayName ?? null,
     connectAddress: c5.connectPort ? `${PUBLIC_HOST}:${c5.connectPort}` : null,
-    clientDownloadUrl: c5.clientDownloadUrl ?? null
+    clientDownloadUrl: c5.clientDownloadUrl ?? null,
+    startBlocked
   };
+}
+function occupiedHostPorts(games, cache6) {
+  const occupied = /* @__PURE__ */ new Set();
+  for (const [key, config] of Object.entries(games)) {
+    const state2 = cache6.get(key);
+    if (!state2 || state2.status === "offline") continue;
+    const ports = config.ports ?? {};
+    for (const binding of Object.values(ports)) {
+      occupied.add(binding.hostPort);
+    }
+  }
+  return occupied;
+}
+function hasPortConflict(config, occupied, ownKey, games, cache6) {
+  const ownState = cache6.get(ownKey);
+  if (ownState && ownState.status !== "offline") return false;
+  const ports = config.ports ?? {};
+  for (const binding of Object.values(ports)) {
+    if (occupied.has(binding.hostPort)) return true;
+  }
+  return false;
 }
 function createApp(backend2, cache6) {
   const app2 = new Hono2();
@@ -104101,10 +104126,11 @@ function createApp(backend2, cache6) {
       return c5.text("ok");
     }
     const games = backend2.getGames();
+    const occupied = occupiedHostPorts(games, cache6);
     const rows = Object.entries(games).map(([key, config]) => ({
       key,
       state: cache6.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() },
-      ui: gameUiConfig(config)
+      ui: gameUiConfig(config, hasPortConflict(config, occupied, key, games, cache6))
     }));
     return c5.html(renderUi(rows));
   });

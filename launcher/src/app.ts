@@ -21,13 +21,49 @@ function statusFragment(state: { status: string; publicIp?: string; players?: nu
   return `<span class="status ${state.status}">${state.status}${ip}${players}</span>`;
 }
 
-function gameUiConfig(config: GameConfig): GameUiConfig {
+function gameUiConfig(config: GameConfig, startBlocked: boolean): GameUiConfig {
   const c = config as DockerGameConfig;
   return {
     displayName: c.displayName ?? null,
     connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
     clientDownloadUrl: c.clientDownloadUrl ?? null,
+    startBlocked,
   };
+}
+
+// Returns the set of host ports currently occupied by non-offline games
+function occupiedHostPorts(
+  games: Record<string, GameConfig>,
+  cache: GameCache
+): Set<string> {
+  const occupied = new Set<string>();
+  for (const [key, config] of Object.entries(games)) {
+    const state = cache.get(key);
+    if (!state || state.status === "offline") continue;
+    const ports = (config as DockerGameConfig).ports ?? {};
+    for (const binding of Object.values(ports)) {
+      occupied.add(binding.hostPort);
+    }
+  }
+  return occupied;
+}
+
+// Returns true if any of this game's host ports are occupied by another game
+function hasPortConflict(
+  config: GameConfig,
+  occupied: Set<string>,
+  ownKey: string,
+  games: Record<string, GameConfig>,
+  cache: GameCache
+): boolean {
+  const ownState = cache.get(ownKey);
+  // Don't block a game that's already running/starting — it owns its ports
+  if (ownState && ownState.status !== "offline") return false;
+  const ports = (config as DockerGameConfig).ports ?? {};
+  for (const binding of Object.values(ports)) {
+    if (occupied.has(binding.hostPort)) return true;
+  }
+  return false;
 }
 
 export function createApp(backend: Backend, cache: GameCache): Hono {
@@ -72,10 +108,11 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
 
     // Render public page
     const games = backend.getGames();
+    const occupied = occupiedHostPorts(games, cache);
     const rows = Object.entries(games).map(([key, config]) => ({
       key,
       state: cache.get(key) ?? { status: "offline" as const, players: 0, hostname: "", map: "", updatedAt: new Date() },
-      ui: gameUiConfig(config),
+      ui: gameUiConfig(config, hasPortConflict(config, occupied, key, games, cache)),
     }));
     return c.html(renderUi(rows));
   });
