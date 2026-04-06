@@ -41,7 +41,7 @@ export class EcsBackend implements Backend {
       const running = Boolean(sidecar.running);
       const ready = Boolean(sidecar.ready);
       const players = Number(sidecar.players ?? 0);
-      return { status: running && ready ? "online" : "starting", publicIp, players, ready };
+      return { status: running ? "online" : "starting", publicIp, players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
     }
@@ -64,9 +64,8 @@ export class EcsBackend implements Backend {
       const sidecar = await getSidecarStatus(publicIp, c.sidecarPort);
       if (!sidecar) return { ...offline, status: "starting" };
       const running = Boolean(sidecar.running);
-      const ready = Boolean(sidecar.ready);
       return {
-        status: running && ready ? "online" : "starting",
+        status: running ? "online" : "starting",
         publicIp,
         players: Number(sidecar.players ?? 0),
         hostname: String(sidecar.hostname ?? ""),
