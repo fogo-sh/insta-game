@@ -34,7 +34,7 @@ services:
       - "127.0.0.1:5001:5001/tcp"
     environment:
       GAME_CMD: "./fteqw.sv"
-      GAME_ARGS: "-dedicated 12 -nohome -basedir /opt -game id1 -port 26000 +exec server.cfg"
+      GAME_ARGS: "-dedicated 12 -nohome -basedir /opt -game id1 -game frikbot -port 26000 +exec server.cfg"
       GAME_QUIT_CMD: "quit"
       GAME_QUIT_TIMEOUT: "15"
       GAME_PORT: "26000"
