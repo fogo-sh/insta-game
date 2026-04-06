@@ -94,6 +94,33 @@ function hasPortConflict(
 export function createApp(backend: Backend, cache: GameCache): Hono {
   const app = new Hono();
 
+  app.use("*", async (c, next) => {
+    const startedAt = Date.now();
+    const method = c.req.method;
+    const path = c.req.path;
+    const query = c.req.query();
+    const game = query.game ? ` game=${query.game}` : "";
+    const operation = query.operation ? ` op=${query.operation}` : "";
+
+    try {
+      await next();
+    } catch (error) {
+      log.error(`http: ${method} ${path}${game}${operation} failed`, error);
+      throw error;
+    }
+
+    const durationMs = Date.now() - startedAt;
+    const status = c.res.status;
+    const base = `http: ${method} ${path}${game}${operation} -> ${status} (${durationMs}ms)`;
+    if (status >= 500) {
+      log.error(base);
+    } else if (status >= 400) {
+      log.warn(base);
+    } else {
+      log.info(base);
+    }
+  });
+
   // Public status page — no auth required
   app.get("/", async c => {
     const passphrase = c.req.header("x-passphrase") ?? "";

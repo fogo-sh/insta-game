@@ -112194,6 +112194,30 @@ function hasPortConflict(config, occupied, ownKey, games, cache6) {
 }
 function createApp(backend2, cache6) {
   const app2 = new Hono2();
+  app2.use("*", async (c5, next) => {
+    const startedAt = Date.now();
+    const method = c5.req.method;
+    const path2 = c5.req.path;
+    const query = c5.req.query();
+    const game = query.game ? ` game=${query.game}` : "";
+    const operation2 = query.operation ? ` op=${query.operation}` : "";
+    try {
+      await next();
+    } catch (error2) {
+      log.error(`http: ${method} ${path2}${game}${operation2} failed`, error2);
+      throw error2;
+    }
+    const durationMs = Date.now() - startedAt;
+    const status = c5.res.status;
+    const base = `http: ${method} ${path2}${game}${operation2} -> ${status} (${durationMs}ms)`;
+    if (status >= 500) {
+      log.error(base);
+    } else if (status >= 400) {
+      log.warn(base);
+    } else {
+      log.info(base);
+    }
+  });
   app2.get("/", async (c5) => {
     const passphrase = c5.req.header("x-passphrase") ?? "";
     const game = c5.req.query("game");
