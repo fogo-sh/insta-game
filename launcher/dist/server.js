@@ -108307,8 +108307,6 @@ var import_client_ec2 = __toESM(require_dist_cjs57());
 var REGION = process.env.AWS_REGION ?? "ca-central-1";
 var CLUSTER = process.env.ECS_CLUSTER ?? "";
 var SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
-var MAX_POLLS = 10;
-var POLL_INTERVAL_MS = 5e3;
 var ecs = new import_client_ecs.ECSClient({ region: REGION });
 var ec2 = new import_client_ec2.EC2Client({ region: REGION });
 var EcsBackend = class {
@@ -108371,19 +108369,18 @@ var EcsBackend = class {
   async stopGame(config) {
     const c5 = config;
     await setDesiredCount(c5.serviceName, 0);
-    return waitForState(this, config, "offline");
+    return { status: "offline", players: 0, ready: false };
   }
   async startGame(config, configUrl) {
     const c5 = config;
-    await this.stopGame(config);
+    const current = await this.getGameState(config);
+    if (current.status === "online" && !configUrl) return current;
     await setDesiredCount(c5.serviceName, 1);
-    let state2 = await waitForState(this, config, "online");
-    if (configUrl && state2.status === "online" && state2.publicIp) {
-      await restartWithConfig(state2.publicIp, c5.sidecarPort, configUrl);
-      state2 = await waitForState(this, config, "online");
-      state2.configUrl = configUrl;
+    if (configUrl && current.publicIp) {
+      await restartWithConfig(current.publicIp, c5.sidecarPort, configUrl);
+      return { ...current, configUrl };
     }
-    return state2;
+    return { status: "starting", players: 0, ready: false };
   }
 };
 async function setDesiredCount(serviceName, count) {
@@ -108397,15 +108394,6 @@ async function getSidecarStatus(ip, port) {
   } catch {
     return null;
   }
-}
-async function waitForState(backend2, config, desired) {
-  let state2 = await backend2.getGameState(config);
-  for (let i5 = 0; i5 < MAX_POLLS; i5++) {
-    if (state2.status === desired) return state2;
-    await new Promise((r5) => setTimeout(r5, POLL_INTERVAL_MS));
-    state2 = await backend2.getGameState(config);
-  }
-  return state2;
 }
 async function restartWithConfig(ip, port, configUrl) {
   await fetch(`http://${ip}:${port}/restart`, {
@@ -108460,8 +108448,8 @@ var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
 var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 var DATA_DIR = process.env.DATA_DIR ?? "/data";
 var HOST_DATA_DIR = process.env.HOST_DATA_DIR ?? DATA_DIR;
-var MAX_POLLS2 = 20;
-var POLL_INTERVAL_MS2 = 3e3;
+var MAX_POLLS = 20;
+var POLL_INTERVAL_MS = 3e3;
 var RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
 function dockerRequest(method, path2, body) {
   return new Promise((resolve, reject) => {
@@ -108598,16 +108586,16 @@ async function getSidecarStatus2(port) {
     return null;
   }
 }
-async function waitForState2(backend2, config, desired) {
+async function waitForState(backend2, config, desired) {
   const c5 = config;
   let state2 = await backend2.getGameState(config);
-  for (let i5 = 0; i5 < MAX_POLLS2; i5++) {
+  for (let i5 = 0; i5 < MAX_POLLS; i5++) {
     if (state2.status === desired) return state2;
-    log.info(`docker: waiting for ${c5.containerName} to be ${desired} (currently ${state2.status}, poll ${i5 + 1}/${MAX_POLLS2})`);
-    await new Promise((r5) => setTimeout(r5, POLL_INTERVAL_MS2));
+    log.info(`docker: waiting for ${c5.containerName} to be ${desired} (currently ${state2.status}, poll ${i5 + 1}/${MAX_POLLS})`);
+    await new Promise((r5) => setTimeout(r5, POLL_INTERVAL_MS));
     state2 = await backend2.getGameState(config);
   }
-  if (state2.status !== desired) log.warn(`docker: ${c5.containerName} did not reach ${desired} after ${MAX_POLLS2} polls (stuck at ${state2.status})`);
+  if (state2.status !== desired) log.warn(`docker: ${c5.containerName} did not reach ${desired} after ${MAX_POLLS} polls (stuck at ${state2.status})`);
   return state2;
 }
 async function restartWithConfig2(port, configUrl) {
@@ -108704,13 +108692,13 @@ var DockerBackend = class {
       log.error(`docker: failed to start ${c5.containerName}`, err);
       return { status: "offline", players: 0, ready: false };
     }
-    let state2 = await waitForState2(this, config, "online");
+    let state2 = await waitForState(this, config, "online");
     if (configUrl && state2.status === "online") {
       const inspect = await inspectContainer(c5.containerName);
       const hostPort = inspect ? getHostPort(inspect, c5.sidecarPort) : null;
       if (hostPort) {
         await restartWithConfig2(hostPort, configUrl);
-        state2 = await waitForState2(this, config, "online");
+        state2 = await waitForState(this, config, "online");
         state2.configUrl = configUrl;
       }
     }
@@ -108725,7 +108713,7 @@ var DockerBackend = class {
       log.error(`docker: failed to stop ${c5.containerName}`, err);
       return { status: "offline", players: 0, ready: false };
     }
-    return waitForState2(this, config, "offline");
+    return waitForState(this, config, "offline");
   }
 };
 
@@ -108737,7 +108725,7 @@ function createBackend() {
 }
 
 // src/cache.ts
-var POLL_INTERVAL_MS3 = 5e3;
+var POLL_INTERVAL_MS2 = 5e3;
 var GameCache = class {
   constructor(backend2) {
     this.backend = backend2;
@@ -108751,7 +108739,7 @@ var GameCache = class {
     void this.pollAll();
     this.timer = setInterval(() => {
       void this.pollAll();
-    }, POLL_INTERVAL_MS3);
+    }, POLL_INTERVAL_MS2);
   }
   stop() {
     if (this.timer) {
@@ -111769,7 +111757,7 @@ var css = `
 var initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var STATUS_POLL_INTERVAL_MS = 5000;
+  var STATUS_POLL_INTERVAL_MS = 3000;
 
   function getPassphrase() {
     return sessionStorage.getItem(SESSION_KEY) || "";

@@ -5,8 +5,6 @@ import type { Backend, GameConfig, GameState, CachedGameState } from "../backend
 const REGION = process.env.AWS_REGION ?? "ca-central-1";
 const CLUSTER = process.env.ECS_CLUSTER ?? "";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
-const MAX_POLLS = 10;
-const POLL_INTERVAL_MS = 5000;
 
 const ecs = new ECSClient({ region: REGION });
 const ec2 = new EC2Client({ region: REGION });
@@ -83,20 +81,22 @@ export class EcsBackend implements Backend {
   async stopGame(config: GameConfig): Promise<GameState> {
     const c = config as EcsGameConfig;
     await setDesiredCount(c.serviceName, 0);
-    return waitForState(this, config, "offline");
+    return { status: "offline", players: 0, ready: false };
   }
 
   async startGame(config: GameConfig, configUrl?: string): Promise<GameState> {
     const c = config as EcsGameConfig;
-    await this.stopGame(config);
+    const current = await this.getGameState(config);
+    if (current.status === "online" && !configUrl) return current;
+
     await setDesiredCount(c.serviceName, 1);
-    let state = await waitForState(this, config, "online");
-    if (configUrl && state.status === "online" && state.publicIp) {
-      await restartWithConfig(state.publicIp, c.sidecarPort, configUrl);
-      state = await waitForState(this, config, "online");
-      state.configUrl = configUrl;
+
+    if (configUrl && current.publicIp) {
+      await restartWithConfig(current.publicIp, c.sidecarPort, configUrl);
+      return { ...current, configUrl };
     }
-    return state;
+
+    return { status: "starting", players: 0, ready: false };
   }
 }
 
@@ -112,16 +112,6 @@ async function getSidecarStatus(ip: string, port: number): Promise<Record<string
   } catch {
     return null;
   }
-}
-
-async function waitForState(backend: EcsBackend, config: GameConfig, desired: "online" | "offline"): Promise<GameState> {
-  let state = await backend.getGameState(config);
-  for (let i = 0; i < MAX_POLLS; i++) {
-    if (state.status === desired) return state;
-    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
-    state = await backend.getGameState(config);
-  }
-  return state;
 }
 
 async function restartWithConfig(ip: string, port: number, configUrl: string): Promise<void> {

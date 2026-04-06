@@ -84,7 +84,7 @@ const css = `
 const initScript = `
 (function() {
   var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var STATUS_POLL_INTERVAL_MS = 5000;
+  var STATUS_POLL_INTERVAL_MS = 3000;
 
   function getPassphrase() {
     return sessionStorage.getItem(SESSION_KEY) || "";
