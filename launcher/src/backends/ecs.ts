@@ -28,7 +28,6 @@ export class EcsBackend implements Backend {
 
       const descRes = await ecs.send(new DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
       const task = descRes.tasks?.[0];
-      const taskRunning = task?.lastStatus === "RUNNING";
       const eniId = task?.attachments?.[0]?.details?.find(d => d.name === "networkInterfaceId")?.value;
       if (!eniId) return { status: "starting", players: 0, ready: false };
 
@@ -37,12 +36,11 @@ export class EcsBackend implements Backend {
       if (!publicIp) return { status: "starting", players: 0, ready: false };
 
       const sidecar = await getSidecarStatus(publicIp, c.sidecarPort);
-      if (!sidecar) return { status: taskRunning ? "online" : "starting", publicIp, players: 0, ready: false };
+      if (!sidecar) return { status: "starting", publicIp, players: 0, ready: false };
 
-      const running = Boolean(sidecar.running);
       const ready = Boolean(sidecar.ready);
       const players = Number(sidecar.players ?? 0);
-      return { status: running || taskRunning ? "online" : "starting", publicIp, players, ready };
+      return { status: ready ? "online" : "starting", publicIp, players, ready };
     } catch {
       return { status: "offline", players: 0, ready: false };
     }
@@ -57,17 +55,16 @@ export class EcsBackend implements Backend {
       if (!taskArn) return offline;
       const descRes = await ecs.send(new DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }));
       const task = descRes.tasks?.[0];
-      const taskRunning = task?.lastStatus === "RUNNING";
       const eniId = task?.attachments?.[0]?.details?.find(d => d.name === "networkInterfaceId")?.value;
       if (!eniId) return { ...offline, status: "starting" };
       const eniRes = await ec2.send(new DescribeNetworkInterfacesCommand({ NetworkInterfaceIds: [eniId] }));
       const publicIp = eniRes.NetworkInterfaces?.[0]?.Association?.PublicIp;
       if (!publicIp) return { ...offline, status: "starting" };
       const sidecar = await getSidecarStatus(publicIp, c.sidecarPort);
-      if (!sidecar) return { ...offline, publicIp, status: taskRunning ? "online" : "starting" };
-      const running = Boolean(sidecar.running);
+      if (!sidecar) return { ...offline, publicIp, status: "starting" };
+      const ready = Boolean(sidecar.ready);
       return {
-        status: running || taskRunning ? "online" : "starting",
+        status: ready ? "online" : "starting",
         publicIp,
         players: Number(sidecar.players ?? 0),
         hostname: String(sidecar.hostname ?? ""),
