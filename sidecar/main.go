@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -449,8 +450,13 @@ players:  %d%s
 	}
 }
 
+// bareAnsi matches ANSI-like sequences that are missing the ESC byte (e.g. q2repro output)
+var bareAnsi = regexp.MustCompile(`\[[\d;]*m`)
+
 // toHTML converts a single log line from ANSI escape codes to HTML.
+// Bare bracket sequences (missing ESC) are stripped first.
 func toHTML(line string) string {
+	line = bareAnsi.ReplaceAllString(line, "")
 	return strings.TrimRight(string(terminal.Render([]byte(line))), "\n")
 }
 
