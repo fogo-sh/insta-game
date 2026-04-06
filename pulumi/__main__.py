@@ -225,6 +225,12 @@ aws.iam.RolePolicyAttachment(
     policy_arn=lambda_policy.arn,
 )
 
+aws.iam.RolePolicyAttachment(
+    "lambda-basic-execution-role-policy",
+    role=lambda_role.name,
+    policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+)
+
 # ECS task execution role — allows Fargate to pull images and write logs
 ecs_execution_role = aws.iam.Role(
     "ecs-execution-role",
