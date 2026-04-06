@@ -1,17 +1,23 @@
+#
+# syntax=docker/dockerfile:1.7
+
 FROM golang:1.26-bookworm AS sidecar-builder
 WORKDIR /build
 COPY sidecar/ ./
-RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
 
 FROM debian:bookworm-slim AS builder
 
-RUN apt-get update && apt-get -y install --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get -y install --no-install-recommends \
     ca-certificates gcc git make \
     zlib1g-dev libjpeg-dev libpng-dev libcurl4-openssl-dev \
-    automake autoconf libtool libgmp-dev \
-    && rm -rf /var/lib/apt/lists/*
+    automake autoconf libtool libgmp-dev
 
-RUN git clone https://gitlab.com/xonotic/xonotic.git /build/xonotic
+RUN git clone --depth 1 --filter=blob:none https://gitlab.com/xonotic/xonotic.git /build/xonotic
 WORKDIR /build/xonotic
 RUN ./all update -l best -r darkplaces d0_blind_id
 
@@ -23,9 +29,10 @@ RUN make sv-release
 
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get -y install --no-install-recommends \
-    ca-certificates libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g \
-    && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get -y install --no-install-recommends \
+    ca-certificates libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
 

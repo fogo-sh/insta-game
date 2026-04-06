@@ -346,7 +346,19 @@ launcher_games = {
 }
 
 launcher_game_ids = [metadata["id"] for metadata in game_definitions]
-launcher_game_services = [game_services[game_id].service_name for game_id in launcher_game_ids]
+launcher_game_configs = {
+    game_id: pulumi.Output.all(
+        service_name=game_services[game_id].service_name,
+        log_group_name=game_services[game_id].log_group_name,
+    ).apply(
+        lambda args, game_id=game_id: {
+            "serviceName": args["service_name"],
+            "sidecarPort": launcher_games[game_id]["sidecarPort"],
+            "logGroupName": args["log_group_name"],
+        }
+    )
+    for game_id in launcher_game_ids
+}
 
 launcher = aws.lambda_.Function(
     "launcher",
@@ -358,33 +370,24 @@ launcher = aws.lambda_.Function(
     code=pulumi.FileArchive("../launcher/dist"),
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables=pulumi.Output.all(
-            sidecar_token,
-            cluster.name,
-            web_ui_passphrase,
-            api_token,
-            discord_public_key,
-            discord_bot_token,
-            discord_app_id,
-            *launcher_game_services,
+            sidecar_token=sidecar_token,
+            cluster_name=cluster.name,
+            web_ui_passphrase=web_ui_passphrase,
+            api_token=api_token,
+            discord_public_key=discord_public_key,
+            discord_bot_token=discord_bot_token,
+            discord_app_id=discord_app_id,
+            games=pulumi.Output.all(**launcher_game_configs),
         ).apply(
             lambda args: {
-                "SIDECAR_TOKEN": args[0],
-                "ECS_CLUSTER": args[1],
-                "WEB_UI_PASSPHRASE": args[2],
-                "API_TOKEN": args[3],
-                "DISCORD_PUBLIC_KEY": args[4],
-                "DISCORD_BOT_TOKEN": args[5],
-                "DISCORD_APP_ID": args[6],
-                "GAMES": json.dumps(
-                    {
-                        game_id: {
-                            "serviceName": args[index + 7],
-                            "sidecarPort": launcher_games[game_id]["sidecarPort"],
-                            "logGroupName": launcher_games[game_id]["logGroupName"],
-                        }
-                        for index, game_id in enumerate(launcher_game_ids)
-                    }
-                ),
+                "SIDECAR_TOKEN": args["sidecar_token"],
+                "ECS_CLUSTER": args["cluster_name"],
+                "WEB_UI_PASSPHRASE": args["web_ui_passphrase"],
+                "API_TOKEN": args["api_token"],
+                "DISCORD_PUBLIC_KEY": args["discord_public_key"],
+                "DISCORD_BOT_TOKEN": args["discord_bot_token"],
+                "DISCORD_APP_ID": args["discord_app_id"],
+                "GAMES": json.dumps(args["games"]),
             }
         ),
     ),
