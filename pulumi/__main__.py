@@ -102,7 +102,7 @@ game_definitions = load_game_definitions()
 
 # ---- VPC ----
 
-azs = ["ca-central-1a", "ca-central-1b", "ca-central-1d"]
+azs = aws.get_availability_zones(state="available").names[:3]
 base_network = ipaddress.IPv4Network(cidr_block)
 subnet_cidrs = [str(s) for s in list(base_network.subnets(prefixlen_diff=8))[: len(azs)]]
 

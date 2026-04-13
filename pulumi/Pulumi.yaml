@@ -6,4 +6,4 @@ runtime:
 description: insta-game AWS infrastructure
 config:
   aws:region:
-    value: ca-central-1
+    value: ap-northeast-3
