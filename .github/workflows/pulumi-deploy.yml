@@ -87,3 +87,11 @@ jobs:
           diff: true
           refresh: true
           upsert: false
+
+      - name: Register Discord slash commands
+        if: ${{ env.DISCORD_APP_ID != '' && env.DISCORD_BOT_TOKEN != '' }}
+        run: npm run register
+        working-directory: launcher
+        env:
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
