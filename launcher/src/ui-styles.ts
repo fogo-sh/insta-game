@@ -32,8 +32,11 @@ export const css = `
   .row-body.open { display: block; }
 
   .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
-  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; cursor: pointer; }
-  .connect code:hover { background: #2a2a2a; }
+  .connect { display: flex; align-items: center; gap: 0.4rem; }
+  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; user-select: text; cursor: text; }
+  .copy-btn { background: #333; border: 1px solid #555; color: #aaa; cursor: pointer; font-family: monospace; font-size: 0.75rem; padding: 0.15rem 0.4rem; line-height: 1; }
+  .copy-btn:hover { background: #444; color: #eee; }
+  .copy-btn.copied { color: #4f4; border-color: #4f4; }
   .client-link { font-size: 0.85rem; color: #aaa; }
   .client-link a { color: #88f; text-decoration: none; }
   .client-link a:hover { text-decoration: underline; }
@@ -92,8 +95,8 @@ export const css = `
 
     .row-body { padding: 0.75rem; }
     .row-details { gap: 0.75rem; margin-bottom: 0.75rem; }
-    .connect { width: 100%; }
-    .connect code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+    .connect { width: 100%; flex-wrap: wrap; }
+    .connect code { max-width: calc(100% - 4rem); overflow-wrap: anywhere; }
 
     .admin-controls { gap: 0.75rem; }
     .admin-controls button {

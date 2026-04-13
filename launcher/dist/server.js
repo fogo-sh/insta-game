@@ -111339,8 +111339,17 @@ var initScript = `
     btn.textContent = open ? "[collapse \u25B2]" : "[expand \u25BC]";
   };
 
-  window.copyConnect = function(text) {
-    navigator.clipboard.writeText(text).catch(function() {});
+  window.copyConnect = function(text, btn) {
+    navigator.clipboard.writeText(text).then(function() {
+      if (!btn) return;
+      var orig = btn.textContent;
+      btn.textContent = "\u2713";
+      btn.classList.add("copied");
+      window.setTimeout(function() {
+        btn.textContent = orig;
+        btn.classList.remove("copied");
+      }, 1500);
+    }).catch(function() {});
   };
 
   function unlockAll(pp) {
@@ -111463,8 +111472,11 @@ var css = `
   .row-body.open { display: block; }
 
   .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
-  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; cursor: pointer; }
-  .connect code:hover { background: #2a2a2a; }
+  .connect { display: flex; align-items: center; gap: 0.4rem; }
+  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; user-select: text; cursor: text; }
+  .copy-btn { background: #333; border: 1px solid #555; color: #aaa; cursor: pointer; font-family: monospace; font-size: 0.75rem; padding: 0.15rem 0.4rem; line-height: 1; }
+  .copy-btn:hover { background: #444; color: #eee; }
+  .copy-btn.copied { color: #4f4; border-color: #4f4; }
   .client-link { font-size: 0.85rem; color: #aaa; }
   .client-link a { color: #88f; text-decoration: none; }
   .client-link a:hover { text-decoration: underline; }
@@ -111523,8 +111535,8 @@ var css = `
 
     .row-body { padding: 0.75rem; }
     .row-details { gap: 0.75rem; margin-bottom: 0.75rem; }
-    .connect { width: 100%; }
-    .connect code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+    .connect { width: 100%; flex-wrap: wrap; }
+    .connect code { max-width: calc(100% - 4rem); overflow-wrap: anywhere; }
 
     .admin-controls { gap: 0.75rem; }
     .admin-controls button {
@@ -112087,7 +112099,8 @@ var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDo
       /* @__PURE__ */ jsxDEV("div", { class: "row-details", children: [
         connectAddress ? /* @__PURE__ */ jsxDEV("div", { class: "connect", children: [
           "connect: ",
-          /* @__PURE__ */ jsxDEV("code", { onclick: `copyConnect(${JSON.stringify(connectAddress)})`, title: "click to copy", children: connectAddress })
+          /* @__PURE__ */ jsxDEV("code", { id: `connect-${game}`, children: connectAddress }),
+          /* @__PURE__ */ jsxDEV("button", { type: "button", class: "copy-btn", onclick: `copyConnect(${JSON.stringify(connectAddress)}, this)`, title: "copy to clipboard", children: "copy" })
         ] }) : null,
         clientDownloadUrl ? /* @__PURE__ */ jsxDEV("div", { class: "client-link", children: /* @__PURE__ */ jsxDEV("a", { href: clientDownloadUrl, target: "_blank", rel: "noopener", children: "get client \u2197" }) }) : null
       ] }),

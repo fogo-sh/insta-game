@@ -149,8 +149,17 @@ export const initScript = `
     btn.textContent = open ? "[collapse ▲]" : "[expand ▼]";
   };
 
-  window.copyConnect = function(text) {
-    navigator.clipboard.writeText(text).catch(function() {});
+  window.copyConnect = function(text, btn) {
+    navigator.clipboard.writeText(text).then(function() {
+      if (!btn) return;
+      var orig = btn.textContent;
+      btn.textContent = "✓";
+      btn.classList.add("copied");
+      window.setTimeout(function() {
+        btn.textContent = orig;
+        btn.classList.remove("copied");
+      }, 1500);
+    }).catch(function() {});
   };
 
   function unlockAll(pp) {

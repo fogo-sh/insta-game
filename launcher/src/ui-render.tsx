@@ -40,7 +40,8 @@ const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, 
         <div class="row-details">
           {connectAddress ? (
             <div class="connect">
-              connect: <code onclick={`copyConnect(${JSON.stringify(connectAddress)})`} title="click to copy">{connectAddress}</code>
+              connect: <code id={`connect-${game}`}>{connectAddress}</code>
+              <button type="button" class="copy-btn" onclick={`copyConnect(${JSON.stringify(connectAddress)}, this)`} title="copy to clipboard">copy</button>
             </div>
           ) : null}
           {clientDownloadUrl ? (
