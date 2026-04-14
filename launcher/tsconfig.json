@@ -1,17 +1,16 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": ["ES2022", "DOM"],
-    "types": ["node"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "strict": true,
-    "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": ".",
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx"
+    "rootDir": "src"
   },
-  "include": ["src/**/*", "register-commands.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
