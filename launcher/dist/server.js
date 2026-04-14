@@ -111174,18 +111174,19 @@ function statusDot(status) {
   if (status === "starting") return "\u{1F7E1}";
   return "\u26AB";
 }
-function renderRowHeaderContent(label, game, state2) {
+function renderRowHeaderContent(label, game, state2, expandable = state2.status !== "offline") {
   const meta2 = [];
   if (state2.status === "online" && state2.publicIp) meta2.push(`<span>${escapeHtml(state2.publicIp)}</span>`);
   if (state2.status === "online" && state2.hostname) meta2.push(`<span>${escapeHtml(state2.hostname)}</span>`);
   if (state2.status === "online" && state2.map) meta2.push(`<span>${escapeHtml(state2.map)}</span>`);
   if (state2.status === "online") meta2.push(`<span>${state2.players} player${state2.players !== 1 ? "s" : ""}</span>`);
   if (state2.status !== "online") meta2.push(`<span class="${state2.status}">${state2.status}</span>`);
+  const expandBtn = expandable ? `<button class="expand-btn" id="${expandButtonId(game)}">[expand \u25BC]</button>` : `<span class="expand-btn-placeholder" id="${expandButtonId(game)}"></span>`;
   return [
     `<span class="status-dot">${statusDot(state2.status)}</span>`,
     `<span class="game-name">${escapeHtml(label)}</span>`,
     `<span class="row-meta">${meta2.join("")}</span>`,
-    `<button class="expand-btn" id="${expandButtonId(game)}">[expand \u25BC]</button>`
+    expandBtn
   ].join("");
 }
 
@@ -111217,6 +111218,10 @@ var initScript = `
       .replaceAll(">", "&gt;");
   }
 
+  function isAuthed() {
+    return !!getPassphrase();
+  }
+
   function renderRowHeader(label, game, state) {
     var meta = [];
     if (state.status === "online" && state.publicIp) meta.push("<span>" + escapeHtml(state.publicIp) + "</span>");
@@ -111224,11 +111229,15 @@ var initScript = `
     if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
     if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
     if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
+    var expandable = state.status !== "offline" || isAuthed();
+    var expandBtn = expandable
+      ? "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">[expand \u25BC]</button>"
+      : "<span class=\\"expand-btn-placeholder\\" id=\\"expand-btn-" + game + "\\"></span>";
     return ""
       + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
       + "<span class=\\"game-name\\">" + escapeHtml(label) + "</span>"
       + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
-      + "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">[expand \u25BC]</button>";
+      + expandBtn;
   }
 
   function syncExpandButton(game) {
@@ -111261,6 +111270,10 @@ var initScript = `
           if (!header) return;
           var label = header.getAttribute("data-label") || game;
           header.innerHTML = renderRowHeader(label, game, state);
+          header.style.cursor = (state.status !== "offline" || isAuthed()) ? "" : "default";
+          header.onclick = (state.status !== "offline" || isAuthed())
+            ? function() { window.toggleRow(game); }
+            : null;
           syncExpandButton(game);
         });
       })
@@ -111357,6 +111370,21 @@ var initScript = `
       section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
       section.classList.add("unlocked");
       htmx.process(section);
+    });
+    // Re-render offline row headers to show expand buttons now that user is authed
+    document.querySelectorAll(".row-header").forEach(function(header) {
+      var game = header.id.replace("row-header-", "");
+      var expandBtn = document.getElementById("expand-btn-" + game);
+      if (expandBtn && expandBtn.tagName === "SPAN") {
+        // Replace placeholder with real button
+        var btn = document.createElement("button");
+        btn.className = "expand-btn";
+        btn.id = "expand-btn-" + game;
+        btn.textContent = "[expand \u25BC]";
+        expandBtn.parentNode.replaceChild(btn, expandBtn);
+        header.style.cursor = "";
+        header.onclick = (function(g) { return function() { window.toggleRow(g); }; })(game);
+      }
     });
     var authForm = document.getElementById("auth-form");
     var status = document.getElementById("auth-status");
@@ -112091,7 +112119,8 @@ var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDo
         id: rowHeaderId(game),
         class: "row-header",
         "data-label": label,
-        onclick: `toggleRow('${game}')`,
+        onclick: state2.status !== "offline" ? `toggleRow('${game}')` : void 0,
+        style: state2.status === "offline" ? "cursor: default" : void 0,
         dangerouslySetInnerHTML: { __html: renderRowHeaderContent(label, game, state2) }
       }
     ),

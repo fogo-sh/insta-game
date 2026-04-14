@@ -32,7 +32,8 @@ const AccordionRow: FC<RowProps> = ({ game, displayName, state, connectAddress, 
         id={rowHeaderId(game)}
         class="row-header"
         data-label={label}
-        onclick={`toggleRow('${game}')`}
+        onclick={state.status !== "offline" ? `toggleRow('${game}')` : undefined}
+        style={state.status === "offline" ? "cursor: default" : undefined}
         dangerouslySetInnerHTML={{ __html: renderRowHeaderContent(label, game, state) }}
       />
 

@@ -27,6 +27,10 @@ export const initScript = `
       .replaceAll(">", "&gt;");
   }
 
+  function isAuthed() {
+    return !!getPassphrase();
+  }
+
   function renderRowHeader(label, game, state) {
     var meta = [];
     if (state.status === "online" && state.publicIp) meta.push("<span>" + escapeHtml(state.publicIp) + "</span>");
@@ -34,11 +38,15 @@ export const initScript = `
     if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
     if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
     if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
+    var expandable = state.status !== "offline" || isAuthed();
+    var expandBtn = expandable
+      ? "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">[expand ▼]</button>"
+      : "<span class=\\"expand-btn-placeholder\\" id=\\"expand-btn-" + game + "\\"></span>";
     return ""
       + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
       + "<span class=\\"game-name\\">" + escapeHtml(label) + "</span>"
       + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
-      + "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">[expand ▼]</button>";
+      + expandBtn;
   }
 
   function syncExpandButton(game) {
@@ -71,6 +79,10 @@ export const initScript = `
           if (!header) return;
           var label = header.getAttribute("data-label") || game;
           header.innerHTML = renderRowHeader(label, game, state);
+          header.style.cursor = (state.status !== "offline" || isAuthed()) ? "" : "default";
+          header.onclick = (state.status !== "offline" || isAuthed())
+            ? function() { window.toggleRow(game); }
+            : null;
           syncExpandButton(game);
         });
       })
@@ -167,6 +179,21 @@ export const initScript = `
       section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
       section.classList.add("unlocked");
       htmx.process(section);
+    });
+    // Re-render offline row headers to show expand buttons now that user is authed
+    document.querySelectorAll(".row-header").forEach(function(header) {
+      var game = header.id.replace("row-header-", "");
+      var expandBtn = document.getElementById("expand-btn-" + game);
+      if (expandBtn && expandBtn.tagName === "SPAN") {
+        // Replace placeholder with real button
+        var btn = document.createElement("button");
+        btn.className = "expand-btn";
+        btn.id = "expand-btn-" + game;
+        btn.textContent = "[expand ▼]";
+        expandBtn.parentNode.replaceChild(btn, expandBtn);
+        header.style.cursor = "";
+        header.onclick = (function(g) { return function() { window.toggleRow(g); }; })(game);
+      }
     });
     var authForm = document.getElementById("auth-form");
     var status = document.getElementById("auth-status");

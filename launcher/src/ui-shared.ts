@@ -35,7 +35,7 @@ function statusDot(status: string): string {
   return "⚫";
 }
 
-export function renderRowHeaderContent(label: string, game: string, state: CachedGameState): string {
+export function renderRowHeaderContent(label: string, game: string, state: CachedGameState, expandable = state.status !== "offline"): string {
   const meta: string[] = [];
   if (state.status === "online" && state.publicIp) meta.push(`<span>${escapeHtml(state.publicIp)}</span>`);
   if (state.status === "online" && state.hostname) meta.push(`<span>${escapeHtml(state.hostname)}</span>`);
@@ -43,10 +43,14 @@ export function renderRowHeaderContent(label: string, game: string, state: Cache
   if (state.status === "online") meta.push(`<span>${state.players} player${state.players !== 1 ? "s" : ""}</span>`);
   if (state.status !== "online") meta.push(`<span class="${state.status}">${state.status}</span>`);
 
+  const expandBtn = expandable
+    ? `<button class="expand-btn" id="${expandButtonId(game)}">[expand ▼]</button>`
+    : `<span class="expand-btn-placeholder" id="${expandButtonId(game)}"></span>`;
+
   return [
     `<span class="status-dot">${statusDot(state.status)}</span>`,
     `<span class="game-name">${escapeHtml(label)}</span>`,
     `<span class="row-meta">${meta.join("")}</span>`,
-    `<button class="expand-btn" id="${expandButtonId(game)}">[expand ▼]</button>`,
+    expandBtn,
   ].join("");
 }
