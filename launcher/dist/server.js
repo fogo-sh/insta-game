@@ -283,8 +283,8 @@ var require_dist_cjs3 = __commonJS({
   "node_modules/@aws-sdk/middleware-host-header/dist-cjs/index.js"(exports2) {
     "use strict";
     var protocolHttp = require_dist_cjs2();
-    function resolveHostHeaderConfig5(input2) {
-      return input2;
+    function resolveHostHeaderConfig5(input) {
+      return input;
     }
     var hostHeaderMiddleware = (options) => (next) => async (args) => {
       if (!protocolHttp.HttpRequest.isInstance(args.request))
@@ -573,10 +573,10 @@ var require_dist_cjs6 = __commonJS({
     "use strict";
     var types = require_dist_cjs();
     var getSmithyContext11 = (context) => context[types.SMITHY_CONTEXT_KEY] || (context[types.SMITHY_CONTEXT_KEY] = {});
-    var normalizeProvider6 = (input2) => {
-      if (typeof input2 === "function")
-        return input2;
-      const promisified = Promise.resolve(input2);
+    var normalizeProvider6 = (input) => {
+      if (typeof input === "function")
+        return input;
+      const promisified = Promise.resolve(input);
       return () => promisified;
     };
     exports2.getSmithyContext = getSmithyContext11;
@@ -782,10 +782,10 @@ var init_middleware_http_signing = __esm({
 var normalizeProvider;
 var init_normalizeProvider = __esm({
   "node_modules/@smithy/core/dist-es/normalizeProvider.js"() {
-    normalizeProvider = (input2) => {
-      if (typeof input2 === "function")
-        return input2;
-      const promisified = Promise.resolve(input2);
+    normalizeProvider = (input) => {
+      if (typeof input === "function")
+        return input;
+      const promisified = Promise.resolve(input);
       return () => promisified;
     };
   }
@@ -793,8 +793,8 @@ var init_normalizeProvider = __esm({
 
 // node_modules/@smithy/core/dist-es/pagination/createPaginator.js
 function createPaginator(ClientCtor, CommandCtor, inputTokenName, outputTokenName, pageSizeTokenName) {
-  return async function* paginateOperation(config, input2, ...additionalArguments) {
-    const _input = input2;
+  return async function* paginateOperation(config, input, ...additionalArguments) {
+    const _input = input;
     let token = config.startingToken ?? _input[inputTokenName];
     let hasNext = true;
     let page;
@@ -804,7 +804,7 @@ function createPaginator(ClientCtor, CommandCtor, inputTokenName, outputTokenNam
         _input[pageSizeTokenName] = _input[pageSizeTokenName] ?? config.pageSize;
       }
       if (config.client instanceof ClientCtor) {
-        page = await makePagedClientRequest(CommandCtor, config.client, input2, config.withCommand, ...additionalArguments);
+        page = await makePagedClientRequest(CommandCtor, config.client, input, config.withCommand, ...additionalArguments);
       } else {
         throw new Error(`Invalid client, expected instance of ${ClientCtor.name}`);
       }
@@ -819,8 +819,8 @@ function createPaginator(ClientCtor, CommandCtor, inputTokenName, outputTokenNam
 var makePagedClientRequest, get;
 var init_createPaginator = __esm({
   "node_modules/@smithy/core/dist-es/pagination/createPaginator.js"() {
-    makePagedClientRequest = async (CommandCtor, client, input2, withCommand = (_) => _, ...args) => {
-      let command = new CommandCtor(input2);
+    makePagedClientRequest = async (CommandCtor, client, input, withCommand = (_) => _, ...args) => {
+      let command = new CommandCtor(input);
       command = withCommand(command) ?? command;
       return await client.send(command, ...args);
     };
@@ -853,17 +853,17 @@ var require_dist_cjs8 = __commonJS({
     "use strict";
     var isArrayBuffer = require_dist_cjs7();
     var buffer = require("buffer");
-    var fromArrayBuffer = (input2, offset = 0, length = input2.byteLength - offset) => {
-      if (!isArrayBuffer.isArrayBuffer(input2)) {
-        throw new TypeError(`The "input" argument must be ArrayBuffer. Received type ${typeof input2} (${input2})`);
+    var fromArrayBuffer = (input, offset = 0, length = input.byteLength - offset) => {
+      if (!isArrayBuffer.isArrayBuffer(input)) {
+        throw new TypeError(`The "input" argument must be ArrayBuffer. Received type ${typeof input} (${input})`);
       }
-      return buffer.Buffer.from(input2, offset, length);
+      return buffer.Buffer.from(input, offset, length);
     };
-    var fromString = (input2, encoding) => {
-      if (typeof input2 !== "string") {
-        throw new TypeError(`The "input" argument must be of type string. Received type ${typeof input2} (${input2})`);
+    var fromString = (input, encoding) => {
+      if (typeof input !== "string") {
+        throw new TypeError(`The "input" argument must be of type string. Received type ${typeof input} (${input})`);
       }
-      return encoding ? buffer.Buffer.from(input2, encoding) : buffer.Buffer.from(input2);
+      return encoding ? buffer.Buffer.from(input, encoding) : buffer.Buffer.from(input);
     };
     exports2.fromArrayBuffer = fromArrayBuffer;
     exports2.fromString = fromString;
@@ -878,14 +878,14 @@ var require_fromBase64 = __commonJS({
     exports2.fromBase64 = void 0;
     var util_buffer_from_1 = require_dist_cjs8();
     var BASE64_REGEX = /^[A-Za-z0-9+/]*={0,2}$/;
-    var fromBase649 = (input2) => {
-      if (input2.length * 3 % 4 !== 0) {
+    var fromBase649 = (input) => {
+      if (input.length * 3 % 4 !== 0) {
         throw new TypeError(`Incorrect padding on base64 string.`);
       }
-      if (!BASE64_REGEX.exec(input2)) {
+      if (!BASE64_REGEX.exec(input)) {
         throw new TypeError(`Invalid base64 string.`);
       }
-      const buffer = (0, util_buffer_from_1.fromString)(input2, "base64");
+      const buffer = (0, util_buffer_from_1.fromString)(input, "base64");
       return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     };
     exports2.fromBase64 = fromBase649;
@@ -897,8 +897,8 @@ var require_dist_cjs9 = __commonJS({
   "node_modules/@smithy/util-utf8/dist-cjs/index.js"(exports2) {
     "use strict";
     var utilBufferFrom = require_dist_cjs8();
-    var fromUtf88 = (input2) => {
-      const buf = utilBufferFrom.fromString(input2, "utf8");
+    var fromUtf88 = (input) => {
+      const buf = utilBufferFrom.fromString(input, "utf8");
       return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength / Uint8Array.BYTES_PER_ELEMENT);
     };
     var toUint8Array2 = (data2) => {
@@ -910,14 +910,14 @@ var require_dist_cjs9 = __commonJS({
       }
       return new Uint8Array(data2);
     };
-    var toUtf811 = (input2) => {
-      if (typeof input2 === "string") {
-        return input2;
+    var toUtf811 = (input) => {
+      if (typeof input === "string") {
+        return input;
       }
-      if (typeof input2 !== "object" || typeof input2.byteOffset !== "number" || typeof input2.byteLength !== "number") {
+      if (typeof input !== "object" || typeof input.byteOffset !== "number" || typeof input.byteLength !== "number") {
         throw new Error("@smithy/util-utf8: toUtf8 encoder function only accepts string | Uint8Array.");
       }
-      return utilBufferFrom.fromArrayBuffer(input2.buffer, input2.byteOffset, input2.byteLength).toString("utf8");
+      return utilBufferFrom.fromArrayBuffer(input.buffer, input.byteOffset, input.byteLength).toString("utf8");
     };
     exports2.fromUtf8 = fromUtf88;
     exports2.toUint8Array = toUint8Array2;
@@ -934,16 +934,16 @@ var require_toBase64 = __commonJS({
     var util_buffer_from_1 = require_dist_cjs8();
     var util_utf8_1 = require_dist_cjs9();
     var toBase649 = (_input) => {
-      let input2;
+      let input;
       if (typeof _input === "string") {
-        input2 = (0, util_utf8_1.fromUtf8)(_input);
+        input = (0, util_utf8_1.fromUtf8)(_input);
       } else {
-        input2 = _input;
+        input = _input;
       }
-      if (typeof input2 !== "object" || typeof input2.byteOffset !== "number" || typeof input2.byteLength !== "number") {
+      if (typeof input !== "object" || typeof input.byteOffset !== "number" || typeof input.byteLength !== "number") {
         throw new Error("@smithy/util-base64: toBase64 encoder function only accepts string | Uint8Array.");
       }
-      return (0, util_buffer_from_1.fromArrayBuffer)(input2.buffer, input2.byteOffset, input2.byteLength).toString("base64");
+      return (0, util_buffer_from_1.fromArrayBuffer)(input.buffer, input.byteOffset, input.byteLength).toString("base64");
     };
     exports2.toBase64 = toBase649;
   }
@@ -2853,11 +2853,11 @@ var init_deref = __esm({
 var operation;
 var init_operation = __esm({
   "node_modules/@smithy/core/dist-es/submodules/schema/schemas/operation.js"() {
-    operation = (namespace, name, traits, input2, output) => ({
+    operation = (namespace, name, traits, input, output) => ({
       name,
       namespace,
       traits,
-      input: input2,
+      input,
       output
     });
   }
@@ -3159,11 +3159,11 @@ var init_OperationSchema = __esm({
       output;
       symbol = _OperationSchema.symbol;
     };
-    op = (namespace, name, traits, input2, output) => Schema.assign(new OperationSchema(), {
+    op = (namespace, name, traits, input, output) => Schema.assign(new OperationSchema(), {
       name,
       namespace,
       traits,
-      input: input2,
+      input,
       output
     });
   }
@@ -4092,11 +4092,11 @@ var init_date_utils = __esm({
       return valueInThisCentury;
     };
     FIFTY_YEARS_IN_MILLIS = 50 * 365 * 24 * 60 * 60 * 1e3;
-    adjustRfc850Year = (input2) => {
-      if (input2.getTime() - (/* @__PURE__ */ new Date()).getTime() > FIFTY_YEARS_IN_MILLIS) {
-        return new Date(Date.UTC(input2.getUTCFullYear() - 100, input2.getUTCMonth(), input2.getUTCDate(), input2.getUTCHours(), input2.getUTCMinutes(), input2.getUTCSeconds(), input2.getUTCMilliseconds()));
+    adjustRfc850Year = (input) => {
+      if (input.getTime() - (/* @__PURE__ */ new Date()).getTime() > FIFTY_YEARS_IN_MILLIS) {
+        return new Date(Date.UTC(input.getUTCFullYear() - 100, input.getUTCMonth(), input.getUTCDate(), input.getUTCHours(), input.getUTCMinutes(), input.getUTCSeconds(), input.getUTCMilliseconds()));
       }
-      return input2;
+      return input;
     };
     parseMonthByShortName = (value) => {
       const monthIdx = MONTHS.indexOf(value);
@@ -4946,8 +4946,8 @@ var init_split_header = __esm({
 });
 
 // node_modules/@smithy/core/dist-es/submodules/serde/value/NumericValue.js
-function nv(input2) {
-  return new NumericValue(String(input2), "bigDecimal");
+function nv(input) {
+  return new NumericValue(String(input), "bigDecimal");
 }
 var format, NumericValue;
 var init_NumericValue = __esm({
@@ -5373,7 +5373,7 @@ var init_HttpProtocol = __esm({
           return request;
         }
       }
-      setHostPrefix(request, operationSchema, input2) {
+      setHostPrefix(request, operationSchema, input) {
         if (this.serdeContext?.disableHostPrefix) {
           return;
         }
@@ -5384,7 +5384,7 @@ var init_HttpProtocol = __esm({
           if (typeof hostPrefix === "string") {
             const hostLabelInputs = [...inputNs.structIterator()].filter(([, member2]) => member2.getMergedTraits().hostLabel);
             for (const [name] of hostLabelInputs) {
-              const replacement = input2[name];
+              const replacement = input[name];
               if (typeof replacement !== "string") {
                 throw new Error(`@smithy/core/schema - ${name} in input must be a string as hostLabel.`);
               }
@@ -5463,7 +5463,7 @@ var init_HttpBindingProtocol = __esm({
     init_HttpProtocol();
     HttpBindingProtocol = class extends HttpProtocol {
       async serializeRequest(operationSchema, _input, context) {
-        const input2 = _input && typeof _input === "object" ? _input : {};
+        const input = _input && typeof _input === "object" ? _input : {};
         const serializer = this.serializer;
         const query = {};
         const headers = {};
@@ -5485,7 +5485,7 @@ var init_HttpBindingProtocol = __esm({
         });
         if (endpoint) {
           this.updateServiceEndpoint(request, endpoint);
-          this.setHostPrefix(request, operationSchema, input2);
+          this.setHostPrefix(request, operationSchema, input);
           const opTraits = translateTraits(operationSchema.traits);
           if (opTraits.http) {
             request.method = opTraits.http[0];
@@ -5501,7 +5501,7 @@ var init_HttpBindingProtocol = __esm({
         }
         for (const [memberName, memberNs] of ns.structIterator()) {
           const memberTraits = memberNs.getMergedTraits() ?? {};
-          const inputMemberValue = input2[memberName];
+          const inputMemberValue = input[memberName];
           if (inputMemberValue == null && !memberNs.isIdempotencyToken()) {
             if (memberTraits.httpLabel) {
               if (request.path.includes(`{${memberName}+}`) || request.path.includes(`{${memberName}}`)) {
@@ -5515,9 +5515,9 @@ var init_HttpBindingProtocol = __esm({
             if (isStreaming) {
               const isEventStream = memberNs.isStructSchema();
               if (isEventStream) {
-                if (input2[memberName]) {
+                if (input[memberName]) {
                   payload2 = await this.serializeEventStream({
-                    eventStream: input2[memberName],
+                    eventStream: input[memberName],
                     requestSchema: ns
                   });
                 }
@@ -5553,7 +5553,7 @@ var init_HttpBindingProtocol = __esm({
             payloadMemberSchemas.push(memberNs);
           }
         }
-        if (hasNonHttpBindingMember && input2) {
+        if (hasNonHttpBindingMember && input) {
           const [namespace, name] = (ns.getName(true) ?? "#Unknown").split("#");
           const requiredMembers = ns.getSchema()[6];
           const payloadSchema = [
@@ -5570,7 +5570,7 @@ var init_HttpBindingProtocol = __esm({
           } else {
             payloadSchema.pop();
           }
-          serializer.write(payloadSchema, input2);
+          serializer.write(payloadSchema, input);
           payload2 = serializer.flush();
         }
         request.headers = headers;
@@ -5738,7 +5738,7 @@ var init_RpcProtocol = __esm({
         const ns = NormalizedSchema.of(operationSchema?.input);
         const schema = ns.getSchema();
         let payload2;
-        const input2 = _input && typeof _input === "object" ? _input : {};
+        const input = _input && typeof _input === "object" ? _input : {};
         const request = new import_protocol_http5.HttpRequest({
           protocol: "",
           hostname: "",
@@ -5751,27 +5751,27 @@ var init_RpcProtocol = __esm({
         });
         if (endpoint) {
           this.updateServiceEndpoint(request, endpoint);
-          this.setHostPrefix(request, operationSchema, input2);
+          this.setHostPrefix(request, operationSchema, input);
         }
-        if (input2) {
+        if (input) {
           const eventStreamMember = ns.getEventStreamMember();
           if (eventStreamMember) {
-            if (input2[eventStreamMember]) {
+            if (input[eventStreamMember]) {
               const initialRequest = {};
               for (const [memberName, memberSchema] of ns.structIterator()) {
-                if (memberName !== eventStreamMember && input2[memberName]) {
-                  serializer.write(memberSchema, input2[memberName]);
+                if (memberName !== eventStreamMember && input[memberName]) {
+                  serializer.write(memberSchema, input[memberName]);
                   initialRequest[memberName] = serializer.flush();
                 }
               }
               payload2 = await this.serializeEventStream({
-                eventStream: input2[eventStreamMember],
+                eventStream: input[eventStreamMember],
                 requestSchema: ns,
                 initialRequest
               });
             }
           } else {
-            serializer.write(schema, input2);
+            serializer.write(schema, input);
             payload2 = serializer.flush();
           }
         }
@@ -5823,8 +5823,8 @@ var resolvedPath;
 var init_resolve_path = __esm({
   "node_modules/@smithy/core/dist-es/submodules/protocols/resolve-path.js"() {
     init_extended_encode_uri_component();
-    resolvedPath = (resolvedPath2, input2, memberName, labelValueProvider, uriLabel, isGreedyLabel) => {
-      if (input2 != null && input2[memberName] !== void 0) {
+    resolvedPath = (resolvedPath2, input, memberName, labelValueProvider, uriLabel, isGreedyLabel) => {
+      if (input != null && input[memberName] !== void 0) {
         const labelValue = labelValueProvider();
         if (labelValue == null || labelValue.length <= 0) {
           throw new Error("Empty value provided for input HTTP label: " + memberName + ".");
@@ -5839,8 +5839,8 @@ var init_resolve_path = __esm({
 });
 
 // node_modules/@smithy/core/dist-es/submodules/protocols/requestBuilder.js
-function requestBuilder(input2, context) {
-  return new RequestBuilder(input2, context);
+function requestBuilder(input, context) {
+  return new RequestBuilder(input, context);
 }
 var import_protocol_http6, RequestBuilder;
 var init_requestBuilder = __esm({
@@ -5857,8 +5857,8 @@ var init_requestBuilder = __esm({
       body = null;
       hostname = "";
       resolvePathStack = [];
-      constructor(input2, context) {
-        this.input = input2;
+      constructor(input, context) {
+        this.input = input;
         this.context = context;
       }
       async build() {
@@ -6521,17 +6521,17 @@ var require_dist_cjs20 = __commonJS({
     };
     var customEndpointFunctions5 = {};
     var debugId = "endpoints";
-    function toDebugString(input2) {
-      if (typeof input2 !== "object" || input2 == null) {
-        return input2;
+    function toDebugString(input) {
+      if (typeof input !== "object" || input == null) {
+        return input;
       }
-      if ("ref" in input2) {
-        return `$${toDebugString(input2.ref)}`;
+      if ("ref" in input) {
+        return `$${toDebugString(input.ref)}`;
       }
-      if ("fn" in input2) {
-        return `${input2.fn}(${(input2.argv || []).map(toDebugString).join(", ")})`;
+      if ("fn" in input) {
+        return `${input.fn}(${(input.argv || []).map(toDebugString).join(", ")})`;
       }
-      return JSON.stringify(input2, null, 2);
+      return JSON.stringify(input, null, 2);
     }
     var EndpointError = class extends Error {
       constructor(message) {
@@ -6619,14 +6619,14 @@ var require_dist_cjs20 = __commonJS({
       };
     };
     var stringEquals = (value1, value2) => value1 === value2;
-    var substring = (input2, start, stop, reverse) => {
-      if (start >= stop || input2.length < stop || /[^\u0000-\u007f]/.test(input2)) {
+    var substring = (input, start, stop, reverse) => {
+      if (start >= stop || input.length < stop || /[^\u0000-\u007f]/.test(input)) {
         return null;
       }
       if (!reverse) {
-        return input2.substring(start, stop);
+        return input.substring(start, stop);
       }
-      return input2.substring(input2.length - stop, input2.length - start);
+      return input.substring(input.length - stop, input.length - start);
     };
     var uriEncode = (value) => encodeURIComponent(value).replace(/[!*'()]/g, (c5) => `%${c5.charCodeAt(0).toString(16).toUpperCase()}`);
     var endpointFunctions = {
@@ -7249,22 +7249,22 @@ var require_dist_cjs21 = __commonJS({
       partition
     };
     utilEndpoints.customEndpointFunctions.aws = awsEndpointFunctions5;
-    var resolveDefaultAwsRegionalEndpointsConfig = (input2) => {
-      if (typeof input2.endpointProvider !== "function") {
+    var resolveDefaultAwsRegionalEndpointsConfig = (input) => {
+      if (typeof input.endpointProvider !== "function") {
         throw new Error("@aws-sdk/util-endpoint - endpointProvider and endpoint missing in config for this client.");
       }
-      const { endpoint } = input2;
+      const { endpoint } = input;
       if (endpoint === void 0) {
-        input2.endpoint = async () => {
-          return toEndpointV12(input2.endpointProvider({
-            Region: typeof input2.region === "function" ? await input2.region() : input2.region,
-            UseDualStack: typeof input2.useDualstackEndpoint === "function" ? await input2.useDualstackEndpoint() : input2.useDualstackEndpoint,
-            UseFIPS: typeof input2.useFipsEndpoint === "function" ? await input2.useFipsEndpoint() : input2.useFipsEndpoint,
+        input.endpoint = async () => {
+          return toEndpointV12(input.endpointProvider({
+            Region: typeof input.region === "function" ? await input.region() : input.region,
+            UseDualStack: typeof input.useDualstackEndpoint === "function" ? await input.useDualstackEndpoint() : input.useDualstackEndpoint,
+            UseFIPS: typeof input.useFipsEndpoint === "function" ? await input.useFipsEndpoint() : input.useFipsEndpoint,
             Endpoint: void 0
-          }, { logger: input2.logger }));
+          }, { logger: input.logger }));
         };
       }
-      return input2;
+      return input;
     };
     var toEndpointV12 = (endpoint) => urlParser.parseUrl(endpoint.url);
     exports2.EndpointError = utilEndpoints.EndpointError;
@@ -7718,15 +7718,15 @@ var require_dist_cjs24 = __commonJS({
       }
       return typeof appId === "string" && appId.length <= 50;
     }
-    function resolveUserAgentConfig5(input2) {
-      const normalizedAppIdProvider = core.normalizeProvider(input2.userAgentAppId ?? DEFAULT_UA_APP_ID);
-      const { customUserAgent } = input2;
-      return Object.assign(input2, {
+    function resolveUserAgentConfig5(input) {
+      const normalizedAppIdProvider = core.normalizeProvider(input.userAgentAppId ?? DEFAULT_UA_APP_ID);
+      const { customUserAgent } = input;
+      return Object.assign(input, {
         customUserAgent: typeof customUserAgent === "string" ? [[customUserAgent]] : customUserAgent,
         userAgentAppId: async () => {
           const appId = await normalizedAppIdProvider();
           if (!isValidUserAgentAppId(appId)) {
-            const logger2 = input2.logger?.constructor?.name === "NoOpLogger" || !input2.logger ? console : input2.logger;
+            const logger2 = input.logger?.constructor?.name === "NoOpLogger" || !input.logger ? console : input.logger;
             if (typeof appId !== "string") {
               logger2?.warn("userAgentAppId must be a string or undefined.");
             } else if (appId.length > 50) {
@@ -7948,36 +7948,36 @@ var require_dist_cjs26 = __commonJS({
       configFileSelector: (profile) => utilConfigProvider.booleanSelector(profile, CONFIG_USE_FIPS_ENDPOINT, utilConfigProvider.SelectorType.CONFIG),
       default: void 0
     };
-    var resolveCustomEndpointsConfig = (input2) => {
-      const { tls, endpoint, urlParser, useDualstackEndpoint } = input2;
-      return Object.assign(input2, {
+    var resolveCustomEndpointsConfig = (input) => {
+      const { tls, endpoint, urlParser, useDualstackEndpoint } = input;
+      return Object.assign(input, {
         tls: tls ?? true,
         endpoint: utilMiddleware.normalizeProvider(typeof endpoint === "string" ? urlParser(endpoint) : endpoint),
         isCustomEndpoint: true,
         useDualstackEndpoint: utilMiddleware.normalizeProvider(useDualstackEndpoint ?? false)
       });
     };
-    var getEndpointFromRegion = async (input2) => {
-      const { tls = true } = input2;
-      const region = await input2.region();
+    var getEndpointFromRegion = async (input) => {
+      const { tls = true } = input;
+      const region = await input.region();
       const dnsHostRegex = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])$/);
       if (!dnsHostRegex.test(region)) {
         throw new Error("Invalid region in client config");
       }
-      const useDualstackEndpoint = await input2.useDualstackEndpoint();
-      const useFipsEndpoint = await input2.useFipsEndpoint();
-      const { hostname } = await input2.regionInfoProvider(region, { useDualstackEndpoint, useFipsEndpoint }) ?? {};
+      const useDualstackEndpoint = await input.useDualstackEndpoint();
+      const useFipsEndpoint = await input.useFipsEndpoint();
+      const { hostname } = await input.regionInfoProvider(region, { useDualstackEndpoint, useFipsEndpoint }) ?? {};
       if (!hostname) {
         throw new Error("Cannot resolve hostname from client config");
       }
-      return input2.urlParser(`${tls ? "https:" : "http:"}//${hostname}`);
+      return input.urlParser(`${tls ? "https:" : "http:"}//${hostname}`);
     };
-    var resolveEndpointsConfig = (input2) => {
-      const useDualstackEndpoint = utilMiddleware.normalizeProvider(input2.useDualstackEndpoint ?? false);
-      const { endpoint, useFipsEndpoint, urlParser, tls } = input2;
-      return Object.assign(input2, {
+    var resolveEndpointsConfig = (input) => {
+      const useDualstackEndpoint = utilMiddleware.normalizeProvider(input.useDualstackEndpoint ?? false);
+      const { endpoint, useFipsEndpoint, urlParser, tls } = input;
+      return Object.assign(input, {
         tls: tls ?? true,
-        endpoint: endpoint ? utilMiddleware.normalizeProvider(typeof endpoint === "string" ? urlParser(endpoint) : endpoint) : () => getEndpointFromRegion({ ...input2, useDualstackEndpoint, useFipsEndpoint }),
+        endpoint: endpoint ? utilMiddleware.normalizeProvider(typeof endpoint === "string" ? urlParser(endpoint) : endpoint) : () => getEndpointFromRegion({ ...input, useDualstackEndpoint, useFipsEndpoint }),
         isCustomEndpoint: !!endpoint,
         useDualstackEndpoint
       });
@@ -8008,12 +8008,12 @@ var require_dist_cjs26 = __commonJS({
     };
     var isFipsRegion = (region) => typeof region === "string" && (region.startsWith("fips-") || region.endsWith("-fips"));
     var getRealRegion = (region) => isFipsRegion(region) ? ["fips-aws-global", "aws-fips"].includes(region) ? "us-east-1" : region.replace(/fips-(dkr-|prod-)?|-fips/, "") : region;
-    var resolveRegionConfig5 = (input2) => {
-      const { region, useFipsEndpoint } = input2;
+    var resolveRegionConfig5 = (input) => {
+      const { region, useFipsEndpoint } = input;
       if (!region) {
         throw new Error("Region is missing");
       }
-      return Object.assign(input2, {
+      return Object.assign(input, {
         region: async () => {
           const providedRegion = typeof region === "function" ? await region() : region;
           const realRegion = getRealRegion(providedRegion);
@@ -8928,12 +8928,12 @@ var require_dist_cjs32 = __commonJS({
         }), endpointMiddlewareOptions);
       }
     });
-    var resolveEndpointConfig5 = (input2) => {
-      const tls = input2.tls ?? true;
-      const { endpoint, useDualstackEndpoint, useFipsEndpoint } = input2;
+    var resolveEndpointConfig5 = (input) => {
+      const tls = input.tls ?? true;
+      const { endpoint, useDualstackEndpoint, useFipsEndpoint } = input;
       const customEndpointProvider = endpoint != null ? async () => toEndpointV12(await utilMiddleware.normalizeProvider(endpoint)()) : void 0;
       const isCustomEndpoint = !!endpoint;
-      const resolvedConfig = Object.assign(input2, {
+      const resolvedConfig = Object.assign(input, {
         endpoint: customEndpointProvider,
         tls,
         isCustomEndpoint,
@@ -8942,21 +8942,21 @@ var require_dist_cjs32 = __commonJS({
       });
       let configuredEndpointPromise = void 0;
       resolvedConfig.serviceConfiguredEndpoint = async () => {
-        if (input2.serviceId && !configuredEndpointPromise) {
-          configuredEndpointPromise = getEndpointFromConfig.getEndpointFromConfig(input2.serviceId);
+        if (input.serviceId && !configuredEndpointPromise) {
+          configuredEndpointPromise = getEndpointFromConfig.getEndpointFromConfig(input.serviceId);
         }
         return configuredEndpointPromise;
       };
       return resolvedConfig;
     };
-    var resolveEndpointRequiredConfig = (input2) => {
-      const { endpoint } = input2;
+    var resolveEndpointRequiredConfig = (input) => {
+      const { endpoint } = input;
       if (endpoint === void 0) {
-        input2.endpoint = async () => {
+        input.endpoint = async () => {
           throw new Error("@smithy/middleware-endpoint: (default endpointRuleSet) endpoint is not set - you must configure an endpoint.");
         };
       }
-      return input2;
+      return input;
     };
     exports2.endpointMiddleware = endpointMiddleware;
     exports2.endpointMiddlewareOptions = endpointMiddlewareOptions;
@@ -9422,22 +9422,22 @@ var require_dist_cjs34 = __commonJS({
           static getEndpointParameterInstructions() {
             return closure._ep;
           }
-          constructor(...[input2]) {
+          constructor(...[input]) {
             super();
-            this.input = input2 ?? {};
+            this.input = input ?? {};
             closure._init(this);
             this.schema = closure._operationSchema;
           }
           resolveMiddleware(stack, configuration, options) {
             const op2 = closure._operationSchema;
-            const input2 = op2?.[4] ?? op2?.input;
+            const input = op2?.[4] ?? op2?.input;
             const output = op2?.[5] ?? op2?.output;
             return this.resolveMiddlewareWithContext(stack, configuration, options, {
               CommandCtor: CommandRef,
               middlewareFn: closure._middlewareFn,
               clientName: closure._clientName,
               commandName: closure._commandName,
-              inputFilterSensitiveLog: closure._inputFilterSensitiveLog ?? (op2 ? schemaLogFilter.bind(null, input2) : (_) => _),
+              inputFilterSensitiveLog: closure._inputFilterSensitiveLog ?? (op2 ? schemaLogFilter.bind(null, input) : (_) => _),
               outputFilterSensitiveLog: closure._outputFilterSensitiveLog ?? (op2 ? schemaLogFilter.bind(null, output) : (_) => _),
               smithyContext: closure._smithyContext,
               additionalContext: closure._additionalContext
@@ -10035,12 +10035,12 @@ var require_dist_cjs35 = __commonJS({
       },
       default: utilRetry.DEFAULT_MAX_ATTEMPTS
     };
-    var resolveRetryConfig5 = (input2) => {
-      const { retryStrategy, retryMode } = input2;
-      const maxAttempts = utilMiddleware.normalizeProvider(input2.maxAttempts ?? utilRetry.DEFAULT_MAX_ATTEMPTS);
+    var resolveRetryConfig5 = (input) => {
+      const { retryStrategy, retryMode } = input;
+      const maxAttempts = utilMiddleware.normalizeProvider(input.maxAttempts ?? utilRetry.DEFAULT_MAX_ATTEMPTS);
       let controller = retryStrategy ? Promise.resolve(retryStrategy) : void 0;
       const getDefault = async () => await utilMiddleware.normalizeProvider(retryMode)() === utilRetry.RETRY_MODES.ADAPTIVE ? new utilRetry.AdaptiveRetryStrategy(maxAttempts) : new utilRetry.StandardRetryStrategy(maxAttempts);
-      return Object.assign(input2, {
+      return Object.assign(input, {
         maxAttempts,
         retryStrategy: () => controller ??= getDefault()
       });
@@ -11124,7 +11124,7 @@ var require_httpAuthSchemeProvider = __commonJS({
     exports2.resolveHttpAuthSchemeConfig = exports2.defaultECSHttpAuthSchemeProvider = exports2.defaultECSHttpAuthSchemeParametersProvider = void 0;
     var httpAuthSchemes_1 = (init_httpAuthSchemes2(), __toCommonJS(httpAuthSchemes_exports));
     var util_middleware_1 = require_dist_cjs6();
-    var defaultECSHttpAuthSchemeParametersProvider = async (config, context, input2) => {
+    var defaultECSHttpAuthSchemeParametersProvider = async (config, context, input) => {
       return {
         operation: (0, util_middleware_1.getSmithyContext)(context).operation,
         region: await (0, util_middleware_1.normalizeProvider)(config.region)() || (() => {
@@ -11894,7 +11894,7 @@ var init_httpAuthSchemeProvider = __esm({
   "node_modules/@aws-sdk/nested-clients/dist-es/submodules/sso-oidc/auth/httpAuthSchemeProvider.js"() {
     init_httpAuthSchemes2();
     import_util_middleware5 = __toESM(require_dist_cjs6());
-    defaultSSOOIDCHttpAuthSchemeParametersProvider = async (config, context, input2) => {
+    defaultSSOOIDCHttpAuthSchemeParametersProvider = async (config, context, input) => {
       return {
         operation: (0, import_util_middleware5.getSmithyContext)(context).operation,
         region: await (0, import_util_middleware5.normalizeProvider)(config.region)() || (() => {
@@ -12915,24 +12915,24 @@ function encodeHeader(major, value) {
 function encode(_input) {
   const encodeStack = [_input];
   while (encodeStack.length) {
-    const input2 = encodeStack.pop();
-    ensureSpace(typeof input2 === "string" ? input2.length * 4 : 64);
-    if (typeof input2 === "string") {
+    const input = encodeStack.pop();
+    ensureSpace(typeof input === "string" ? input.length * 4 : 64);
+    if (typeof input === "string") {
       if (USE_BUFFER2) {
-        encodeHeader(majorUtf8String, Buffer.byteLength(input2));
-        cursor += data.write(input2, cursor);
+        encodeHeader(majorUtf8String, Buffer.byteLength(input));
+        cursor += data.write(input, cursor);
       } else {
-        const bytes = (0, import_util_utf85.fromUtf8)(input2);
+        const bytes = (0, import_util_utf85.fromUtf8)(input);
         encodeHeader(majorUtf8String, bytes.byteLength);
         data.set(bytes, cursor);
         cursor += bytes.byteLength;
       }
       continue;
-    } else if (typeof input2 === "number") {
-      if (Number.isInteger(input2)) {
-        const nonNegative = input2 >= 0;
+    } else if (typeof input === "number") {
+      if (Number.isInteger(input)) {
+        const nonNegative = input >= 0;
         const major = nonNegative ? majorUint64 : majorNegativeInt64;
-        const value = nonNegative ? input2 : -input2 - 1;
+        const value = nonNegative ? input : -input - 1;
         if (value < 24) {
           data[cursor++] = major << 5 | value;
         } else if (value < 256) {
@@ -12954,13 +12954,13 @@ function encode(_input) {
         continue;
       }
       data[cursor++] = majorSpecial << 5 | extendedFloat64;
-      dataView2.setFloat64(cursor, input2);
+      dataView2.setFloat64(cursor, input);
       cursor += 8;
       continue;
-    } else if (typeof input2 === "bigint") {
-      const nonNegative = input2 >= 0;
+    } else if (typeof input === "bigint") {
+      const nonNegative = input >= 0;
       const major = nonNegative ? majorUint64 : majorNegativeInt64;
-      const value = nonNegative ? input2 : -input2 - BigInt(1);
+      const value = nonNegative ? input : -input - BigInt(1);
       const n5 = Number(value);
       if (n5 < 24) {
         data[cursor++] = major << 5 | n5;
@@ -12999,56 +12999,56 @@ function encode(_input) {
         cursor += bigIntBytes.byteLength;
       }
       continue;
-    } else if (input2 === null) {
+    } else if (input === null) {
       data[cursor++] = majorSpecial << 5 | specialNull;
       continue;
-    } else if (typeof input2 === "boolean") {
-      data[cursor++] = majorSpecial << 5 | (input2 ? specialTrue : specialFalse);
+    } else if (typeof input === "boolean") {
+      data[cursor++] = majorSpecial << 5 | (input ? specialTrue : specialFalse);
       continue;
-    } else if (typeof input2 === "undefined") {
+    } else if (typeof input === "undefined") {
       throw new Error("@smithy/core/cbor: client may not serialize undefined value.");
-    } else if (Array.isArray(input2)) {
-      for (let i5 = input2.length - 1; i5 >= 0; --i5) {
-        encodeStack.push(input2[i5]);
+    } else if (Array.isArray(input)) {
+      for (let i5 = input.length - 1; i5 >= 0; --i5) {
+        encodeStack.push(input[i5]);
       }
-      encodeHeader(majorList, input2.length);
+      encodeHeader(majorList, input.length);
       continue;
-    } else if (typeof input2.byteLength === "number") {
-      ensureSpace(input2.length * 2);
-      encodeHeader(majorUnstructuredByteString, input2.length);
-      data.set(input2, cursor);
-      cursor += input2.byteLength;
+    } else if (typeof input.byteLength === "number") {
+      ensureSpace(input.length * 2);
+      encodeHeader(majorUnstructuredByteString, input.length);
+      data.set(input, cursor);
+      cursor += input.byteLength;
       continue;
-    } else if (typeof input2 === "object") {
-      if (input2 instanceof NumericValue) {
-        const decimalIndex = input2.string.indexOf(".");
-        const exponent = decimalIndex === -1 ? 0 : decimalIndex - input2.string.length + 1;
-        const mantissa = BigInt(input2.string.replace(".", ""));
+    } else if (typeof input === "object") {
+      if (input instanceof NumericValue) {
+        const decimalIndex = input.string.indexOf(".");
+        const exponent = decimalIndex === -1 ? 0 : decimalIndex - input.string.length + 1;
+        const mantissa = BigInt(input.string.replace(".", ""));
         data[cursor++] = 196;
         encodeStack.push(mantissa);
         encodeStack.push(exponent);
         encodeHeader(majorList, 2);
         continue;
       }
-      if (input2[tagSymbol]) {
-        if ("tag" in input2 && "value" in input2) {
-          encodeStack.push(input2.value);
-          encodeHeader(majorTag, input2.tag);
+      if (input[tagSymbol]) {
+        if ("tag" in input && "value" in input) {
+          encodeStack.push(input.value);
+          encodeHeader(majorTag, input.tag);
           continue;
         } else {
-          throw new Error("tag encountered with missing fields, need 'tag' and 'value', found: " + JSON.stringify(input2));
+          throw new Error("tag encountered with missing fields, need 'tag' and 'value', found: " + JSON.stringify(input));
         }
       }
-      const keys = Object.keys(input2);
+      const keys = Object.keys(input);
       for (let i5 = keys.length - 1; i5 >= 0; --i5) {
         const key = keys[i5];
-        encodeStack.push(input2[key]);
+        encodeStack.push(input[key]);
         encodeStack.push(key);
       }
       encodeHeader(majorMap, keys.length);
       continue;
     }
-    throw new Error(`data type ${input2?.constructor?.name ?? typeof input2} not compatible for encoding.`);
+    throw new Error(`data type ${input?.constructor?.name ?? typeof input} not compatible for encoding.`);
   }
 }
 var import_util_utf85, USE_BUFFER2, initialSize, data, dataView2, cursor;
@@ -13076,9 +13076,9 @@ var init_cbor = __esm({
         setPayload(payload2);
         return decode(0, payload2.length);
       },
-      serialize(input2) {
+      serialize(input) {
         try {
-          encode(input2);
+          encode(input);
           return toUint8Array();
         } catch (e5) {
           toUint8Array();
@@ -13353,8 +13353,8 @@ var init_SmithyRpcV2CborProtocol = __esm({
       getPayloadCodec() {
         return this.codec;
       }
-      async serializeRequest(operationSchema, input2, context) {
-        const request = await super.serializeRequest(operationSchema, input2, context);
+      async serializeRequest(operationSchema, input, context) {
+        const request = await super.serializeRequest(operationSchema, input, context);
         Object.assign(request.headers, {
           "content-type": this.getDefaultContentType(),
           "smithy-protocol": "rpc-v2-cbor",
@@ -13598,8 +13598,8 @@ var init_AwsSmithyRpcV2CborProtocol = __esm({
         this.awsQueryCompatible = !!awsQueryCompatible;
         this.mixin = new ProtocolLib(this.awsQueryCompatible);
       }
-      async serializeRequest(operationSchema, input2, context) {
-        const request = await super.serializeRequest(operationSchema, input2, context);
+      async serializeRequest(operationSchema, input, context) {
+        const request = await super.serializeRequest(operationSchema, input, context);
         if (this.awsQueryCompatible) {
           request.headers["x-amzn-query-mode"] = "true";
         }
@@ -14283,8 +14283,8 @@ var init_AwsJsonRpcProtocol = __esm({
         this.awsQueryCompatible = !!awsQueryCompatible;
         this.mixin = new ProtocolLib(this.awsQueryCompatible);
       }
-      async serializeRequest(operationSchema, input2, context) {
-        const request = await super.serializeRequest(operationSchema, input2, context);
+      async serializeRequest(operationSchema, input, context) {
+        const request = await super.serializeRequest(operationSchema, input, context);
         if (!request.path.endsWith("/")) {
           request.path += "/";
         }
@@ -14429,8 +14429,8 @@ var init_AwsRestJsonProtocol = __esm({
         this.codec.setSerdeContext(serdeContext);
         super.setSerdeContext(serdeContext);
       }
-      async serializeRequest(operationSchema, input2, context) {
-        const request = await super.serializeRequest(operationSchema, input2, context);
+      async serializeRequest(operationSchema, input, context) {
+        const request = await super.serializeRequest(operationSchema, input, context);
         const inputSchema = NormalizedSchema.of(operationSchema.input);
         if (!request.headers["content-type"]) {
           const contentType = this.mixin.resolveRestContentType(this.getDefaultContentType(), inputSchema);
@@ -15907,14 +15907,14 @@ var require_dist_cjs44 = __commonJS({
         }
         return this;
       }
-      cc(input2, field, withName = field) {
-        if (input2[field] != null) {
-          const node = _XmlNode.of(field, input2[field]).withName(withName);
+      cc(input, field, withName = field) {
+        if (input[field] != null) {
+          const node = _XmlNode.of(field, input[field]).withName(withName);
           this.c(node);
         }
       }
-      l(input2, listName, memberName, valueProvider) {
-        if (input2[listName] != null) {
+      l(input, listName, memberName, valueProvider) {
+        if (input[listName] != null) {
           const nodes = valueProvider();
           nodes.map((node) => {
             node.withName(memberName);
@@ -15922,8 +15922,8 @@ var require_dist_cjs44 = __commonJS({
           });
         }
       }
-      lc(input2, listName, memberName, valueProvider) {
-        if (input2[listName] != null) {
+      lc(input, listName, memberName, valueProvider) {
+        if (input[listName] != null) {
           const nodes = valueProvider();
           const containerNode = new _XmlNode(memberName);
           nodes.map((node) => {
@@ -16327,8 +16327,8 @@ var init_AwsQueryProtocol = __esm({
       getPayloadCodec() {
         throw new Error("AWSQuery protocol has no payload codec.");
       }
-      async serializeRequest(operationSchema, input2, context) {
-        const request = await super.serializeRequest(operationSchema, input2, context);
+      async serializeRequest(operationSchema, input, context) {
+        const request = await super.serializeRequest(operationSchema, input, context);
         if (!request.path.endsWith("/")) {
           request.path += "/";
         }
@@ -16855,8 +16855,8 @@ var init_AwsRestXmlProtocol = __esm({
       getShapeId() {
         return "aws.protocols#restXml";
       }
-      async serializeRequest(operationSchema, input2, context) {
-        const request = await super.serializeRequest(operationSchema, input2, context);
+      async serializeRequest(operationSchema, input, context) {
+        const request = await super.serializeRequest(operationSchema, input, context);
         const inputSchema = NormalizedSchema.of(operationSchema.input);
         if (!request.headers["content-type"]) {
           const contentType = this.mixin.resolveRestContentType(this.getDefaultContentType(), inputSchema);
@@ -18041,7 +18041,7 @@ var init_httpAuthSchemeProvider2 = __esm({
   "node_modules/@aws-sdk/nested-clients/dist-es/submodules/sso/auth/httpAuthSchemeProvider.js"() {
     init_httpAuthSchemes2();
     import_util_middleware7 = __toESM(require_dist_cjs6());
-    defaultSSOHttpAuthSchemeParametersProvider = async (config, context, input2) => {
+    defaultSSOHttpAuthSchemeParametersProvider = async (config, context, input) => {
       return {
         operation: (0, import_util_middleware7.getSmithyContext)(context).operation,
         region: await (0, import_util_middleware7.normalizeProvider)(config.region)() || (() => {
@@ -18925,7 +18925,7 @@ var init_httpAuthSchemeProvider3 = __esm({
   "node_modules/@aws-sdk/nested-clients/dist-es/submodules/signin/auth/httpAuthSchemeProvider.js"() {
     init_httpAuthSchemes2();
     import_util_middleware8 = __toESM(require_dist_cjs6());
-    defaultSigninHttpAuthSchemeParametersProvider = async (config, context, input2) => {
+    defaultSigninHttpAuthSchemeParametersProvider = async (config, context, input) => {
       return {
         operation: (0, import_util_middleware8.getSmithyContext)(context).operation,
         region: await (0, import_util_middleware8.normalizeProvider)(config.region)() || (() => {
@@ -19988,7 +19988,7 @@ var init_httpAuthSchemeProvider4 = __esm({
     init_httpAuthSchemes2();
     import_util_middleware9 = __toESM(require_dist_cjs6());
     init_STSClient();
-    defaultSTSHttpAuthSchemeParametersProvider = async (config, context, input2) => {
+    defaultSTSHttpAuthSchemeParametersProvider = async (config, context, input) => {
       return {
         operation: (0, import_util_middleware9.getSmithyContext)(context).operation,
         region: await (0, import_util_middleware9.normalizeProvider)(config.region)() || (() => {
@@ -20009,7 +20009,7 @@ var init_httpAuthSchemeProvider4 = __esm({
       }
       return options;
     };
-    resolveStsAuthConfig = (input2) => Object.assign(input2, {
+    resolveStsAuthConfig = (input) => Object.assign(input, {
       stsClientCtor: STSClient
     });
     resolveHttpAuthSchemeConfig4 = (config) => {
@@ -20980,10 +20980,10 @@ var init_defaultRoleAssumers = __esm({
     };
     getDefaultRoleAssumer2 = (stsOptions = {}, stsPlugins) => getDefaultRoleAssumer(stsOptions, getCustomizableStsClientCtor(STSClient, stsPlugins));
     getDefaultRoleAssumerWithWebIdentity2 = (stsOptions = {}, stsPlugins) => getDefaultRoleAssumerWithWebIdentity(stsOptions, getCustomizableStsClientCtor(STSClient, stsPlugins));
-    decorateDefaultCredentialProvider = (provider) => (input2) => provider({
-      roleAssumer: getDefaultRoleAssumer2(input2),
-      roleAssumerWithWebIdentity: getDefaultRoleAssumerWithWebIdentity2(input2),
-      ...input2
+    decorateDefaultCredentialProvider = (provider) => (input) => provider({
+      roleAssumer: getDefaultRoleAssumer2(input),
+      roleAssumerWithWebIdentity: getDefaultRoleAssumerWithWebIdentity2(input),
+      ...input
     });
   }
 });
@@ -27800,9 +27800,9 @@ var require_dist_cjs53 = __commonJS({
       return randomInRange(minDelay, delay);
     };
     var randomInRange = (min, max) => min + Math.random() * (max - min);
-    var runPolling = async ({ minDelay, maxDelay, maxWaitTime, abortController, client, abortSignal }, input2, acceptorChecks) => {
+    var runPolling = async ({ minDelay, maxDelay, maxWaitTime, abortController, client, abortSignal }, input, acceptorChecks) => {
       const observedResponses = {};
-      const { state: state2, reason } = await acceptorChecks(client, input2);
+      const { state: state2, reason } = await acceptorChecks(client, input);
       if (reason) {
         const message = createMessageFromResponse(reason);
         observedResponses[message] |= 0;
@@ -27826,7 +27826,7 @@ var require_dist_cjs53 = __commonJS({
           return { state: exports2.WaiterState.TIMEOUT, observedResponses };
         }
         await sleep(delay);
-        const { state: state3, reason: reason2 } = await acceptorChecks(client, input2);
+        const { state: state3, reason: reason2 } = await acceptorChecks(client, input);
         if (reason2) {
           const message = createMessageFromResponse(reason2);
           observedResponses[message] |= 0;
@@ -27882,13 +27882,13 @@ var require_dist_cjs53 = __commonJS({
         aborted: promise
       };
     };
-    var createWaiter = async (options, input2, acceptorChecks) => {
+    var createWaiter = async (options, input, acceptorChecks) => {
       const params = {
         ...waiterServiceDefaults,
         ...options
       };
       validateWaiterOptions(params);
-      const exitConditions = [runPolling(params, input2, acceptorChecks)];
+      const exitConditions = [runPolling(params, input, acceptorChecks)];
       const finalize = [];
       if (options.abortSignal) {
         const { aborted, clearListener } = abortTimeout(options.abortSignal);
@@ -28338,10 +28338,10 @@ var require_dist_cjs54 = __commonJS({
     var paginateListTaskDefinitionFamilies = core.createPaginator(ECSClient2, ListTaskDefinitionFamiliesCommand, "nextToken", "nextToken", "maxResults");
     var paginateListTaskDefinitions = core.createPaginator(ECSClient2, ListTaskDefinitionsCommand, "nextToken", "nextToken", "maxResults");
     var paginateListTasks = core.createPaginator(ECSClient2, ListTasksCommand2, "nextToken", "nextToken", "maxResults");
-    var checkState$8 = async (client, input2) => {
+    var checkState$8 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeDaemonCommand(input2));
+        let result = await client.send(new DescribeDaemonCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28366,19 +28366,19 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForDaemonActive = async (params, input2) => {
+    var waitForDaemonActive = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$8);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$8);
     };
-    var waitUntilDaemonActive = async (params, input2) => {
+    var waitUntilDaemonActive = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$8);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$8);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$7 = async (client, input2) => {
+    var checkState$7 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeDaemonDeploymentsCommand(input2));
+        let result = await client.send(new DescribeDaemonDeploymentsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28417,19 +28417,19 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForDaemonDeploymentStopped = async (params, input2) => {
+    var waitForDaemonDeploymentStopped = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$7);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$7);
     };
-    var waitUntilDaemonDeploymentStopped = async (params, input2) => {
+    var waitUntilDaemonDeploymentStopped = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$7);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$7);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$6 = async (client, input2) => {
+    var checkState$6 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeDaemonDeploymentsCommand(input2));
+        let result = await client.send(new DescribeDaemonDeploymentsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28513,19 +28513,19 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForDaemonDeploymentSuccessful = async (params, input2) => {
+    var waitForDaemonDeploymentSuccessful = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$6);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$6);
     };
-    var waitUntilDaemonDeploymentSuccessful = async (params, input2) => {
+    var waitUntilDaemonDeploymentSuccessful = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$6);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$6);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$5 = async (client, input2) => {
+    var checkState$5 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeDaemonTaskDefinitionCommand(input2));
+        let result = await client.send(new DescribeDaemonTaskDefinitionCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28559,19 +28559,19 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForDaemonTaskDefinitionActive = async (params, input2) => {
+    var waitForDaemonTaskDefinitionActive = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$5);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$5);
     };
-    var waitUntilDaemonTaskDefinitionActive = async (params, input2) => {
+    var waitUntilDaemonTaskDefinitionActive = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$5);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$5);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$4 = async (client, input2) => {
+    var checkState$4 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeDaemonTaskDefinitionCommand(input2));
+        let result = await client.send(new DescribeDaemonTaskDefinitionCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28587,19 +28587,19 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForDaemonTaskDefinitionDeleted = async (params, input2) => {
+    var waitForDaemonTaskDefinitionDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$4);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$4);
     };
-    var waitUntilDaemonTaskDefinitionDeleted = async (params, input2) => {
+    var waitUntilDaemonTaskDefinitionDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$4);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$4);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$3 = async (client, input2) => {
+    var checkState$3 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeServicesCommand(input2));
+        let result = await client.send(new DescribeServicesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28636,19 +28636,19 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForServicesInactive = async (params, input2) => {
+    var waitForServicesInactive = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 600 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$3);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$3);
     };
-    var waitUntilServicesInactive = async (params, input2) => {
+    var waitUntilServicesInactive = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 600 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$3);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$3);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$2 = async (client, input2) => {
+    var checkState$2 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeServicesCommand(input2));
+        let result = await client.send(new DescribeServicesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28712,19 +28712,19 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForServicesStable = async (params, input2) => {
+    var waitForServicesStable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 600 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$2);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$2);
     };
-    var waitUntilServicesStable = async (params, input2) => {
+    var waitUntilServicesStable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 600 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$2);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$2);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$1 = async (client, input2) => {
+    var checkState$1 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeTasksCommand2(input2));
+        let result = await client.send(new DescribeTasksCommand2(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28778,19 +28778,19 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForTasksRunning = async (params, input2) => {
+    var waitForTasksRunning = async (params, input) => {
       const serviceDefaults = { minDelay: 6, maxDelay: 600 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$1);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$1);
     };
-    var waitUntilTasksRunning = async (params, input2) => {
+    var waitUntilTasksRunning = async (params, input) => {
       const serviceDefaults = { minDelay: 6, maxDelay: 600 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$1);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$1);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState = async (client, input2) => {
+    var checkState = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeTasksCommand2(input2));
+        let result = await client.send(new DescribeTasksCommand2(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -28814,13 +28814,13 @@ var require_dist_cjs54 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForTasksStopped = async (params, input2) => {
+    var waitForTasksStopped = async (params, input) => {
       const serviceDefaults = { minDelay: 6, maxDelay: 600 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState);
     };
-    var waitUntilTasksStopped = async (params, input2) => {
+    var waitUntilTasksStopped = async (params, input) => {
       const serviceDefaults = { minDelay: 6, maxDelay: 600 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState);
       return utilWaiter.checkExceptions(result);
     };
     var commands5 = {
@@ -29683,7 +29683,7 @@ var require_httpAuthSchemeProvider2 = __commonJS({
     exports2.resolveHttpAuthSchemeConfig = exports2.defaultEC2HttpAuthSchemeProvider = exports2.defaultEC2HttpAuthSchemeParametersProvider = void 0;
     var httpAuthSchemes_1 = (init_httpAuthSchemes2(), __toCommonJS(httpAuthSchemes_exports));
     var util_middleware_1 = require_dist_cjs6();
-    var defaultEC2HttpAuthSchemeParametersProvider = async (config, context, input2) => {
+    var defaultEC2HttpAuthSchemeParametersProvider = async (config, context, input) => {
       return {
         operation: (0, util_middleware_1.getSmithyContext)(context).operation,
         region: await (0, util_middleware_1.normalizeProvider)(config.region)() || (() => {
@@ -87491,10 +87491,10 @@ var require_dist_cjs56 = __commonJS({
     var version = "2016-11-15";
     function copySnapshotPresignedUrlMiddleware(options) {
       return (next, context) => async (args) => {
-        const { input: input2 } = args;
-        if (!input2.PresignedUrl) {
+        const { input } = args;
+        if (!input.PresignedUrl) {
           const destinationRegion = await options.region();
-          const endpoint = await middlewareEndpoint.getEndpointFromInstructions(input2, {
+          const endpoint = await middlewareEndpoint.getEndpointFromInstructions(input, {
             getEndpointParameterInstructions() {
               return {
                 UseFIPS: { type: "builtInParams", name: "useFipsEndpoint" },
@@ -87505,7 +87505,7 @@ var require_dist_cjs56 = __commonJS({
             }
           }, {
             ...options,
-            region: input2.SourceRegion
+            region: input.SourceRegion
           });
           const resolvedEndpoint = typeof options.endpoint === "function" ? await options.endpoint() : middlewareEndpoint.toEndpointV1(endpoint);
           const requestToSign = new protocolHttp.HttpRequest({
@@ -87515,7 +87515,7 @@ var require_dist_cjs56 = __commonJS({
               host: resolvedEndpoint.hostname
             },
             query: {
-              ...Object.entries(input2).reduce((acc, [k5, v5]) => {
+              ...Object.entries(input).reduce((acc, [k5, v5]) => {
                 acc[k5] = String(v5 ?? "");
                 return acc;
               }, {}),
@@ -87526,7 +87526,7 @@ var require_dist_cjs56 = __commonJS({
           });
           const signer = new signatureV4.SignatureV4({
             credentials: options.credentials,
-            region: input2.SourceRegion,
+            region: input.SourceRegion,
             service: "ec2",
             sha256: options.sha256,
             uriEscapePath: options.signingEscapePath
@@ -90880,10 +90880,10 @@ var require_dist_cjs57 = __commonJS({
     var paginateSearchLocalGatewayRoutes = core.createPaginator(EC2Client2, SearchLocalGatewayRoutesCommand, "NextToken", "NextToken", "MaxResults");
     var paginateSearchTransitGatewayMulticastGroups = core.createPaginator(EC2Client2, SearchTransitGatewayMulticastGroupsCommand, "NextToken", "NextToken", "MaxResults");
     var paginateSearchTransitGatewayRoutes = core.createPaginator(EC2Client2, SearchTransitGatewayRoutesCommand, "NextToken", "NextToken", "MaxResults");
-    var checkState$G = async (client, input2) => {
+    var checkState$G = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeBundleTasksCommand(input2));
+        let result = await client.send(new DescribeBundleTasksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -90922,19 +90922,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForBundleTaskComplete = async (params, input2) => {
+    var waitForBundleTaskComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$G);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$G);
     };
-    var waitUntilBundleTaskComplete = async (params, input2) => {
+    var waitUntilBundleTaskComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$G);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$G);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$F = async (client, input2) => {
+    var checkState$F = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeConversionTasksCommand(input2));
+        let result = await client.send(new DescribeConversionTasksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -90958,19 +90958,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForConversionTaskCancelled = async (params, input2) => {
+    var waitForConversionTaskCancelled = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$F);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$F);
     };
-    var waitUntilConversionTaskCancelled = async (params, input2) => {
+    var waitUntilConversionTaskCancelled = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$F);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$F);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$E = async (client, input2) => {
+    var checkState$E = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeConversionTasksCommand(input2));
+        let result = await client.send(new DescribeConversionTasksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91024,19 +91024,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForConversionTaskCompleted = async (params, input2) => {
+    var waitForConversionTaskCompleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$E);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$E);
     };
-    var waitUntilConversionTaskCompleted = async (params, input2) => {
+    var waitUntilConversionTaskCompleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$E);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$E);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$D = async (client, input2) => {
+    var checkState$D = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeConversionTasksCommand(input2));
+        let result = await client.send(new DescribeConversionTasksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91060,19 +91060,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForConversionTaskDeleted = async (params, input2) => {
+    var waitForConversionTaskDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$D);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$D);
     };
-    var waitUntilConversionTaskDeleted = async (params, input2) => {
+    var waitUntilConversionTaskDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$D);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$D);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$C = async (client, input2) => {
+    var checkState$C = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeCustomerGatewaysCommand(input2));
+        let result = await client.send(new DescribeCustomerGatewaysCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91126,19 +91126,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForCustomerGatewayAvailable = async (params, input2) => {
+    var waitForCustomerGatewayAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$C);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$C);
     };
-    var waitUntilCustomerGatewayAvailable = async (params, input2) => {
+    var waitUntilCustomerGatewayAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$C);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$C);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$B = async (client, input2) => {
+    var checkState$B = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeExportTasksCommand(input2));
+        let result = await client.send(new DescribeExportTasksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91162,19 +91162,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForExportTaskCancelled = async (params, input2) => {
+    var waitForExportTaskCancelled = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$B);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$B);
     };
-    var waitUntilExportTaskCancelled = async (params, input2) => {
+    var waitUntilExportTaskCancelled = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$B);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$B);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$A = async (client, input2) => {
+    var checkState$A = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeExportTasksCommand(input2));
+        let result = await client.send(new DescribeExportTasksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91198,19 +91198,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForExportTaskCompleted = async (params, input2) => {
+    var waitForExportTaskCompleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$A);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$A);
     };
-    var waitUntilExportTaskCompleted = async (params, input2) => {
+    var waitUntilExportTaskCompleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$A);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$A);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$z = async (client, input2) => {
+    var checkState$z = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeImagesCommand(input2));
+        let result = await client.send(new DescribeImagesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91249,19 +91249,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForImageAvailable = async (params, input2) => {
+    var waitForImageAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$z);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$z);
     };
-    var waitUntilImageAvailable = async (params, input2) => {
+    var waitUntilImageAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$z);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$z);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$y = async (client, input2) => {
+    var checkState$y = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeImagesCommand(input2));
+        let result = await client.send(new DescribeImagesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91281,19 +91281,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForImageExists = async (params, input2) => {
+    var waitForImageExists = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$y);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$y);
     };
-    var waitUntilImageExists = async (params, input2) => {
+    var waitUntilImageExists = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$y);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$y);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$x = async (client, input2) => {
+    var checkState$x = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeImageUsageReportsCommand(input2));
+        let result = await client.send(new DescribeImageUsageReportsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91332,19 +91332,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForImageUsageReportAvailable = async (params, input2) => {
+    var waitForImageUsageReportAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$x);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$x);
     };
-    var waitUntilImageUsageReportAvailable = async (params, input2) => {
+    var waitUntilImageUsageReportAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$x);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$x);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$w = async (client, input2) => {
+    var checkState$w = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeInstancesCommand(input2));
+        let result = await client.send(new DescribeInstancesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91364,19 +91364,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForInstanceExists = async (params, input2) => {
+    var waitForInstanceExists = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$w);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$w);
     };
-    var waitUntilInstanceExists = async (params, input2) => {
+    var waitUntilInstanceExists = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$w);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$w);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$v = async (client, input2) => {
+    var checkState$v = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeInstancesCommand(input2));
+        let result = await client.send(new DescribeInstancesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91464,19 +91464,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForInstanceRunning = async (params, input2) => {
+    var waitForInstanceRunning = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$v);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$v);
     };
-    var waitUntilInstanceRunning = async (params, input2) => {
+    var waitUntilInstanceRunning = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$v);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$v);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$u = async (client, input2) => {
+    var checkState$u = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeInstanceStatusCommand(input2));
+        let result = await client.send(new DescribeInstanceStatusCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91503,19 +91503,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForInstanceStatusOk = async (params, input2) => {
+    var waitForInstanceStatusOk = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$u);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$u);
     };
-    var waitUntilInstanceStatusOk = async (params, input2) => {
+    var waitUntilInstanceStatusOk = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$u);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$u);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$t = async (client, input2) => {
+    var checkState$t = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeInstancesCommand(input2));
+        let result = await client.send(new DescribeInstancesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91581,19 +91581,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForInstanceStopped = async (params, input2) => {
+    var waitForInstanceStopped = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$t);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$t);
     };
-    var waitUntilInstanceStopped = async (params, input2) => {
+    var waitUntilInstanceStopped = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$t);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$t);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$s = async (client, input2) => {
+    var checkState$s = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeInstancesCommand(input2));
+        let result = await client.send(new DescribeInstancesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91659,19 +91659,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForInstanceTerminated = async (params, input2) => {
+    var waitForInstanceTerminated = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$s);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$s);
     };
-    var waitUntilInstanceTerminated = async (params, input2) => {
+    var waitUntilInstanceTerminated = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$s);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$s);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$r = async (client, input2) => {
+    var checkState$r = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeInternetGatewaysCommand(input2));
+        let result = await client.send(new DescribeInternetGatewaysCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91694,19 +91694,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForInternetGatewayExists = async (params, input2) => {
+    var waitForInternetGatewayExists = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$r);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$r);
     };
-    var waitUntilInternetGatewayExists = async (params, input2) => {
+    var waitUntilInternetGatewayExists = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$r);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$r);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$q = async (client, input2) => {
+    var checkState$q = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeKeyPairsCommand(input2));
+        let result = await client.send(new DescribeKeyPairsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91729,19 +91729,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForKeyPairExists = async (params, input2) => {
+    var waitForKeyPairExists = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$q);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$q);
     };
-    var waitUntilKeyPairExists = async (params, input2) => {
+    var waitUntilKeyPairExists = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$q);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$q);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$p = async (client, input2) => {
+    var checkState$p = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeNatGatewaysCommand(input2));
+        let result = await client.send(new DescribeNatGatewaysCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91813,19 +91813,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForNatGatewayAvailable = async (params, input2) => {
+    var waitForNatGatewayAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$p);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$p);
     };
-    var waitUntilNatGatewayAvailable = async (params, input2) => {
+    var waitUntilNatGatewayAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$p);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$p);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$o = async (client, input2) => {
+    var checkState$o = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeNatGatewaysCommand(input2));
+        let result = await client.send(new DescribeNatGatewaysCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91852,19 +91852,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForNatGatewayDeleted = async (params, input2) => {
+    var waitForNatGatewayDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$o);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$o);
     };
-    var waitUntilNatGatewayDeleted = async (params, input2) => {
+    var waitUntilNatGatewayDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$o);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$o);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$n = async (client, input2) => {
+    var checkState$n = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeNetworkInterfacesCommand2(input2));
+        let result = await client.send(new DescribeNetworkInterfacesCommand2(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91891,19 +91891,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForNetworkInterfaceAvailable = async (params, input2) => {
+    var waitForNetworkInterfaceAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 20, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$n);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$n);
     };
-    var waitUntilNetworkInterfaceAvailable = async (params, input2) => {
+    var waitUntilNetworkInterfaceAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 20, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$n);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$n);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$m = async (client, input2) => {
+    var checkState$m = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new GetPasswordDataCommand(input2));
+        let result = await client.send(new GetPasswordDataCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91919,19 +91919,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForPasswordDataAvailable = async (params, input2) => {
+    var waitForPasswordDataAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$m);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$m);
     };
-    var waitUntilPasswordDataAvailable = async (params, input2) => {
+    var waitUntilPasswordDataAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$m);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$m);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$l = async (client, input2) => {
+    var checkState$l = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSecondaryNetworksCommand(input2));
+        let result = await client.send(new DescribeSecondaryNetworksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -91973,19 +91973,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSecondaryNetworkCreateComplete = async (params, input2) => {
+    var waitForSecondaryNetworkCreateComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$l);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$l);
     };
-    var waitUntilSecondaryNetworkCreateComplete = async (params, input2) => {
+    var waitUntilSecondaryNetworkCreateComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$l);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$l);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$k = async (client, input2) => {
+    var checkState$k = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSecondaryNetworksCommand(input2));
+        let result = await client.send(new DescribeSecondaryNetworksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92024,19 +92024,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSecondaryNetworkDeleteComplete = async (params, input2) => {
+    var waitForSecondaryNetworkDeleteComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$k);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$k);
     };
-    var waitUntilSecondaryNetworkDeleteComplete = async (params, input2) => {
+    var waitUntilSecondaryNetworkDeleteComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$k);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$k);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$j = async (client, input2) => {
+    var checkState$j = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSecondarySubnetsCommand(input2));
+        let result = await client.send(new DescribeSecondarySubnetsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92078,19 +92078,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSecondarySubnetCreateComplete = async (params, input2) => {
+    var waitForSecondarySubnetCreateComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$j);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$j);
     };
-    var waitUntilSecondarySubnetCreateComplete = async (params, input2) => {
+    var waitUntilSecondarySubnetCreateComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$j);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$j);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$i = async (client, input2) => {
+    var checkState$i = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSecondarySubnetsCommand(input2));
+        let result = await client.send(new DescribeSecondarySubnetsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92129,19 +92129,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSecondarySubnetDeleteComplete = async (params, input2) => {
+    var waitForSecondarySubnetDeleteComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$i);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$i);
     };
-    var waitUntilSecondarySubnetDeleteComplete = async (params, input2) => {
+    var waitUntilSecondarySubnetDeleteComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$i);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$i);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$h = async (client, input2) => {
+    var checkState$h = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSecurityGroupsCommand(input2));
+        let result = await client.send(new DescribeSecurityGroupsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92164,19 +92164,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSecurityGroupExists = async (params, input2) => {
+    var waitForSecurityGroupExists = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$h);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$h);
     };
-    var waitUntilSecurityGroupExists = async (params, input2) => {
+    var waitUntilSecurityGroupExists = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$h);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$h);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$g = async (client, input2) => {
+    var checkState$g = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSecurityGroupVpcAssociationsCommand(input2));
+        let result = await client.send(new DescribeSecurityGroupVpcAssociationsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92230,19 +92230,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSecurityGroupVpcAssociationAssociated = async (params, input2) => {
+    var waitForSecurityGroupVpcAssociationAssociated = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$g);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$g);
     };
-    var waitUntilSecurityGroupVpcAssociationAssociated = async (params, input2) => {
+    var waitUntilSecurityGroupVpcAssociationAssociated = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$g);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$g);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$f = async (client, input2) => {
+    var checkState$f = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSecurityGroupVpcAssociationsCommand(input2));
+        let result = await client.send(new DescribeSecurityGroupVpcAssociationsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92306,19 +92306,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSecurityGroupVpcAssociationDisassociated = async (params, input2) => {
+    var waitForSecurityGroupVpcAssociationDisassociated = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$f);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$f);
     };
-    var waitUntilSecurityGroupVpcAssociationDisassociated = async (params, input2) => {
+    var waitUntilSecurityGroupVpcAssociationDisassociated = async (params, input) => {
       const serviceDefaults = { minDelay: 10, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$f);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$f);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$e = async (client, input2) => {
+    var checkState$e = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSnapshotsCommand(input2));
+        let result = await client.send(new DescribeSnapshotsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92357,19 +92357,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSnapshotCompleted = async (params, input2) => {
+    var waitForSnapshotCompleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$e);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$e);
     };
-    var waitUntilSnapshotCompleted = async (params, input2) => {
+    var waitUntilSnapshotCompleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$e);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$e);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$d = async (client, input2) => {
+    var checkState$d = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeImportSnapshotTasksCommand(input2));
+        let result = await client.send(new DescribeImportSnapshotTasksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92408,19 +92408,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSnapshotImported = async (params, input2) => {
+    var waitForSnapshotImported = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$d);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$d);
     };
-    var waitUntilSnapshotImported = async (params, input2) => {
+    var waitUntilSnapshotImported = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$d);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$d);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$c = async (client, input2) => {
+    var checkState$c = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSpotInstanceRequestsCommand(input2));
+        let result = await client.send(new DescribeSpotInstanceRequestsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92524,19 +92524,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSpotInstanceRequestFulfilled = async (params, input2) => {
+    var waitForSpotInstanceRequestFulfilled = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$c);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$c);
     };
-    var waitUntilSpotInstanceRequestFulfilled = async (params, input2) => {
+    var waitUntilSpotInstanceRequestFulfilled = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$c);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$c);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$b = async (client, input2) => {
+    var checkState$b = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeStoreImageTasksCommand(input2));
+        let result = await client.send(new DescribeStoreImageTasksCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92590,19 +92590,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForStoreImageTaskComplete = async (params, input2) => {
+    var waitForStoreImageTaskComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$b);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$b);
     };
-    var waitUntilStoreImageTaskComplete = async (params, input2) => {
+    var waitUntilStoreImageTaskComplete = async (params, input) => {
       const serviceDefaults = { minDelay: 5, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$b);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$b);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$a = async (client, input2) => {
+    var checkState$a = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeSubnetsCommand(input2));
+        let result = await client.send(new DescribeSubnetsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92626,19 +92626,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSubnetAvailable = async (params, input2) => {
+    var waitForSubnetAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$a);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$a);
     };
-    var waitUntilSubnetAvailable = async (params, input2) => {
+    var waitUntilSubnetAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$a);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$a);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$9 = async (client, input2) => {
+    var checkState$9 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeInstanceStatusCommand(input2));
+        let result = await client.send(new DescribeInstanceStatusCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92662,19 +92662,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForSystemStatusOk = async (params, input2) => {
+    var waitForSystemStatusOk = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$9);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$9);
     };
-    var waitUntilSystemStatusOk = async (params, input2) => {
+    var waitUntilSystemStatusOk = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$9);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$9);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$8 = async (client, input2) => {
+    var checkState$8 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVolumesCommand(input2));
+        let result = await client.send(new DescribeVolumesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92713,19 +92713,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVolumeAvailable = async (params, input2) => {
+    var waitForVolumeAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$8);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$8);
     };
-    var waitUntilVolumeAvailable = async (params, input2) => {
+    var waitUntilVolumeAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$8);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$8);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$7 = async (client, input2) => {
+    var checkState$7 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVolumesCommand(input2));
+        let result = await client.send(new DescribeVolumesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92752,19 +92752,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVolumeDeleted = async (params, input2) => {
+    var waitForVolumeDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$7);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$7);
     };
-    var waitUntilVolumeDeleted = async (params, input2) => {
+    var waitUntilVolumeDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$7);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$7);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$6 = async (client, input2) => {
+    var checkState$6 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVolumesCommand(input2));
+        let result = await client.send(new DescribeVolumesCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92803,19 +92803,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVolumeInUse = async (params, input2) => {
+    var waitForVolumeInUse = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$6);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$6);
     };
-    var waitUntilVolumeInUse = async (params, input2) => {
+    var waitUntilVolumeInUse = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$6);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$6);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$5 = async (client, input2) => {
+    var checkState$5 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVpcsCommand(input2));
+        let result = await client.send(new DescribeVpcsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92839,19 +92839,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVpcAvailable = async (params, input2) => {
+    var waitForVpcAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$5);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$5);
     };
-    var waitUntilVpcAvailable = async (params, input2) => {
+    var waitUntilVpcAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$5);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$5);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$4 = async (client, input2) => {
+    var checkState$4 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVpcsCommand(input2));
+        let result = await client.send(new DescribeVpcsCommand(input));
         reason = result;
         return { state: utilWaiter.WaiterState.SUCCESS, reason };
       } catch (exception) {
@@ -92862,19 +92862,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVpcExists = async (params, input2) => {
+    var waitForVpcExists = async (params, input) => {
       const serviceDefaults = { minDelay: 1, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$4);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$4);
     };
-    var waitUntilVpcExists = async (params, input2) => {
+    var waitUntilVpcExists = async (params, input) => {
       const serviceDefaults = { minDelay: 1, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$4);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$4);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$3 = async (client, input2) => {
+    var checkState$3 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVpcPeeringConnectionsCommand(input2));
+        let result = await client.send(new DescribeVpcPeeringConnectionsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92901,19 +92901,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVpcPeeringConnectionDeleted = async (params, input2) => {
+    var waitForVpcPeeringConnectionDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$3);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$3);
     };
-    var waitUntilVpcPeeringConnectionDeleted = async (params, input2) => {
+    var waitUntilVpcPeeringConnectionDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$3);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$3);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$2 = async (client, input2) => {
+    var checkState$2 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVpcPeeringConnectionsCommand(input2));
+        let result = await client.send(new DescribeVpcPeeringConnectionsCommand(input));
         reason = result;
         return { state: utilWaiter.WaiterState.SUCCESS, reason };
       } catch (exception) {
@@ -92924,19 +92924,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVpcPeeringConnectionExists = async (params, input2) => {
+    var waitForVpcPeeringConnectionExists = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$2);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$2);
     };
-    var waitUntilVpcPeeringConnectionExists = async (params, input2) => {
+    var waitUntilVpcPeeringConnectionExists = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$2);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$2);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState$1 = async (client, input2) => {
+    var checkState$1 = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVpnConnectionsCommand(input2));
+        let result = await client.send(new DescribeVpnConnectionsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -92990,19 +92990,19 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVpnConnectionAvailable = async (params, input2) => {
+    var waitForVpnConnectionAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$1);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$1);
     };
-    var waitUntilVpnConnectionAvailable = async (params, input2) => {
+    var waitUntilVpnConnectionAvailable = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState$1);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState$1);
       return utilWaiter.checkExceptions(result);
     };
-    var checkState = async (client, input2) => {
+    var checkState = async (client, input) => {
       let reason;
       try {
-        let result = await client.send(new DescribeVpnConnectionsCommand(input2));
+        let result = await client.send(new DescribeVpnConnectionsCommand(input));
         reason = result;
         try {
           const returnComparator = () => {
@@ -93041,13 +93041,13 @@ var require_dist_cjs57 = __commonJS({
       }
       return { state: utilWaiter.WaiterState.RETRY, reason };
     };
-    var waitForVpnConnectionDeleted = async (params, input2) => {
+    var waitForVpnConnectionDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState);
+      return utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState);
     };
-    var waitUntilVpnConnectionDeleted = async (params, input2) => {
+    var waitUntilVpnConnectionDeleted = async (params, input) => {
       const serviceDefaults = { minDelay: 15, maxDelay: 120 };
-      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input2, checkState);
+      const result = await utilWaiter.createWaiter({ ...serviceDefaults, ...params }, input, checkState);
       return utilWaiter.checkExceptions(result);
     };
     var commands5 = {
@@ -99366,8 +99366,8 @@ var require_dist_cjs57 = __commonJS({
 var require_dist_cjs58 = __commonJS({
   "node_modules/@smithy/eventstream-serde-config-resolver/dist-cjs/index.js"(exports2) {
     "use strict";
-    var resolveEventStreamSerdeConfig = (input2) => Object.assign(input2, {
-      eventStreamMarshaller: input2.eventStreamSerdeProvider(input2)
+    var resolveEventStreamSerdeConfig = (input) => Object.assign(input, {
+      eventStreamMarshaller: input.eventStreamSerdeProvider(input)
     });
     exports2.resolveEventStreamSerdeConfig = resolveEventStreamSerdeConfig;
   }
@@ -99381,7 +99381,7 @@ var require_httpAuthSchemeProvider3 = __commonJS({
     exports2.resolveHttpAuthSchemeConfig = exports2.defaultCloudWatchLogsHttpAuthSchemeProvider = exports2.defaultCloudWatchLogsHttpAuthSchemeParametersProvider = void 0;
     var httpAuthSchemes_1 = (init_httpAuthSchemes2(), __toCommonJS(httpAuthSchemes_exports));
     var util_middleware_1 = require_dist_cjs6();
-    var defaultCloudWatchLogsHttpAuthSchemeParametersProvider = async (config, context, input2) => {
+    var defaultCloudWatchLogsHttpAuthSchemeParametersProvider = async (config, context, input) => {
       return {
         operation: (0, util_middleware_1.getSmithyContext)(context).operation,
         region: await (0, util_middleware_1.normalizeProvider)(config.region)() || (() => {
@@ -99601,17 +99601,17 @@ var require_dist_cjs60 = __commonJS({
     module2.exports = __toCommonJS2(src_exports);
     var import_is_array_buffer = require_dist_cjs59();
     var import_buffer = require("buffer");
-    var fromArrayBuffer = /* @__PURE__ */ __name((input2, offset = 0, length = input2.byteLength - offset) => {
-      if (!(0, import_is_array_buffer.isArrayBuffer)(input2)) {
-        throw new TypeError(`The "input" argument must be ArrayBuffer. Received type ${typeof input2} (${input2})`);
+    var fromArrayBuffer = /* @__PURE__ */ __name((input, offset = 0, length = input.byteLength - offset) => {
+      if (!(0, import_is_array_buffer.isArrayBuffer)(input)) {
+        throw new TypeError(`The "input" argument must be ArrayBuffer. Received type ${typeof input} (${input})`);
       }
-      return import_buffer.Buffer.from(input2, offset, length);
+      return import_buffer.Buffer.from(input, offset, length);
     }, "fromArrayBuffer");
-    var fromString = /* @__PURE__ */ __name((input2, encoding) => {
-      if (typeof input2 !== "string") {
-        throw new TypeError(`The "input" argument must be of type string. Received type ${typeof input2} (${input2})`);
+    var fromString = /* @__PURE__ */ __name((input, encoding) => {
+      if (typeof input !== "string") {
+        throw new TypeError(`The "input" argument must be of type string. Received type ${typeof input} (${input})`);
       }
-      return encoding ? import_buffer.Buffer.from(input2, encoding) : import_buffer.Buffer.from(input2);
+      return encoding ? import_buffer.Buffer.from(input, encoding) : import_buffer.Buffer.from(input);
     }, "fromString");
   }
 });
@@ -99645,8 +99645,8 @@ var require_dist_cjs61 = __commonJS({
     });
     module2.exports = __toCommonJS2(src_exports);
     var import_util_buffer_from = require_dist_cjs60();
-    var fromUtf88 = /* @__PURE__ */ __name((input2) => {
-      const buf = (0, import_util_buffer_from.fromString)(input2, "utf8");
+    var fromUtf88 = /* @__PURE__ */ __name((input) => {
+      const buf = (0, import_util_buffer_from.fromString)(input, "utf8");
       return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength / Uint8Array.BYTES_PER_ELEMENT);
     }, "fromUtf8");
     var toUint8Array2 = /* @__PURE__ */ __name((data2) => {
@@ -99658,14 +99658,14 @@ var require_dist_cjs61 = __commonJS({
       }
       return new Uint8Array(data2);
     }, "toUint8Array");
-    var toUtf811 = /* @__PURE__ */ __name((input2) => {
-      if (typeof input2 === "string") {
-        return input2;
+    var toUtf811 = /* @__PURE__ */ __name((input) => {
+      if (typeof input === "string") {
+        return input;
       }
-      if (typeof input2 !== "object" || typeof input2.byteOffset !== "number" || typeof input2.byteLength !== "number") {
+      if (typeof input !== "object" || typeof input.byteOffset !== "number" || typeof input.byteLength !== "number") {
         throw new Error("@smithy/util-utf8: toUtf8 encoder function only accepts string | Uint8Array.");
       }
-      return (0, import_util_buffer_from.fromArrayBuffer)(input2.buffer, input2.byteOffset, input2.byteLength).toString("utf8");
+      return (0, import_util_buffer_from.fromArrayBuffer)(input.buffer, input.byteOffset, input.byteLength).toString("utf8");
     }, "toUtf8");
   }
 });
@@ -99677,8 +99677,8 @@ var require_convertToBuffer = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.convertToBuffer = void 0;
     var util_utf8_1 = require_dist_cjs61();
-    var fromUtf88 = typeof Buffer !== "undefined" && Buffer.from ? function(input2) {
-      return Buffer.from(input2, "utf8");
+    var fromUtf88 = typeof Buffer !== "undefined" && Buffer.from ? function(input) {
+      return Buffer.from(input, "utf8");
     } : util_utf8_1.fromUtf8;
     function convertToBuffer(data2) {
       if (data2 instanceof Uint8Array)
@@ -100677,8 +100677,8 @@ var require_dist_cjs64 = __commonJS({
         const bodyIterable = typeof body[Symbol.asyncIterator] === "function" ? body : readabletoIterable(body);
         return this.universalMarshaller.deserialize(bodyIterable, deserializer);
       }
-      serialize(input2, serializer) {
-        return stream2.Readable.from(this.universalMarshaller.serialize(input2, serializer));
+      serialize(input, serializer) {
+        return stream2.Readable.from(this.universalMarshaller.serialize(input, serializer));
       }
     };
     var eventStreamSerdeProvider = (options) => new EventStreamMarshaller(options);
@@ -107702,15 +107702,15 @@ var toRequestError = (e5) => {
 };
 var GlobalRequest = global.Request;
 var Request2 = class extends GlobalRequest {
-  constructor(input2, options) {
-    if (typeof input2 === "object" && getRequestCache in input2) {
-      input2 = input2[getRequestCache]();
+  constructor(input, options) {
+    if (typeof input === "object" && getRequestCache in input) {
+      input = input[getRequestCache]();
     }
     if (typeof options?.body?.getReader !== "undefined") {
       ;
       options.duplex ??= "half";
     }
-    super(input2, options);
+    super(input, options);
   }
 };
 var newHeadersFromIncoming = (incoming) => {
@@ -108786,6 +108786,10 @@ var GameCache = class {
   }
 };
 
+// src/app.ts
+var import_fs2 = require("fs");
+var import_path2 = require("path");
+
 // node_modules/hono/dist/compose.js
 var compose = (middleware, onError, onNotFound) => {
   return (context, next) => {
@@ -108851,47 +108855,47 @@ async function parseFormData(request, options) {
   return {};
 }
 function convertFormDataToBodyData(formData, options) {
-  const form2 = /* @__PURE__ */ Object.create(null);
+  const form = /* @__PURE__ */ Object.create(null);
   formData.forEach((value, key) => {
     const shouldParseAllValues = options.all || key.endsWith("[]");
     if (!shouldParseAllValues) {
-      form2[key] = value;
+      form[key] = value;
     } else {
-      handleParsingAllValues(form2, key, value);
+      handleParsingAllValues(form, key, value);
     }
   });
   if (options.dot) {
-    Object.entries(form2).forEach(([key, value]) => {
+    Object.entries(form).forEach(([key, value]) => {
       const shouldParseDotValues = key.includes(".");
       if (shouldParseDotValues) {
-        handleParsingNestedValues(form2, key, value);
-        delete form2[key];
+        handleParsingNestedValues(form, key, value);
+        delete form[key];
       }
     });
   }
-  return form2;
+  return form;
 }
-var handleParsingAllValues = (form2, key, value) => {
-  if (form2[key] !== void 0) {
-    if (Array.isArray(form2[key])) {
+var handleParsingAllValues = (form, key, value) => {
+  if (form[key] !== void 0) {
+    if (Array.isArray(form[key])) {
       ;
-      form2[key].push(value);
+      form[key].push(value);
     } else {
-      form2[key] = [form2[key], value];
+      form[key] = [form[key], value];
     }
   } else {
     if (!key.endsWith("[]")) {
-      form2[key] = value;
+      form[key] = value;
     } else {
-      form2[key] = [value];
+      form[key] = [value];
     }
   }
 };
-var handleParsingNestedValues = (form2, key, value) => {
+var handleParsingNestedValues = (form, key, value) => {
   if (/(?:^|\.)__proto__\./.test(key)) {
     return;
   }
-  let nestedForm = form2;
+  let nestedForm = form;
   const keys = key.split(".");
   keys.forEach((key2, index) => {
     if (index === keys.length - 1) {
@@ -109389,80 +109393,6 @@ var raw = (value, callbacks) => {
   escapedString.callbacks = callbacks;
   return escapedString;
 };
-var escapeRe = /[&<>'"]/;
-var stringBufferToString = async (buffer, callbacks) => {
-  let str = "";
-  callbacks ||= [];
-  const resolvedBuffer = await Promise.all(buffer);
-  for (let i5 = resolvedBuffer.length - 1; ; i5--) {
-    str += resolvedBuffer[i5];
-    i5--;
-    if (i5 < 0) {
-      break;
-    }
-    let r5 = resolvedBuffer[i5];
-    if (typeof r5 === "object") {
-      callbacks.push(...r5.callbacks || []);
-    }
-    const isEscaped = r5.isEscaped;
-    r5 = await (typeof r5 === "object" ? r5.toString() : r5);
-    if (typeof r5 === "object") {
-      callbacks.push(...r5.callbacks || []);
-    }
-    if (r5.isEscaped ?? isEscaped) {
-      str += r5;
-    } else {
-      const buf = [str];
-      escapeToBuffer(r5, buf);
-      str = buf[0];
-    }
-  }
-  return raw(str, callbacks);
-};
-var escapeToBuffer = (str, buffer) => {
-  const match2 = str.search(escapeRe);
-  if (match2 === -1) {
-    buffer[0] += str;
-    return;
-  }
-  let escape;
-  let index;
-  let lastIndex = 0;
-  for (index = match2; index < str.length; index++) {
-    switch (str.charCodeAt(index)) {
-      case 34:
-        escape = "&quot;";
-        break;
-      case 39:
-        escape = "&#39;";
-        break;
-      case 38:
-        escape = "&amp;";
-        break;
-      case 60:
-        escape = "&lt;";
-        break;
-      case 62:
-        escape = "&gt;";
-        break;
-      default:
-        continue;
-    }
-    buffer[0] += str.substring(lastIndex, index) + escape;
-    lastIndex = index + 1;
-  }
-  buffer[0] += str.substring(lastIndex, index);
-};
-var resolveCallbackSync = (str) => {
-  const callbacks = str.callbacks;
-  if (!callbacks?.length) {
-    return str;
-  }
-  const buffer = [str];
-  const context = {};
-  callbacks.forEach((c5) => c5({ phase: HtmlEscapedCallbackPhase.Stringify, buffer, context }));
-  return buffer[0];
-};
 var resolveCallback = async (str, phase, preserveCallbacks, context, buffer) => {
   if (typeof str === "object" && !(str instanceof String)) {
     if (!(str instanceof Promise)) {
@@ -109853,9 +109783,9 @@ var Context = class {
       setDefaultContentType("application/json", headers)
     );
   };
-  html = (html2, arg, headers) => {
-    const res = (html22) => this.#newResponse(html22, arg, setDefaultContentType("text/html; charset=UTF-8", headers));
-    return typeof html2 === "object" ? resolveCallback(html2, HtmlEscapedCallbackPhase.Stringify, false, {}).then(res) : res(html2);
+  html = (html, arg, headers) => {
+    const res = (html2) => this.#newResponse(html2, arg, setDefaultContentType("text/html; charset=UTF-8", headers));
+    return typeof html === "object" ? resolveCallback(html, HtmlEscapedCallbackPhase.Stringify, false, {}).then(res) : res(html);
   };
   /**
    * `.redirect()` can Redirect, default status code is 302.
@@ -110244,14 +110174,14 @@ var Hono = class _Hono {
    * ```
    * @see https://hono.dev/docs/api/hono#request
    */
-  request = (input2, requestInit, Env, executionCtx) => {
-    if (input2 instanceof Request) {
-      return this.fetch(requestInit ? new Request(input2, requestInit) : input2, Env, executionCtx);
+  request = (input, requestInit, Env, executionCtx) => {
+    if (input instanceof Request) {
+      return this.fetch(requestInit ? new Request(input, requestInit) : input, Env, executionCtx);
     }
-    input2 = input2.toString();
+    input = input.toString();
     return this.fetch(
       new Request(
-        /^https?:\/\//.test(input2) ? input2 : `http://localhost${mergePath("/", input2)}`,
+        /^https?:\/\//.test(input) ? input : `http://localhost${mergePath("/", input)}`,
         requestInit
       ),
       Env,
@@ -110946,18 +110876,18 @@ var StreamingApi = class {
       }
     });
   }
-  async write(input2) {
+  async write(input) {
     try {
-      if (typeof input2 === "string") {
-        input2 = this.encoder.encode(input2);
+      if (typeof input === "string") {
+        input = this.encoder.encode(input);
       }
-      await this.writer.write(input2);
+      await this.writer.write(input);
     } catch {
     }
     return this;
   }
-  async writeln(input2) {
-    await this.write(input2 + "\n");
+  async writeln(input) {
+    await this.write(input + "\n");
     return this;
   }
   sleep(ms) {
@@ -111149,1087 +111079,6 @@ function formatState(gameName, state2) {
   return parts.join(" \u2014 ");
 }
 
-// src/ui-shared.ts
-var SESSION_KEY = "insta-game-passphrase";
-function rowHeaderId(game) {
-  return `row-header-${game}`;
-}
-function rowBodyId(game) {
-  return `row-body-${game}`;
-}
-function expandButtonId(game) {
-  return `expand-btn-${game}`;
-}
-function logSectionId(game) {
-  return `log-section-${game}`;
-}
-function logPanelId(game) {
-  return `log-sse-${game}`;
-}
-function escapeHtml(text) {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}
-function statusDot(status) {
-  if (status === "online") return "\u{1F7E2}";
-  if (status === "starting") return "\u{1F7E1}";
-  return "\u26AB";
-}
-function renderRowHeaderContent(label, game, state2, expandable = state2.status !== "offline") {
-  const meta2 = [];
-  if (state2.status === "online" && state2.publicIp) meta2.push(`<span>${escapeHtml(state2.publicIp)}</span>`);
-  if (state2.status === "online" && state2.hostname) meta2.push(`<span>${escapeHtml(state2.hostname)}</span>`);
-  if (state2.status === "online" && state2.map) meta2.push(`<span>${escapeHtml(state2.map)}</span>`);
-  if (state2.status === "online") meta2.push(`<span>${state2.players} player${state2.players !== 1 ? "s" : ""}</span>`);
-  if (state2.status !== "online") meta2.push(`<span class="${state2.status}">${state2.status}</span>`);
-  const expandBtn = expandable ? `<button class="expand-btn" id="${expandButtonId(game)}">[expand \u25BC]</button>` : `<span class="expand-btn-placeholder" id="${expandButtonId(game)}"></span>`;
-  return [
-    `<span class="status-dot">${statusDot(state2.status)}</span>`,
-    `<span class="game-name">${escapeHtml(label)}</span>`,
-    `<span class="row-meta">${meta2.join("")}</span>`,
-    expandBtn
-  ].join("");
-}
-
-// src/ui-client.ts
-var initScript = `
-(function() {
-  var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var STATUS_POLL_INTERVAL_MS = 10000;
-  var STATUS_RETRY_INTERVAL_MS = 30000;
-  var LOG_POLL_INTERVAL_MS = 5000;
-  var LOG_RETRY_INTERVAL_MS = 15000;
-  var POLL_PAUSE_AFTER_ADMIN_MS = 15000;
-  var suspendPollingUntil = 0;
-
-  function getPassphrase() {
-    return sessionStorage.getItem(SESSION_KEY) || "";
-  }
-
-  function statusDot(status) {
-    if (status === "online") return "\u{1F7E2}";
-    if (status === "starting") return "\u{1F7E1}";
-    return "\u26AB";
-  }
-
-  function escapeHtml(text) {
-    return String(text)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
-  }
-
-  function isAuthed() {
-    return !!getPassphrase();
-  }
-
-  function renderRowHeader(label, game, state) {
-    var meta = [];
-    if (state.status === "online" && state.publicIp) meta.push("<span>" + escapeHtml(state.publicIp) + "</span>");
-    if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
-    if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
-    if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
-    if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
-    var expandable = state.status !== "offline" || isAuthed();
-    var expandBtn = expandable
-      ? "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">[expand \u25BC]</button>"
-      : "<span class=\\"expand-btn-placeholder\\" id=\\"expand-btn-" + game + "\\"></span>";
-    return ""
-      + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
-      + "<span class=\\"game-name\\">" + escapeHtml(label) + "</span>"
-      + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
-      + expandBtn;
-  }
-
-  function syncExpandButton(game) {
-    var body = document.getElementById("row-body-" + game);
-    var btn = document.getElementById("expand-btn-" + game);
-    if (!body || !btn) return;
-    btn.textContent = body.classList.contains("open") ? "[collapse \u25B2]" : "[expand \u25BC]";
-  }
-
-  function refreshStatuses() {
-    if (Date.now() < suspendPollingUntil) {
-      window.setTimeout(refreshStatuses, Math.max(1000, suspendPollingUntil - Date.now()));
-      return;
-    }
-    var retryDelay = STATUS_POLL_INTERVAL_MS;
-    fetch("/status")
-      .then(function(res) {
-        if (!res.ok) {
-          var error = new Error("HTTP " + res.status);
-          error.status = res.status;
-          throw error;
-        }
-        return res.json();
-      })
-      .then(function(payload) {
-        Object.entries(payload).forEach(function(entry) {
-          var game = entry[0];
-          var state = entry[1];
-          var header = document.getElementById("row-header-" + game);
-          if (!header) return;
-          var label = header.getAttribute("data-label") || game;
-          header.innerHTML = renderRowHeader(label, game, state);
-          header.style.cursor = (state.status !== "offline" || isAuthed()) ? "" : "default";
-          header.onclick = (state.status !== "offline" || isAuthed())
-            ? function() { window.toggleRow(game); }
-            : null;
-          syncExpandButton(game);
-        });
-      })
-      .catch(function(error) {
-        if (error.status === 429) retryDelay = STATUS_RETRY_INTERVAL_MS;
-      })
-      .finally(function() {
-        var delay = retryDelay;
-        if (Date.now() < suspendPollingUntil) {
-          delay = Math.max(1000, suspendPollingUntil - Date.now());
-        }
-        window.setTimeout(refreshStatuses, delay);
-      });
-  }
-
-  function appendLogLines(inner, lines) {
-    lines.forEach(function(line) {
-      var div = document.createElement("div");
-      div.className = "log-line";
-      div.textContent = line;
-      inner.appendChild(div);
-    });
-    inner.scrollTop = inner.scrollHeight;
-  }
-
-  function pollLogs(game, inner) {
-    if (inner.getAttribute("data-log-mode") !== "poll") return;
-    if (inner.getAttribute("data-log-open") !== "1") return;
-    if (Date.now() < suspendPollingUntil) {
-      window.setTimeout(function() { pollLogs(game, inner); }, Math.max(1000, suspendPollingUntil - Date.now()));
-      return;
-    }
-    var pp = getPassphrase();
-    var cursor = inner.getAttribute("data-log-cursor") || "";
-    var url = inner.getAttribute("data-log-url");
-    var retryDelay = LOG_POLL_INTERVAL_MS;
-    if (!url) return;
-    var sep = url.indexOf("?") >= 0 ? "&" : "?";
-    fetch(url + sep + "token=" + encodeURIComponent(pp) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""))
-      .then(function(res) {
-        if (!res.ok) {
-          var error = new Error("HTTP " + res.status);
-          error.status = res.status;
-          throw error;
-        }
-        return res.json();
-      })
-      .then(function(payload) {
-        if (Array.isArray(payload.lines) && payload.lines.length > 0) {
-          appendLogLines(inner, payload.lines);
-        }
-        if (payload.cursor) inner.setAttribute("data-log-cursor", payload.cursor);
-      })
-      .catch(function(error) {
-        if (error.status === 429) retryDelay = LOG_RETRY_INTERVAL_MS;
-        if (error.status !== 429) {
-          appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
-        }
-      })
-      .finally(function() {
-        if (inner.getAttribute("data-log-open") === "1") {
-          var delay = retryDelay;
-          if (Date.now() < suspendPollingUntil) {
-            delay = Math.max(1000, suspendPollingUntil - Date.now());
-          }
-          window.setTimeout(function() { pollLogs(game, inner); }, delay);
-        }
-      });
-  }
-
-  window.toggleRow = function(game) {
-    var body = document.getElementById("row-body-" + game);
-    var btn = document.getElementById("expand-btn-" + game);
-    if (!body || !btn) return;
-    var open = body.classList.toggle("open");
-    btn.textContent = open ? "[collapse \u25B2]" : "[expand \u25BC]";
-  };
-
-  window.copyConnect = function(text, btn) {
-    navigator.clipboard.writeText(text).then(function() {
-      if (!btn) return;
-      var orig = btn.textContent;
-      btn.textContent = "\u2713";
-      btn.classList.add("copied");
-      window.setTimeout(function() {
-        btn.textContent = orig;
-        btn.classList.remove("copied");
-      }, 1500);
-    }).catch(function() {});
-  };
-
-  function unlockAll(pp) {
-    document.querySelectorAll(".admin-section").forEach(function(section) {
-      section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
-      section.classList.add("unlocked");
-      htmx.process(section);
-    });
-    // Re-render offline row headers to show expand buttons now that user is authed
-    document.querySelectorAll(".row-header").forEach(function(header) {
-      var game = header.id.replace("row-header-", "");
-      var expandBtn = document.getElementById("expand-btn-" + game);
-      if (expandBtn && expandBtn.tagName === "SPAN") {
-        // Replace placeholder with real button
-        var btn = document.createElement("button");
-        btn.className = "expand-btn";
-        btn.id = "expand-btn-" + game;
-        btn.textContent = "[expand \u25BC]";
-        expandBtn.parentNode.replaceChild(btn, expandBtn);
-        header.style.cursor = "";
-        header.onclick = (function(g) { return function() { window.toggleRow(g); }; })(game);
-      }
-    });
-    var authForm = document.getElementById("auth-form");
-    var status = document.getElementById("auth-status");
-    if (!authForm || !status) return;
-    authForm.style.display = "none";
-    status.style.display = "";
-    status.textContent = "admin";
-  }
-
-  document.addEventListener("click", function(event) {
-    var target = event.target;
-    if (!(target instanceof Element)) return;
-    if (!target.closest("[data-admin-action]")) return;
-    suspendPollingUntil = Date.now() + POLL_PAUSE_AFTER_ADMIN_MS;
-  });
-
-  window.authenticate = function() {
-    var input = document.getElementById("passphrase-input");
-    var btn = document.getElementById("passphrase-btn");
-    if (!(input instanceof HTMLInputElement) || !(btn instanceof HTMLButtonElement)) return;
-    var val = input.value;
-    if (!val) return;
-    btn.disabled = true;
-    btn.textContent = "checking...";
-    fetch("/", { headers: { "X-Passphrase": val, "HX-Request": "true" } })
-      .then(function(res) {
-        if (res.status === 401) {
-          btn.disabled = false;
-          btn.textContent = "unlock";
-          input.style.borderColor = "#f44";
-          return;
-        }
-        sessionStorage.setItem(SESSION_KEY, val);
-        unlockAll(val);
-      })
-      .catch(function() {
-        btn.disabled = false;
-        btn.textContent = "unlock";
-      });
-  };
-
-  window.toggleLogs = function(game) {
-    var section = document.getElementById("log-section-" + game);
-    var inner = document.getElementById("log-sse-" + game);
-    if (!section || !inner) return;
-    var isOpen = section.classList.toggle("open");
-    inner.setAttribute("data-log-open", isOpen ? "1" : "0");
-    if (isOpen) {
-      if (inner.getAttribute("data-log-mode") === "poll") {
-        if (!inner.getAttribute("data-log-started")) {
-          inner.setAttribute("data-log-started", "1");
-          appendLogLines(inner, ["[connecting to " + game + " logs]"]);
-          pollLogs(game, inner);
-        }
-      } else if (!inner.getAttribute("sse-connect")) {
-        var pp = getPassphrase();
-        var baseUrl = inner.getAttribute("data-log-url");
-        var separator = baseUrl && baseUrl.indexOf("?") >= 0 ? "&" : "?";
-        inner.setAttribute("hx-ext", "sse");
-        inner.setAttribute("sse-connect", (baseUrl || "/logs?game=" + game) + separator + "token=" + encodeURIComponent(pp));
-        htmx.process(inner);
-        var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
-        observer.observe(inner, { childList: true });
-      }
-    }
-  };
-
-  (function() {
-    refreshStatuses();
-    var pp = getPassphrase();
-    if (!pp) return;
-    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
-      .then(function(res) {
-        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
-        unlockAll(pp);
-      });
-  })();
-})();
-`;
-
-// src/ui-styles.ts
-var css = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
-  .title-bar { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
-  h1 { font-size: 1.4rem; }
-  #auth-form { display: flex; align-items: center; gap: 0.5rem; }
-  #auth-form input { padding: 0.35rem 0.5rem; background: #222; color: #eee; border: 1px solid #444; font-family: monospace; font-size: 0.85rem; width: 12rem; }
-  #auth-form button { padding: 0.35rem 0.7rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; font-size: 0.85rem; }
-  #auth-status { font-size: 0.8rem; color: #aaa; }
-
-  .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
-
-  .row { border: 1px solid #333; background: #1a1a1a; }
-  .row-header {
-    display: flex; align-items: center; gap: 1rem;
-    padding: 0.75rem 1rem; cursor: pointer; user-select: none;
-    width: 100%;
-  }
-  .row-header:hover { background: #222; }
-  .status-dot { font-size: 0.8rem; flex-shrink: 0; }
-  .game-name { font-weight: bold; min-width: 8rem; }
-  .row-meta { display: flex; gap: 1.5rem; flex: 1; color: #aaa; font-size: 0.85rem; flex-wrap: wrap; }
-  .row-meta .online { color: #4f4; }
-  .row-meta .starting { color: #fa4; }
-  .row-meta .offline { color: #666; }
-  .expand-btn {
-    background: none; border: none; color: #aaa; cursor: pointer;
-    font-family: monospace; font-size: 0.85rem; padding: 0; flex-shrink: 0;
-  }
-
-  .row-body { border-top: 1px solid #333; padding: 1rem; display: none; }
-  .row-body.open { display: block; }
-
-  .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
-  .connect { display: flex; align-items: center; gap: 0.4rem; }
-  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; user-select: text; cursor: text; }
-  .copy-btn { background: #333; border: 1px solid #555; color: #aaa; cursor: pointer; font-family: monospace; font-size: 0.75rem; padding: 0.15rem 0.4rem; line-height: 1; }
-  .copy-btn:hover { background: #444; color: #eee; }
-  .copy-btn.copied { color: #4f4; border-color: #4f4; }
-  .client-link { font-size: 0.85rem; color: #aaa; }
-  .client-link a { color: #88f; text-decoration: none; }
-  .client-link a:hover { text-decoration: underline; }
-
-  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
-  .admin-section.unlocked { display: block; }
-  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-  .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  .admin-controls button:hover { background: #444; }
-
-  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
-  .status-frag .online { color: #4f4; }
-  .status-frag .starting { color: #fa4; }
-  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
-  .htmx-request .htmx-indicator { opacity: 1; }
-
-  .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
-  .log-section.open { display: block; }
-  .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
-  .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
-  .term-fg1 { font-weight: bold; }
-  .term-fg2 { color: #838887; }
-  .term-fg3 { font-style: italic; }
-  .term-fg4 { text-decoration: underline; }
-  .term-fg30 { color: #666; }
-  .term-fg31 { color: #ff7070; }
-  .term-fg32 { color: #b0f986; }
-  .term-fg33 { color: #c6c502; }
-  .term-fg34 { color: #8db7e0; }
-  .term-fg35 { color: #f271fb; }
-  .term-fg36 { color: #6bf7ff; }
-  .term-fg37 { color: #eee; }
-  .term-fgi90 { color: #838887; }
-  .term-fgi91 { color: #ff3333; }
-  .term-fgi92 { color: #00ff00; }
-  .term-fgi93 { color: #fffc67; }
-  .term-fgi94 { color: #6871ff; }
-  .term-fgi95 { color: #ff76ff; }
-  .term-fgi96 { color: #60fcff; }
-
-  @media (max-width: 640px) {
-    body { padding: 1rem; }
-    .title-bar { gap: 0.75rem; margin-bottom: 1rem; }
-    #auth-form { width: 100%; }
-    #auth-form input { width: 100%; min-width: 0; }
-
-    .row-header {
-      gap: 0.75rem;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      padding: 0.75rem;
-    }
-    .game-name { min-width: 0; }
-    .row-meta { width: 100%; gap: 0.5rem 1rem; }
-    .expand-btn { margin-left: auto; }
-
-    .row-body { padding: 0.75rem; }
-    .row-details { gap: 0.75rem; margin-bottom: 0.75rem; }
-    .connect { width: 100%; flex-wrap: wrap; }
-    .connect code { max-width: calc(100% - 4rem); overflow-wrap: anywhere; }
-
-    .admin-controls { gap: 0.75rem; }
-    .admin-controls button {
-      flex: 1 1 5.5rem;
-      min-height: 2.75rem;
-    }
-
-    .log-panel { height: 220px; padding: 0.5rem; }
-  }
-`;
-
-// node_modules/hono/dist/jsx/constants.js
-var DOM_RENDERER = /* @__PURE__ */ Symbol("RENDERER");
-var DOM_ERROR_HANDLER = /* @__PURE__ */ Symbol("ERROR_HANDLER");
-var DOM_INTERNAL_TAG = /* @__PURE__ */ Symbol("INTERNAL");
-var PERMALINK = /* @__PURE__ */ Symbol("PERMALINK");
-
-// node_modules/hono/dist/jsx/dom/utils.js
-var setInternalTagFlag = (fn) => {
-  ;
-  fn[DOM_INTERNAL_TAG] = true;
-  return fn;
-};
-
-// node_modules/hono/dist/jsx/dom/context.js
-var createContextProviderFunction = (values) => ({ value, children }) => {
-  if (!children) {
-    return void 0;
-  }
-  const props = {
-    children: [
-      {
-        tag: setInternalTagFlag(() => {
-          values.push(value);
-        }),
-        props: {}
-      }
-    ]
-  };
-  if (Array.isArray(children)) {
-    props.children.push(...children.flat());
-  } else {
-    props.children.push(children);
-  }
-  props.children.push({
-    tag: setInternalTagFlag(() => {
-      values.pop();
-    }),
-    props: {}
-  });
-  const res = { tag: "", props, type: "" };
-  res[DOM_ERROR_HANDLER] = (err) => {
-    values.pop();
-    throw err;
-  };
-  return res;
-};
-
-// node_modules/hono/dist/jsx/context.js
-var globalContexts = [];
-var createContext = (defaultValue) => {
-  const values = [defaultValue];
-  const context = ((props) => {
-    values.push(props.value);
-    let string;
-    try {
-      string = props.children ? (Array.isArray(props.children) ? new JSXFragmentNode("", {}, props.children) : props.children).toString() : "";
-    } catch (e5) {
-      values.pop();
-      throw e5;
-    }
-    if (string instanceof Promise) {
-      return string.finally(() => values.pop()).then((resString) => raw(resString, resString.callbacks));
-    } else {
-      values.pop();
-      return raw(string);
-    }
-  });
-  context.values = values;
-  context.Provider = context;
-  context[DOM_RENDERER] = createContextProviderFunction(values);
-  globalContexts.push(context);
-  return context;
-};
-var useContext = (context) => {
-  return context.values.at(-1);
-};
-
-// node_modules/hono/dist/jsx/intrinsic-element/common.js
-var deDupeKeyMap = {
-  title: [],
-  script: ["src"],
-  style: ["data-href"],
-  link: ["href"],
-  meta: ["name", "httpEquiv", "charset", "itemProp"]
-};
-var domRenderers = {};
-var dataPrecedenceAttr = "data-precedence";
-var isStylesheetLinkWithPrecedence = (props) => props.rel === "stylesheet" && "precedence" in props;
-var shouldDeDupeByKey = (tagName, supportSort) => {
-  if (tagName === "link") {
-    return supportSort;
-  }
-  return deDupeKeyMap[tagName].length > 0;
-};
-
-// node_modules/hono/dist/jsx/intrinsic-element/components.js
-var components_exports = {};
-__export(components_exports, {
-  button: () => button,
-  form: () => form,
-  input: () => input,
-  link: () => link,
-  meta: () => meta,
-  script: () => script,
-  style: () => style,
-  title: () => title
-});
-
-// node_modules/hono/dist/jsx/children.js
-var toArray = (children) => Array.isArray(children) ? children : [children];
-
-// node_modules/hono/dist/jsx/intrinsic-element/components.js
-var metaTagMap = /* @__PURE__ */ new WeakMap();
-var insertIntoHead = (tagName, tag2, props, precedence) => ({ buffer, context }) => {
-  if (!buffer) {
-    return;
-  }
-  const map2 = metaTagMap.get(context) || {};
-  metaTagMap.set(context, map2);
-  const tags = map2[tagName] ||= [];
-  let duped = false;
-  const deDupeKeys = deDupeKeyMap[tagName];
-  const deDupeByKey = shouldDeDupeByKey(tagName, precedence !== void 0);
-  if (deDupeByKey) {
-    LOOP: for (const [, tagProps] of tags) {
-      if (tagName === "link" && !(tagProps.rel === "stylesheet" && tagProps[dataPrecedenceAttr] !== void 0)) {
-        continue;
-      }
-      for (const key of deDupeKeys) {
-        if ((tagProps?.[key] ?? null) === props?.[key]) {
-          duped = true;
-          break LOOP;
-        }
-      }
-    }
-  }
-  if (duped) {
-    buffer[0] = buffer[0].replaceAll(tag2, "");
-  } else if (deDupeByKey || tagName === "link") {
-    tags.push([tag2, props, precedence]);
-  } else {
-    tags.unshift([tag2, props, precedence]);
-  }
-  if (buffer[0].indexOf("</head>") !== -1) {
-    let insertTags;
-    if (tagName === "link" || precedence !== void 0) {
-      const precedences = [];
-      insertTags = tags.map(([tag22, , tagPrecedence], index) => {
-        if (tagPrecedence === void 0) {
-          return [tag22, Number.MAX_SAFE_INTEGER, index];
-        }
-        let order = precedences.indexOf(tagPrecedence);
-        if (order === -1) {
-          precedences.push(tagPrecedence);
-          order = precedences.length - 1;
-        }
-        return [tag22, order, index];
-      }).sort((a5, b5) => a5[1] - b5[1] || a5[2] - b5[2]).map(([tag22]) => tag22);
-    } else {
-      insertTags = tags.map(([tag22]) => tag22);
-    }
-    insertTags.forEach((tag22) => {
-      buffer[0] = buffer[0].replaceAll(tag22, "");
-    });
-    buffer[0] = buffer[0].replace(/(?=<\/head>)/, insertTags.join(""));
-  }
-};
-var returnWithoutSpecialBehavior = (tag2, children, props) => raw(new JSXNode(tag2, props, toArray(children ?? [])).toString());
-var documentMetadataTag = (tag2, children, props, sort) => {
-  if ("itemProp" in props) {
-    return returnWithoutSpecialBehavior(tag2, children, props);
-  }
-  let { precedence, blocking, ...restProps } = props;
-  precedence = sort ? precedence ?? "" : void 0;
-  if (sort) {
-    restProps[dataPrecedenceAttr] = precedence;
-  }
-  const string = new JSXNode(tag2, restProps, toArray(children || [])).toString();
-  if (string instanceof Promise) {
-    return string.then(
-      (resString) => raw(string, [
-        ...resString.callbacks || [],
-        insertIntoHead(tag2, resString, restProps, precedence)
-      ])
-    );
-  } else {
-    return raw(string, [insertIntoHead(tag2, string, restProps, precedence)]);
-  }
-};
-var title = ({ children, ...props }) => {
-  const nameSpaceContext2 = getNameSpaceContext();
-  if (nameSpaceContext2) {
-    const context = useContext(nameSpaceContext2);
-    if (context === "svg" || context === "head") {
-      return new JSXNode(
-        "title",
-        props,
-        toArray(children ?? [])
-      );
-    }
-  }
-  return documentMetadataTag("title", children, props, false);
-};
-var script = ({
-  children,
-  ...props
-}) => {
-  const nameSpaceContext2 = getNameSpaceContext();
-  if (["src", "async"].some((k5) => !props[k5]) || nameSpaceContext2 && useContext(nameSpaceContext2) === "head") {
-    return returnWithoutSpecialBehavior("script", children, props);
-  }
-  return documentMetadataTag("script", children, props, false);
-};
-var style = ({
-  children,
-  ...props
-}) => {
-  if (!["href", "precedence"].every((k5) => k5 in props)) {
-    return returnWithoutSpecialBehavior("style", children, props);
-  }
-  props["data-href"] = props.href;
-  delete props.href;
-  return documentMetadataTag("style", children, props, true);
-};
-var link = ({ children, ...props }) => {
-  if (["onLoad", "onError"].some((k5) => k5 in props) || props.rel === "stylesheet" && (!("precedence" in props) || "disabled" in props)) {
-    return returnWithoutSpecialBehavior("link", children, props);
-  }
-  return documentMetadataTag("link", children, props, isStylesheetLinkWithPrecedence(props));
-};
-var meta = ({ children, ...props }) => {
-  const nameSpaceContext2 = getNameSpaceContext();
-  if (nameSpaceContext2 && useContext(nameSpaceContext2) === "head") {
-    return returnWithoutSpecialBehavior("meta", children, props);
-  }
-  return documentMetadataTag("meta", children, props, false);
-};
-var newJSXNode = (tag2, { children, ...props }) => (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  new JSXNode(tag2, props, toArray(children ?? []))
-);
-var form = (props) => {
-  if (typeof props.action === "function") {
-    props.action = PERMALINK in props.action ? props.action[PERMALINK] : void 0;
-  }
-  return newJSXNode("form", props);
-};
-var formActionableElement = (tag2, props) => {
-  if (typeof props.formAction === "function") {
-    props.formAction = PERMALINK in props.formAction ? props.formAction[PERMALINK] : void 0;
-  }
-  return newJSXNode(tag2, props);
-};
-var input = (props) => formActionableElement("input", props);
-var button = (props) => formActionableElement("button", props);
-
-// node_modules/hono/dist/jsx/utils.js
-var normalizeElementKeyMap = /* @__PURE__ */ new Map([
-  ["className", "class"],
-  ["htmlFor", "for"],
-  ["crossOrigin", "crossorigin"],
-  ["httpEquiv", "http-equiv"],
-  ["itemProp", "itemprop"],
-  ["fetchPriority", "fetchpriority"],
-  ["noModule", "nomodule"],
-  ["formAction", "formaction"]
-]);
-var normalizeIntrinsicElementKey = (key) => normalizeElementKeyMap.get(key) || key;
-var styleObjectForEach = (style2, fn) => {
-  for (const [k5, v5] of Object.entries(style2)) {
-    const key = k5[0] === "-" || !/[A-Z]/.test(k5) ? k5 : k5.replace(/[A-Z]/g, (m5) => `-${m5.toLowerCase()}`);
-    fn(
-      key,
-      v5 == null ? null : typeof v5 === "number" ? !key.match(
-        /^(?:a|border-im|column(?:-c|s)|flex(?:$|-[^b])|grid-(?:ar|[^a])|font-w|li|or|sca|st|ta|wido|z)|ty$/
-      ) ? `${v5}px` : `${v5}` : v5
-    );
-  }
-};
-
-// node_modules/hono/dist/jsx/base.js
-var nameSpaceContext = void 0;
-var getNameSpaceContext = () => nameSpaceContext;
-var toSVGAttributeName = (key) => /[A-Z]/.test(key) && // Presentation attributes are findable in style object. "clip-path", "font-size", "stroke-width", etc.
-// Or other un-deprecated kebab-case attributes. "overline-position", "paint-order", "strikethrough-position", etc.
-key.match(
-  /^(?:al|basel|clip(?:Path|Rule)$|co|do|fill|fl|fo|gl|let|lig|i|marker[EMS]|o|pai|pointe|sh|st[or]|text[^L]|tr|u|ve|w)/
-) ? key.replace(/([A-Z])/g, "-$1").toLowerCase() : key;
-var emptyTags = [
-  "area",
-  "base",
-  "br",
-  "col",
-  "embed",
-  "hr",
-  "img",
-  "input",
-  "keygen",
-  "link",
-  "meta",
-  "param",
-  "source",
-  "track",
-  "wbr"
-];
-var booleanAttributes = [
-  "allowfullscreen",
-  "async",
-  "autofocus",
-  "autoplay",
-  "checked",
-  "controls",
-  "default",
-  "defer",
-  "disabled",
-  "download",
-  "formnovalidate",
-  "hidden",
-  "inert",
-  "ismap",
-  "itemscope",
-  "loop",
-  "multiple",
-  "muted",
-  "nomodule",
-  "novalidate",
-  "open",
-  "playsinline",
-  "readonly",
-  "required",
-  "reversed",
-  "selected"
-];
-var childrenToStringToBuffer = (children, buffer) => {
-  for (let i5 = 0, len = children.length; i5 < len; i5++) {
-    const child = children[i5];
-    if (typeof child === "string") {
-      escapeToBuffer(child, buffer);
-    } else if (typeof child === "boolean" || child === null || child === void 0) {
-      continue;
-    } else if (child instanceof JSXNode) {
-      child.toStringToBuffer(buffer);
-    } else if (typeof child === "number" || child.isEscaped) {
-      ;
-      buffer[0] += child;
-    } else if (child instanceof Promise) {
-      buffer.unshift("", child);
-    } else {
-      childrenToStringToBuffer(child, buffer);
-    }
-  }
-};
-var JSXNode = class {
-  tag;
-  props;
-  key;
-  children;
-  isEscaped = true;
-  localContexts;
-  constructor(tag2, props, children) {
-    this.tag = tag2;
-    this.props = props;
-    this.children = children;
-  }
-  get type() {
-    return this.tag;
-  }
-  // Added for compatibility with libraries that rely on React's internal structure
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get ref() {
-    return this.props.ref || null;
-  }
-  toString() {
-    const buffer = [""];
-    this.localContexts?.forEach(([context, value]) => {
-      context.values.push(value);
-    });
-    try {
-      this.toStringToBuffer(buffer);
-    } finally {
-      this.localContexts?.forEach(([context]) => {
-        context.values.pop();
-      });
-    }
-    return buffer.length === 1 ? "callbacks" in buffer ? resolveCallbackSync(raw(buffer[0], buffer.callbacks)).toString() : buffer[0] : stringBufferToString(buffer, buffer.callbacks);
-  }
-  toStringToBuffer(buffer) {
-    const tag2 = this.tag;
-    const props = this.props;
-    let { children } = this;
-    buffer[0] += `<${tag2}`;
-    const normalizeKey = nameSpaceContext && useContext(nameSpaceContext) === "svg" ? (key) => toSVGAttributeName(normalizeIntrinsicElementKey(key)) : (key) => normalizeIntrinsicElementKey(key);
-    for (let [key, v5] of Object.entries(props)) {
-      key = normalizeKey(key);
-      if (key === "children") {
-      } else if (key === "style" && typeof v5 === "object") {
-        let styleStr = "";
-        styleObjectForEach(v5, (property, value) => {
-          if (value != null) {
-            styleStr += `${styleStr ? ";" : ""}${property}:${value}`;
-          }
-        });
-        buffer[0] += ' style="';
-        escapeToBuffer(styleStr, buffer);
-        buffer[0] += '"';
-      } else if (typeof v5 === "string") {
-        buffer[0] += ` ${key}="`;
-        escapeToBuffer(v5, buffer);
-        buffer[0] += '"';
-      } else if (v5 === null || v5 === void 0) {
-      } else if (typeof v5 === "number" || v5.isEscaped) {
-        buffer[0] += ` ${key}="${v5}"`;
-      } else if (typeof v5 === "boolean" && booleanAttributes.includes(key)) {
-        if (v5) {
-          buffer[0] += ` ${key}=""`;
-        }
-      } else if (key === "dangerouslySetInnerHTML") {
-        if (children.length > 0) {
-          throw new Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.");
-        }
-        children = [raw(v5.__html)];
-      } else if (v5 instanceof Promise) {
-        buffer[0] += ` ${key}="`;
-        buffer.unshift('"', v5);
-      } else if (typeof v5 === "function") {
-        if (!key.startsWith("on") && key !== "ref") {
-          throw new Error(`Invalid prop '${key}' of type 'function' supplied to '${tag2}'.`);
-        }
-      } else {
-        buffer[0] += ` ${key}="`;
-        escapeToBuffer(v5.toString(), buffer);
-        buffer[0] += '"';
-      }
-    }
-    if (emptyTags.includes(tag2) && children.length === 0) {
-      buffer[0] += "/>";
-      return;
-    }
-    buffer[0] += ">";
-    childrenToStringToBuffer(children, buffer);
-    buffer[0] += `</${tag2}>`;
-  }
-};
-var JSXFunctionNode = class extends JSXNode {
-  toStringToBuffer(buffer) {
-    const { children } = this;
-    const props = { ...this.props };
-    if (children.length) {
-      props.children = children.length === 1 ? children[0] : children;
-    }
-    const res = this.tag.call(null, props);
-    if (typeof res === "boolean" || res == null) {
-      return;
-    } else if (res instanceof Promise) {
-      if (globalContexts.length === 0) {
-        buffer.unshift("", res);
-      } else {
-        const currentContexts = globalContexts.map((c5) => [c5, c5.values.at(-1)]);
-        buffer.unshift(
-          "",
-          res.then((childRes) => {
-            if (childRes instanceof JSXNode) {
-              childRes.localContexts = currentContexts;
-            }
-            return childRes;
-          })
-        );
-      }
-    } else if (res instanceof JSXNode) {
-      res.toStringToBuffer(buffer);
-    } else if (typeof res === "number" || res.isEscaped) {
-      buffer[0] += res;
-      if (res.callbacks) {
-        buffer.callbacks ||= [];
-        buffer.callbacks.push(...res.callbacks);
-      }
-    } else {
-      escapeToBuffer(res, buffer);
-    }
-  }
-};
-var JSXFragmentNode = class extends JSXNode {
-  toStringToBuffer(buffer) {
-    childrenToStringToBuffer(this.children, buffer);
-  }
-};
-var initDomRenderer = false;
-var jsxFn = (tag2, props, children) => {
-  if (!initDomRenderer) {
-    for (const k5 in domRenderers) {
-      ;
-      components_exports[k5][DOM_RENDERER] = domRenderers[k5];
-    }
-    initDomRenderer = true;
-  }
-  if (typeof tag2 === "function") {
-    return new JSXFunctionNode(tag2, props, children);
-  } else if (components_exports[tag2]) {
-    return new JSXFunctionNode(
-      components_exports[tag2],
-      props,
-      children
-    );
-  } else if (tag2 === "svg" || tag2 === "head") {
-    nameSpaceContext ||= createContext("");
-    return new JSXNode(tag2, props, [
-      new JSXFunctionNode(
-        nameSpaceContext,
-        {
-          value: tag2
-        },
-        children
-      )
-    ]);
-  } else {
-    return new JSXNode(tag2, props, children);
-  }
-};
-
-// node_modules/hono/dist/jsx/jsx-dev-runtime.js
-function jsxDEV(tag2, props, key) {
-  let node;
-  if (!props || !("children" in props)) {
-    node = jsxFn(tag2, props, []);
-  } else {
-    const children = props.children;
-    node = Array.isArray(children) ? jsxFn(tag2, props, children) : jsxFn(tag2, props, [children]);
-  }
-  node.key = key;
-  return node;
-}
-
-// src/ui-render.tsx
-var AccordionRow = ({ game, displayName, state: state2, connectAddress, clientDownloadUrl, startBlocked, logsEnabled, logMode, logUrl }) => {
-  const label = displayName ?? game;
-  const indicator = `#status-result-${game}`;
-  return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
-    /* @__PURE__ */ jsxDEV(
-      "div",
-      {
-        id: rowHeaderId(game),
-        class: "row-header",
-        "data-label": label,
-        onclick: state2.status !== "offline" ? `toggleRow('${game}')` : void 0,
-        style: state2.status === "offline" ? "cursor: default" : void 0,
-        dangerouslySetInnerHTML: { __html: renderRowHeaderContent(label, game, state2) }
-      }
-    ),
-    /* @__PURE__ */ jsxDEV("div", { class: "row-body", id: rowBodyId(game), children: [
-      /* @__PURE__ */ jsxDEV("div", { class: "row-details", children: [
-        connectAddress ? /* @__PURE__ */ jsxDEV("div", { class: "connect", children: [
-          "connect: ",
-          /* @__PURE__ */ jsxDEV("code", { id: `connect-${game}`, children: connectAddress }),
-          /* @__PURE__ */ jsxDEV("button", { type: "button", class: "copy-btn", onclick: `copyConnect(${JSON.stringify(connectAddress)}, this)`, title: "copy to clipboard", children: "copy" })
-        ] }) : null,
-        clientDownloadUrl ? /* @__PURE__ */ jsxDEV("div", { class: "client-link", children: /* @__PURE__ */ jsxDEV("a", { href: clientDownloadUrl, target: "_blank", rel: "noopener", children: "get client \u2197" }) }) : null
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "admin-section", id: `admin-section-${game}`, children: [
-        /* @__PURE__ */ jsxDEV("div", { class: "admin-controls", children: [
-          /* @__PURE__ */ jsxDEV(
-            "button",
-            {
-              "hx-post": `/?game=${game}&operation=start`,
-              "data-admin-action": "start",
-              "hx-target": indicator,
-              "hx-indicator": indicator,
-              "hx-disabled-elt": "this",
-              disabled: startBlocked || void 0,
-              title: startBlocked ? "a conflicting game is already running on the same port" : void 0,
-              children: "start"
-            }
-          ),
-          /* @__PURE__ */ jsxDEV(
-            "button",
-            {
-              "hx-post": `/?game=${game}&operation=stop`,
-              "data-admin-action": "stop",
-              "hx-target": indicator,
-              "hx-indicator": indicator,
-              "hx-disabled-elt": "this",
-              children: "stop"
-            }
-          ),
-          logsEnabled ? /* @__PURE__ */ jsxDEV("button", { type: "button", onclick: `toggleLogs('${game}')`, children: "logs" }) : null
-        ] }),
-        /* @__PURE__ */ jsxDEV("div", { id: `status-result-${game}`, class: "status-frag", children: /* @__PURE__ */ jsxDEV("span", { class: "htmx-indicator", children: "working..." }) })
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: logSectionId(game), children: /* @__PURE__ */ jsxDEV(
-        "div",
-        {
-          id: logPanelId(game),
-          class: "log-panel",
-          "data-log-mode": logMode,
-          "data-log-open": "0",
-          "data-log-url": logUrl,
-          "data-log-cursor": "",
-          "sse-swap": "log",
-          "hx-swap": "beforeend"
-        }
-      ) })
-    ] })
-  ] });
-};
-function renderUi(games) {
-  const page = /* @__PURE__ */ jsxDEV("html", { lang: "en", children: [
-    /* @__PURE__ */ jsxDEV("head", { children: [
-      /* @__PURE__ */ jsxDEV("meta", { charset: "utf-8" }),
-      /* @__PURE__ */ jsxDEV("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
-      /* @__PURE__ */ jsxDEV("title", { children: "insta-game" }),
-      /* @__PURE__ */ jsxDEV("style", { children: css })
-    ] }),
-    /* @__PURE__ */ jsxDEV("body", { children: [
-      /* @__PURE__ */ jsxDEV("div", { class: "title-bar", children: [
-        /* @__PURE__ */ jsxDEV("h1", { children: "insta-game" }),
-        /* @__PURE__ */ jsxDEV("form", { id: "auth-form", onsubmit: "authenticate(); return false;", children: [
-          /* @__PURE__ */ jsxDEV(
-            "input",
-            {
-              type: "text",
-              id: "passphrase-input",
-              placeholder: "passphrase",
-              autocomplete: "off",
-              spellcheck: false,
-              style: "letter-spacing:0.15em;",
-              oninput: "this.style.borderColor=''"
-            }
-          ),
-          /* @__PURE__ */ jsxDEV("button", { id: "passphrase-btn", type: "submit", children: "unlock" })
-        ] }),
-        /* @__PURE__ */ jsxDEV("span", { id: "auth-status", style: "display:none" })
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "accordion", children: games.map(({ key, state: state2, ui }) => /* @__PURE__ */ jsxDEV(
-        AccordionRow,
-        {
-          game: key,
-          displayName: ui.displayName,
-          state: state2,
-          connectAddress: ui.connectAddress,
-          clientDownloadUrl: ui.clientDownloadUrl,
-          startBlocked: ui.startBlocked,
-          logsEnabled: ui.logsEnabled,
-          logMode: ui.logMode,
-          logUrl: ui.logUrl
-        },
-        key
-      )) }),
-      /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx.org@2/dist/htmx.min.js" }),
-      /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx-ext-sse@2/sse.js" }),
-      /* @__PURE__ */ jsxDEV("script", { dangerouslySetInnerHTML: { __html: initScript } })
-    ] })
-  ] });
-  return "<!DOCTYPE html>" + page.toString();
-}
-
 // src/app.ts
 var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
@@ -112240,24 +111089,19 @@ var ENABLE_LOG_STREAMS = (process.env.ENABLE_LOG_STREAMS ?? "1") === "1";
 var REGION2 = process.env.AWS_REGION ?? "ca-central-1";
 var SIDECAR_HOST2 = process.env.SIDECAR_HOST ?? "localhost";
 var cloudwatchLogs = new import_client_cloudwatch_logs.CloudWatchLogsClient({ region: REGION2 });
-function statusFragment(state2) {
-  const ip = state2.publicIp ? ` \u2014 ${state2.publicIp}` : "";
-  const players = state2.players ? ` (${state2.players} players)` : "";
-  return `<span class="status ${state2.status}">${state2.status}${ip}${players}</span>`;
-}
-function gameUiConfig(gameKey, config, state2, startBlocked) {
-  const c5 = config;
-  const logMode = BACKEND === "ecs" ? "poll" : "sse";
-  return {
-    displayName: c5.displayName ?? null,
-    connectAddress: c5.connectPort ? `${PUBLIC_HOST}:${c5.connectPort}` : null,
-    clientDownloadUrl: c5.clientDownloadUrl ?? null,
-    startBlocked,
-    logsEnabled: ENABLE_LOG_STREAMS,
-    logMode,
-    logUrl: `/logs?game=${encodeURIComponent(gameKey)}`
-  };
-}
+var HTML_SHELL = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>insta-game</title>
+  <link rel="stylesheet" href="/client.css">
+</head>
+<body>
+  <div id="app"></div>
+  <script src="/client.js"></script>
+</body>
+</html>`;
 function splitLogMessages(events) {
   const lines = [];
   for (const event of events) {
@@ -112274,9 +111118,7 @@ function occupiedHostPorts(games, cache6) {
     const state2 = cache6.get(key);
     if (!state2 || state2.status === "offline") continue;
     const ports = config.ports ?? {};
-    for (const binding of Object.values(ports)) {
-      occupied.add(binding.hostPort);
-    }
+    for (const binding of Object.values(ports)) occupied.add(binding.hostPort);
   }
   return occupied;
 }
@@ -112289,8 +111131,26 @@ function hasPortConflict(config, occupied, ownKey, games, cache6) {
   }
   return false;
 }
+function buildGameEntry(key, config, state2, startBlocked) {
+  const c5 = config;
+  return {
+    ...state2,
+    displayName: c5.displayName ?? key,
+    connectAddress: c5.connectPort ? `${PUBLIC_HOST}:${c5.connectPort}` : null,
+    clientDownloadUrl: c5.clientDownloadUrl ?? null,
+    startBlocked
+  };
+}
 function createApp(backend2, cache6) {
   const app2 = new Hono2();
+  let clientBundle = null;
+  let clientCss = null;
+  try {
+    clientBundle = (0, import_fs2.readFileSync)((0, import_path2.join)(process.cwd(), "dist/client.js"));
+    clientCss = (0, import_fs2.readFileSync)((0, import_path2.join)(process.cwd(), "dist/client.css"));
+  } catch {
+    log.warn("app: dist/client.js not found \u2014 run npm run build:client");
+  }
   app2.use("*", async (c5, next) => {
     const startedAt = Date.now();
     const method = c5.req.method;
@@ -112307,26 +111167,38 @@ function createApp(backend2, cache6) {
     const durationMs = Date.now() - startedAt;
     const status = c5.res.status;
     const base = `http: ${method} ${path2}${game}${operation2} -> ${status} (${durationMs}ms)`;
-    if (status >= 500) {
-      log.error(base);
-    } else if (status >= 400) {
-      log.warn(base);
-    } else {
-      log.info(base);
-    }
+    if (status >= 500) log.error(base);
+    else if (status >= 400) log.warn(base);
+    else log.info(base);
+  });
+  app2.get("/client.js", (c5) => {
+    if (!clientBundle) return c5.text("client bundle not found \u2014 run npm run build:client", 503);
+    return new Response(new Uint8Array(clientBundle), {
+      headers: { "Content-Type": "application/javascript" }
+    });
+  });
+  app2.get("/client.css", (c5) => {
+    if (!clientCss) return c5.text("client CSS not found \u2014 run npm run build:client", 503);
+    return new Response(new Uint8Array(clientCss), {
+      headers: { "Content-Type": "text/css" }
+    });
   });
   app2.get("/", async (c5) => {
     const passphrase = c5.req.header("x-passphrase") ?? "";
+    if (c5.req.header("x-validate") && WEB_UI_PASSPHRASE !== "") {
+      if (passphrase !== WEB_UI_PASSPHRASE) return c5.text("unauthorized", 401);
+      return c5.text("ok");
+    }
     const game = c5.req.query("game");
     const operation2 = c5.req.query("operation");
     if (game && operation2) {
       if (passphrase !== WEB_UI_PASSPHRASE) {
         log.warn(`web: auth failure from ${c5.req.header("x-forwarded-for") ?? "unknown"}`);
-        return c5.text("unauthorized", 401);
+        return c5.json({ error: "unauthorized" }, 401);
       }
-      const games2 = backend2.getGames();
-      const config = games2[game];
-      if (!config) return c5.html(`<span class="status">unknown game: ${game}</span>`, 400);
+      const games = backend2.getGames();
+      const config = games[game];
+      if (!config) return c5.json({ error: `unknown game: ${game}` }, 400);
       let state2;
       if (operation2 === "start") {
         log.info(`web: start ${game}`);
@@ -112341,36 +111213,18 @@ function createApp(backend2, cache6) {
       } else {
         state2 = await backend2.getGameState(config);
       }
-      return c5.html(statusFragment(state2));
+      return c5.json(state2);
     }
-    if (c5.req.header("hx-request") && WEB_UI_PASSPHRASE !== "") {
-      if (passphrase !== WEB_UI_PASSPHRASE) return c5.text("unauthorized", 401);
-      return c5.text("ok");
-    }
-    await cache6.refreshIfStale();
-    const games = backend2.getGames();
-    const occupied = occupiedHostPorts(games, cache6);
-    const rows = Object.entries(games).map(([key, config]) => {
-      const state2 = cache6.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
-      return {
-        key,
-        state: state2,
-        ui: gameUiConfig(key, config, state2, hasPortConflict(config, occupied, key, games, cache6))
-      };
-    });
-    return c5.html(renderUi(rows));
+    return c5.html(HTML_SHELL);
   });
   app2.post("/", async (c5) => {
     const passphrase = c5.req.header("x-passphrase") ?? "";
     if (passphrase !== WEB_UI_PASSPHRASE) {
       log.warn(`web: auth failure from ${c5.req.header("x-forwarded-for") ?? "unknown"}`);
-      const isHtmx2 = !!c5.req.header("hx-request");
-      if (isHtmx2) return c5.html(`<span class="status">unauthorized</span>`, 401);
       return c5.json({ error: "unauthorized" }, 401);
     }
     const game = c5.req.query("game");
     const opFromQuery = c5.req.query("operation");
-    const isHtmx = !!c5.req.header("hx-request");
     let gameKey;
     let operation2;
     if (game && opFromQuery) {
@@ -112383,10 +111237,7 @@ function createApp(backend2, cache6) {
     }
     const games = backend2.getGames();
     const config = games[gameKey];
-    if (!config) {
-      if (isHtmx) return c5.html(`<span class="status">unknown game: ${gameKey}</span>`, 400);
-      return c5.json({ error: `unknown game: ${gameKey}` }, 400);
-    }
+    if (!config) return c5.json({ error: `unknown game: ${gameKey}` }, 400);
     let state2;
     if (operation2 === "start") {
       log.info(`web: start ${gameKey}`);
@@ -112401,19 +111252,19 @@ function createApp(backend2, cache6) {
     } else {
       state2 = await backend2.getGameState(config);
     }
-    if (isHtmx) return c5.html(statusFragment(state2));
     return c5.json(state2);
   });
   app2.get("/status", async (c5) => {
     await cache6.refreshIfStale();
     const games = backend2.getGames();
-    const states = Object.fromEntries(
-      Object.keys(games).map((game) => [
-        game,
-        cache6.get(game) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() }
-      ])
+    const occupied = occupiedHostPorts(games, cache6);
+    const result = Object.fromEntries(
+      Object.entries(games).map(([key, config]) => {
+        const state2 = cache6.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+        return [key, buildGameEntry(key, config, state2, hasPortConflict(config, occupied, key, games, cache6))];
+      })
     );
-    return c5.json(states);
+    return c5.json(result);
   });
   app2.get("/logs", async (c5) => {
     if (!ENABLE_LOG_STREAMS) return c5.text("log streaming disabled for this deployment", 503);
@@ -112433,6 +111284,7 @@ function createApp(backend2, cache6) {
         limit: 100,
         startTime: cursor2 ? void 0 : Date.now() - 5 * 60 * 1e3
       }));
+      c5.header("X-Log-Mode", "poll");
       return c5.json({
         lines: splitLogMessages(res.events ?? []),
         cursor: res.nextToken ?? cursor2 ?? null
@@ -112441,9 +111293,10 @@ function createApp(backend2, cache6) {
     const cached = cache6.get(game);
     if (!cached || cached.status === "offline") return c5.text("game offline", 503);
     const sidecarUrl = `http://${SIDECAR_HOST2}:${config.sidecarPort}/logs`;
+    c5.header("X-Log-Mode", "sse");
     return streamSSE(c5, async (stream2) => {
       log.info(`logs: stream opened for ${game}`);
-      await stream2.writeSSE({ data: `<div class="log-line">[connecting to ${game} logs]</div>`, event: "log" });
+      await stream2.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
       let res;
       try {
         res = await fetch(sidecarUrl, {
@@ -112452,17 +111305,17 @@ function createApp(backend2, cache6) {
         });
       } catch (error2) {
         log.info(`logs: stream closed for ${game} (connection error)`);
-        await stream2.writeSSE({ data: `<div class="log-line">[log proxy error: ${error2 instanceof Error ? error2.message : String(error2)}]</div>`, event: "log" });
+        await stream2.writeSSE({ data: `[log proxy error: ${error2 instanceof Error ? error2.message : String(error2)}]`, event: "log" });
         await stream2.close();
         return;
       }
       if (!res.ok || !res.body) {
         log.warn(`logs: sidecar returned ${res.status} for ${game}`);
-        await stream2.writeSSE({ data: `<div class="log-line">[log proxy error: sidecar returned HTTP ${res.status}]</div>`, event: "log" });
+        await stream2.writeSSE({ data: `[log proxy error: sidecar returned HTTP ${res.status}]`, event: "log" });
         await stream2.close();
         return;
       }
-      await stream2.writeSSE({ data: `<div class="log-line">[connected to ${game} logs]</div>`, event: "log" });
+      await stream2.writeSSE({ data: `[connected to ${game} logs]`, event: "log" });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -112474,7 +111327,9 @@ function createApp(backend2, cache6) {
           const lines = buf.split("\n");
           buf = lines.pop() ?? "";
           for (const line of lines) {
-            if (line.startsWith("data: ")) await stream2.writeSSE({ data: `<div class="log-line">${line.slice(6)}</div>`, event: "log" });
+            if (line.startsWith("data: ")) {
+              await stream2.writeSSE({ data: line.slice(6), event: "log" });
+            }
           }
         }
       } catch {
