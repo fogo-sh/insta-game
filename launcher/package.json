@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/*",
+    "build:client": "esbuild src/client/index.tsx --bundle --platform=browser --target=es2020 --outfile=dist/client.js --jsx=automatic --jsx-import-source=preact",
+    "build": "npm run build:client && esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/*",
     "build:watch": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/* --watch",
-    "build:docker": "esbuild src/server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js",
+    "build:docker": "npm run build:client && esbuild src/server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js",
     "lint": "eslint .",
     "register": "tsx register-commands.ts",
     "start": "node dist/server.js"
@@ -16,7 +17,8 @@
     "@aws-sdk/client-ecs": "^3.1023.0",
     "@hono/node-server": "^1.19.12",
     "discord-interactions": "^4.4.0",
-    "hono": "^4.12.10"
+    "hono": "^4.12.10",
+    "preact": "^10.29.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
