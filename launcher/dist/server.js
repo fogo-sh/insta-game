@@ -111143,11 +111143,12 @@ function buildGameEntry(key, config, state2, startBlocked) {
 }
 function createApp(backend2, cache6) {
   const app2 = new Hono2();
+  const distDir = __dirname;
   let clientBundle = null;
   let clientCss = null;
   try {
-    clientBundle = (0, import_fs2.readFileSync)((0, import_path2.join)(process.cwd(), "dist/client.js"));
-    clientCss = (0, import_fs2.readFileSync)((0, import_path2.join)(process.cwd(), "dist/client.css"));
+    clientBundle = (0, import_fs2.readFileSync)((0, import_path2.join)(distDir, "client.js"));
+    clientCss = (0, import_fs2.readFileSync)((0, import_path2.join)(distDir, "client.css"));
   } catch {
     log.warn("app: dist/client.js not found \u2014 run npm run build:client");
   }

@@ -95,12 +95,15 @@ function buildGameEntry(
 export function createApp(backend: Backend, cache: GameCache): Hono {
   const app = new Hono();
 
-  // Load client bundle once at startup
+  // Load client bundle once at startup.
+  // __dirname is the directory of the compiled bundle (e.g. /app/dist or launcher/dist).
+  // client.js and client.css are always siblings of server.js in the same dist/ directory.
+  const distDir = __dirname;
   let clientBundle: Buffer | null = null;
   let clientCss: Buffer | null = null;
   try {
-    clientBundle = readFileSync(join(process.cwd(), "dist/client.js"));
-    clientCss = readFileSync(join(process.cwd(), "dist/client.css"));
+    clientBundle = readFileSync(join(distDir, "client.js"));
+    clientCss = readFileSync(join(distDir, "client.css"));
   } catch {
     log.warn("app: dist/client.js not found — run npm run build:client");
   }
