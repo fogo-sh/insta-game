@@ -1,6 +1,6 @@
 encryptionsalt: v1:aZTSzECkikk=:v1:frHB5wRJD/2Q3YW8:WOI64riDdtHA8wrr4NncUonrC0mpKw==
 config:
-  aws:region: ap-northeast-3
+  aws:region: us-east-2
   insta-game:budgetAlertEmail: me@steveparson.ca
   insta-game:webUiPassphrase:
     secure: v1:qh+pb5qqg/Nsqd2N:2bpjNkk7ds820tBoDWAuhWVyZ8JIbg==
