@@ -51,6 +51,51 @@ h1 { font-size: 1.4rem; }
 .action-result.ok { color: #4f4; }
 .action-result.err { color: #f44; }
 
+.config-editor { margin-top: 1rem; display: grid; gap: 1rem; }
+.config-controls { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.config-control { background: #151515; border: 1px solid #282828; padding: 0.75rem; }
+.config-field { display: grid; gap: 0.45rem; font-size: 0.85rem; color: #bbb; }
+.config-field input,
+.config-text-label textarea,
+.config-text-label input {
+  width: 100%;
+  background: #0e0e0e;
+  color: #eee;
+  border: 1px solid #3a3a3a;
+  padding: 0.5rem 0.6rem;
+  font-family: monospace;
+}
+.config-fieldset { border: none; display: grid; gap: 0.5rem; }
+.config-fieldset legend { font-size: 0.85rem; color: #bbb; margin-bottom: 0.4rem; }
+.config-radio-group,
+.config-checkbox-grid { display: grid; gap: 0.45rem; }
+.config-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #ddd; }
+.config-check input { accent-color: #b6ff7a; }
+.config-help { margin-top: 0.5rem; font-size: 0.75rem; color: #7f7f7f; line-height: 1.4; }
+.config-text-label { display: grid; gap: 0.45rem; }
+.config-text-label span { font-size: 0.85rem; color: #bbb; }
+.config-text-label textarea {
+  min-height: 20rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+.config-text-label textarea.config-flash {
+  animation: config-flash 0.9s ease-out;
+}
+
+@keyframes config-flash {
+  0% {
+    border-color: #b6ff7a;
+    box-shadow: 0 0 0 0.25rem rgba(182, 255, 122, 0.25);
+    background: #182112;
+  }
+  100% {
+    border-color: #3a3a3a;
+    box-shadow: none;
+    background: #0e0e0e;
+  }
+}
+
 .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; }
 .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
 .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
@@ -88,4 +133,5 @@ h1 { font-size: 1.4rem; }
   .connect { width: 100%; flex-wrap: wrap; }
   .connect code { max-width: calc(100% - 4rem); overflow-wrap: anywhere; }
   .admin-controls { gap: 0.75rem; }
+  .config-controls { grid-template-columns: 1fr; }
 }

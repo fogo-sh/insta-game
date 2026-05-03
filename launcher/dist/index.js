@@ -768,6 +768,8 @@ var import_client_ec2 = require("@aws-sdk/client-ec2");
 var REGION = process.env.AWS_REGION ?? "ca-central-1";
 var CLUSTER = process.env.ECS_CLUSTER ?? "";
 var SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
+var MAX_POLLS = 20;
+var POLL_INTERVAL_MS = 3e3;
 var ecs = new import_client_ecs.ECSClient({ region: REGION });
 var ec2 = new import_client_ec2.EC2Client({ region: REGION });
 var EcsBackend = class {
@@ -830,18 +832,30 @@ var EcsBackend = class {
     await setDesiredCount(c.serviceName, 0);
     return { status: "offline", players: 0, ready: false };
   }
-  async startGame(config, configUrl) {
+  async startGame(config, launchConfig) {
     const c = config;
     const current = await this.getGameState(config);
-    if (current.status === "online" && !configUrl) return current;
+    if (current.status === "online" && !launchConfig?.configUrl && !launchConfig?.configText) return current;
     await setDesiredCount(c.serviceName, 1);
-    if (configUrl && current.publicIp) {
-      await restartWithConfig(current.publicIp, c.sidecarPort, configUrl);
-      return { ...current, configUrl };
+    if (launchConfig?.configUrl || launchConfig?.configText) {
+      const state = await waitForReachableState(this, config);
+      if (state.publicIp) {
+        await restartWithConfig(state.publicIp, c.sidecarPort, launchConfig);
+        return { ...state, configUrl: launchConfig.configUrl };
+      }
     }
     return { status: "starting", players: 0, ready: false };
   }
 };
+async function waitForReachableState(backend2, config) {
+  let state = await backend2.getGameState(config);
+  for (let i = 0; i < MAX_POLLS; i += 1) {
+    if (state.publicIp) return state;
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    state = await backend2.getGameState(config);
+  }
+  return state;
+}
 async function setDesiredCount(serviceName, count) {
   await ecs.send(new import_client_ecs.UpdateServiceCommand({ cluster: CLUSTER, service: serviceName, desiredCount: count }));
 }
@@ -854,11 +868,14 @@ async function getSidecarStatus(ip, port) {
     return null;
   }
 }
-async function restartWithConfig(ip, port, configUrl) {
+async function restartWithConfig(ip, port, launchConfig) {
   await fetch(`http://${ip}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ config_url: configUrl }),
+    body: JSON.stringify({
+      config_url: launchConfig.configUrl,
+      config_text: launchConfig.configText
+    }),
     signal: AbortSignal.timeout(1e4)
   });
 }
@@ -869,6 +886,22 @@ var import_http = __toESM(require("http"));
 // src/game-definitions.ts
 var import_fs = require("fs");
 var import_path = __toESM(require("path"));
+function loadDefaultConfigText(gameDir, definition) {
+  const candidates = [
+    definition.defaultConfigFile,
+    "server.cfg",
+    "UnrealTournament.ini"
+  ].filter((candidate) => Boolean(candidate));
+  for (const candidate of candidates) {
+    const configPath = import_path.default.join(gameDir, candidate);
+    try {
+      return (0, import_fs.readFileSync)(configPath, "utf8");
+    } catch {
+      continue;
+    }
+  }
+  return void 0;
+}
 function loadDockerGameDefinitions(repoRoot) {
   const dockerRoot = import_path.default.join(repoRoot, "docker-containers");
   const entries = (0, import_fs.readdirSync)(dockerRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -880,7 +913,10 @@ function loadDockerGameDefinitions(repoRoot) {
     try {
       const metadata = JSON.parse((0, import_fs.readFileSync)(metadataPath, "utf8"));
       (0, import_fs.readFileSync)(dockerfilePath, "utf8");
-      definitions.push(metadata);
+      definitions.push({
+        ...metadata,
+        defaultConfigText: loadDefaultConfigText(gameDir, metadata)
+      });
     } catch {
       continue;
     }
@@ -907,8 +943,8 @@ var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
 var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 var DATA_DIR = process.env.DATA_DIR ?? "/data";
 var HOST_DATA_DIR = process.env.HOST_DATA_DIR ?? DATA_DIR;
-var MAX_POLLS = 20;
-var POLL_INTERVAL_MS = 3e3;
+var MAX_POLLS2 = 20;
+var POLL_INTERVAL_MS2 = 3e3;
 var RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
 function dockerRequest(method, path2, body) {
   return new Promise((resolve, reject) => {
@@ -1048,20 +1084,23 @@ async function getSidecarStatus2(port) {
 async function waitForState(backend2, config, desired) {
   const c = config;
   let state = await backend2.getGameState(config);
-  for (let i = 0; i < MAX_POLLS; i++) {
+  for (let i = 0; i < MAX_POLLS2; i++) {
     if (state.status === desired) return state;
-    log.info(`docker: waiting for ${c.containerName} to be ${desired} (currently ${state.status}, poll ${i + 1}/${MAX_POLLS})`);
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    log.info(`docker: waiting for ${c.containerName} to be ${desired} (currently ${state.status}, poll ${i + 1}/${MAX_POLLS2})`);
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS2));
     state = await backend2.getGameState(config);
   }
-  if (state.status !== desired) log.warn(`docker: ${c.containerName} did not reach ${desired} after ${MAX_POLLS} polls (stuck at ${state.status})`);
+  if (state.status !== desired) log.warn(`docker: ${c.containerName} did not reach ${desired} after ${MAX_POLLS2} polls (stuck at ${state.status})`);
   return state;
 }
-async function restartWithConfig2(port, configUrl) {
+async function restartWithConfig2(port, launchConfig) {
   await fetch(`http://${SIDECAR_HOST}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN2}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ config_url: configUrl }),
+    body: JSON.stringify({
+      config_url: launchConfig.configUrl,
+      config_text: launchConfig.configText
+    }),
     signal: AbortSignal.timeout(1e4)
   });
 }
@@ -1089,6 +1128,8 @@ var DockerBackend = class {
         displayName: definition.displayName,
         connectPort: definition.gamePort,
         clientDownloadUrl: definition.clientDownloadUrl,
+        defaultConfigText: definition.defaultConfigText,
+        configEditor: definition.configEditor,
         sidecarPort: definition.sidecarPort,
         ports: definition.ports,
         environment,
@@ -1142,7 +1183,7 @@ var DockerBackend = class {
       return offline;
     }
   }
-  async startGame(config, configUrl) {
+  async startGame(config, launchConfig) {
     const c = config;
     log.info(`docker: starting container ${c.containerName}`);
     try {
@@ -1153,13 +1194,13 @@ var DockerBackend = class {
       return { status: "offline", players: 0, ready: false };
     }
     let state = await waitForState(this, config, "online");
-    if (configUrl && state.status === "online") {
+    if ((launchConfig?.configText || launchConfig?.configUrl) && state.status === "online") {
       const inspect = await inspectContainer(c.containerName);
       const hostPort = inspect ? getHostPort(inspect, c.sidecarPort) : null;
       if (hostPort) {
-        await restartWithConfig2(hostPort, configUrl);
+        await restartWithConfig2(hostPort, launchConfig);
         state = await waitForState(this, config, "online");
-        state.configUrl = configUrl;
+        state.configUrl = launchConfig.configUrl;
       }
     }
     return state;
@@ -1185,7 +1226,7 @@ function createBackend() {
 }
 
 // src/cache.ts
-var POLL_INTERVAL_MS2 = 5e3;
+var POLL_INTERVAL_MS3 = 5e3;
 var GameCache = class {
   constructor(backend2) {
     this.backend = backend2;
@@ -1200,7 +1241,7 @@ var GameCache = class {
     void this.pollAll();
     this.timer = setInterval(() => {
       void this.pollAll();
-    }, POLL_INTERVAL_MS2);
+    }, POLL_INTERVAL_MS3);
   }
   stop() {
     if (this.timer) {
@@ -1214,7 +1255,7 @@ var GameCache = class {
   set(gameKey, state) {
     this.cache.set(gameKey, state);
   }
-  async refreshIfStale(maxAgeMs = POLL_INTERVAL_MS2) {
+  async refreshIfStale(maxAgeMs = POLL_INTERVAL_MS3) {
     if (Date.now() - this.lastPolledAt <= maxAgeMs) return;
     await this.pollAll();
   }
@@ -1246,6 +1287,10 @@ var GameCache = class {
     }
   }
 };
+
+// src/app.ts
+var import_fs2 = require("fs");
+var import_path2 = require("path");
 
 // node_modules/hono/dist/compose.js
 var compose = (middleware, onError, onNotFound) => {
@@ -1312,47 +1357,47 @@ async function parseFormData(request, options) {
   return {};
 }
 function convertFormDataToBodyData(formData, options) {
-  const form2 = /* @__PURE__ */ Object.create(null);
+  const form = /* @__PURE__ */ Object.create(null);
   formData.forEach((value, key) => {
     const shouldParseAllValues = options.all || key.endsWith("[]");
     if (!shouldParseAllValues) {
-      form2[key] = value;
+      form[key] = value;
     } else {
-      handleParsingAllValues(form2, key, value);
+      handleParsingAllValues(form, key, value);
     }
   });
   if (options.dot) {
-    Object.entries(form2).forEach(([key, value]) => {
+    Object.entries(form).forEach(([key, value]) => {
       const shouldParseDotValues = key.includes(".");
       if (shouldParseDotValues) {
-        handleParsingNestedValues(form2, key, value);
-        delete form2[key];
+        handleParsingNestedValues(form, key, value);
+        delete form[key];
       }
     });
   }
-  return form2;
+  return form;
 }
-var handleParsingAllValues = (form2, key, value) => {
-  if (form2[key] !== void 0) {
-    if (Array.isArray(form2[key])) {
+var handleParsingAllValues = (form, key, value) => {
+  if (form[key] !== void 0) {
+    if (Array.isArray(form[key])) {
       ;
-      form2[key].push(value);
+      form[key].push(value);
     } else {
-      form2[key] = [form2[key], value];
+      form[key] = [form[key], value];
     }
   } else {
     if (!key.endsWith("[]")) {
-      form2[key] = value;
+      form[key] = value;
     } else {
-      form2[key] = [value];
+      form[key] = [value];
     }
   }
 };
-var handleParsingNestedValues = (form2, key, value) => {
+var handleParsingNestedValues = (form, key, value) => {
   if (/(?:^|\.)__proto__\./.test(key)) {
     return;
   }
-  let nestedForm = form2;
+  let nestedForm = form;
   const keys = key.split(".");
   keys.forEach((key2, index) => {
     if (index === keys.length - 1) {
@@ -1850,80 +1895,6 @@ var raw = (value, callbacks) => {
   escapedString.callbacks = callbacks;
   return escapedString;
 };
-var escapeRe = /[&<>'"]/;
-var stringBufferToString = async (buffer, callbacks) => {
-  let str = "";
-  callbacks ||= [];
-  const resolvedBuffer = await Promise.all(buffer);
-  for (let i = resolvedBuffer.length - 1; ; i--) {
-    str += resolvedBuffer[i];
-    i--;
-    if (i < 0) {
-      break;
-    }
-    let r = resolvedBuffer[i];
-    if (typeof r === "object") {
-      callbacks.push(...r.callbacks || []);
-    }
-    const isEscaped = r.isEscaped;
-    r = await (typeof r === "object" ? r.toString() : r);
-    if (typeof r === "object") {
-      callbacks.push(...r.callbacks || []);
-    }
-    if (r.isEscaped ?? isEscaped) {
-      str += r;
-    } else {
-      const buf = [str];
-      escapeToBuffer(r, buf);
-      str = buf[0];
-    }
-  }
-  return raw(str, callbacks);
-};
-var escapeToBuffer = (str, buffer) => {
-  const match2 = str.search(escapeRe);
-  if (match2 === -1) {
-    buffer[0] += str;
-    return;
-  }
-  let escape;
-  let index;
-  let lastIndex = 0;
-  for (index = match2; index < str.length; index++) {
-    switch (str.charCodeAt(index)) {
-      case 34:
-        escape = "&quot;";
-        break;
-      case 39:
-        escape = "&#39;";
-        break;
-      case 38:
-        escape = "&amp;";
-        break;
-      case 60:
-        escape = "&lt;";
-        break;
-      case 62:
-        escape = "&gt;";
-        break;
-      default:
-        continue;
-    }
-    buffer[0] += str.substring(lastIndex, index) + escape;
-    lastIndex = index + 1;
-  }
-  buffer[0] += str.substring(lastIndex, index);
-};
-var resolveCallbackSync = (str) => {
-  const callbacks = str.callbacks;
-  if (!callbacks?.length) {
-    return str;
-  }
-  const buffer = [str];
-  const context = {};
-  callbacks.forEach((c) => c({ phase: HtmlEscapedCallbackPhase.Stringify, buffer, context }));
-  return buffer[0];
-};
 var resolveCallback = async (str, phase, preserveCallbacks, context, buffer) => {
   if (typeof str === "object" && !(str instanceof String)) {
     if (!(str instanceof Promise)) {
@@ -2314,9 +2285,9 @@ var Context = class {
       setDefaultContentType("application/json", headers)
     );
   };
-  html = (html2, arg, headers) => {
-    const res = (html22) => this.#newResponse(html22, arg, setDefaultContentType("text/html; charset=UTF-8", headers));
-    return typeof html2 === "object" ? resolveCallback(html2, HtmlEscapedCallbackPhase.Stringify, false, {}).then(res) : res(html2);
+  html = (html, arg, headers) => {
+    const res = (html2) => this.#newResponse(html2, arg, setDefaultContentType("text/html; charset=UTF-8", headers));
+    return typeof html === "object" ? resolveCallback(html, HtmlEscapedCallbackPhase.Stringify, false, {}).then(res) : res(html);
   };
   /**
    * `.redirect()` can Redirect, default status code is 302.
@@ -2705,14 +2676,14 @@ var Hono = class _Hono {
    * ```
    * @see https://hono.dev/docs/api/hono#request
    */
-  request = (input2, requestInit, Env, executionCtx) => {
-    if (input2 instanceof Request) {
-      return this.fetch(requestInit ? new Request(input2, requestInit) : input2, Env, executionCtx);
+  request = (input, requestInit, Env, executionCtx) => {
+    if (input instanceof Request) {
+      return this.fetch(requestInit ? new Request(input, requestInit) : input, Env, executionCtx);
     }
-    input2 = input2.toString();
+    input = input.toString();
     return this.fetch(
       new Request(
-        /^https?:\/\//.test(input2) ? input2 : `http://localhost${mergePath("/", input2)}`,
+        /^https?:\/\//.test(input) ? input : `http://localhost${mergePath("/", input)}`,
         requestInit
       ),
       Env,
@@ -3407,18 +3378,18 @@ var StreamingApi = class {
       }
     });
   }
-  async write(input2) {
+  async write(input) {
     try {
-      if (typeof input2 === "string") {
-        input2 = this.encoder.encode(input2);
+      if (typeof input === "string") {
+        input = this.encoder.encode(input);
       }
-      await this.writer.write(input2);
+      await this.writer.write(input);
     } catch {
     }
     return this;
   }
-  async writeln(input2) {
-    await this.write(input2 + "\n");
+  async writeln(input) {
+    await this.write(input + "\n");
     return this;
   }
   sleep(ms) {
@@ -3610,1045 +3581,6 @@ function formatState(gameName, state) {
   return parts.join(" \u2014 ");
 }
 
-// src/ui-shared.ts
-var SESSION_KEY = "insta-game-passphrase";
-function rowHeaderId(game) {
-  return `row-header-${game}`;
-}
-function rowBodyId(game) {
-  return `row-body-${game}`;
-}
-function expandButtonId(game) {
-  return `expand-btn-${game}`;
-}
-function logSectionId(game) {
-  return `log-section-${game}`;
-}
-function logPanelId(game) {
-  return `log-sse-${game}`;
-}
-function escapeHtml(text) {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}
-function statusDot(status) {
-  if (status === "online") return "\u{1F7E2}";
-  if (status === "starting") return "\u{1F7E1}";
-  return "\u26AB";
-}
-function renderRowHeaderContent(label, game, state) {
-  const meta2 = [];
-  if (state.status === "online" && state.publicIp) meta2.push(`<span>${escapeHtml(state.publicIp)}</span>`);
-  if (state.status === "online" && state.hostname) meta2.push(`<span>${escapeHtml(state.hostname)}</span>`);
-  if (state.status === "online" && state.map) meta2.push(`<span>${escapeHtml(state.map)}</span>`);
-  if (state.status === "online") meta2.push(`<span>${state.players} player${state.players !== 1 ? "s" : ""}</span>`);
-  if (state.status !== "online") meta2.push(`<span class="${state.status}">${state.status}</span>`);
-  return [
-    `<span class="status-dot">${statusDot(state.status)}</span>`,
-    `<span class="game-name">${escapeHtml(label)}</span>`,
-    `<span class="row-meta">${meta2.join("")}</span>`,
-    `<button class="expand-btn" id="${expandButtonId(game)}">[expand \u25BC]</button>`
-  ].join("");
-}
-
-// src/ui-client.ts
-var initScript = `
-(function() {
-  var SESSION_KEY = ${JSON.stringify(SESSION_KEY)};
-  var STATUS_POLL_INTERVAL_MS = 10000;
-  var STATUS_RETRY_INTERVAL_MS = 30000;
-  var LOG_POLL_INTERVAL_MS = 5000;
-  var LOG_RETRY_INTERVAL_MS = 15000;
-  var POLL_PAUSE_AFTER_ADMIN_MS = 15000;
-  var suspendPollingUntil = 0;
-
-  function getPassphrase() {
-    return sessionStorage.getItem(SESSION_KEY) || "";
-  }
-
-  function statusDot(status) {
-    if (status === "online") return "\u{1F7E2}";
-    if (status === "starting") return "\u{1F7E1}";
-    return "\u26AB";
-  }
-
-  function escapeHtml(text) {
-    return String(text)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
-  }
-
-  function renderRowHeader(label, game, state) {
-    var meta = [];
-    if (state.status === "online" && state.publicIp) meta.push("<span>" + escapeHtml(state.publicIp) + "</span>");
-    if (state.status === "online" && state.hostname) meta.push("<span>" + escapeHtml(state.hostname) + "</span>");
-    if (state.status === "online" && state.map) meta.push("<span>" + escapeHtml(state.map) + "</span>");
-    if (state.status === "online") meta.push("<span>" + state.players + " player" + (state.players !== 1 ? "s" : "") + "</span>");
-    if (state.status !== "online") meta.push("<span class=\\"" + state.status + "\\">" + state.status + "</span>");
-    return ""
-      + "<span class=\\"status-dot\\">" + statusDot(state.status) + "</span>"
-      + "<span class=\\"game-name\\">" + escapeHtml(label) + "</span>"
-      + "<span class=\\"row-meta\\">" + meta.join("") + "</span>"
-      + "<button class=\\"expand-btn\\" id=\\"expand-btn-" + game + "\\">[expand \u25BC]</button>";
-  }
-
-  function syncExpandButton(game) {
-    var body = document.getElementById("row-body-" + game);
-    var btn = document.getElementById("expand-btn-" + game);
-    if (!body || !btn) return;
-    btn.textContent = body.classList.contains("open") ? "[collapse \u25B2]" : "[expand \u25BC]";
-  }
-
-  function refreshStatuses() {
-    if (Date.now() < suspendPollingUntil) {
-      window.setTimeout(refreshStatuses, Math.max(1000, suspendPollingUntil - Date.now()));
-      return;
-    }
-    var retryDelay = STATUS_POLL_INTERVAL_MS;
-    fetch("/status")
-      .then(function(res) {
-        if (!res.ok) {
-          var error = new Error("HTTP " + res.status);
-          error.status = res.status;
-          throw error;
-        }
-        return res.json();
-      })
-      .then(function(payload) {
-        Object.entries(payload).forEach(function(entry) {
-          var game = entry[0];
-          var state = entry[1];
-          var header = document.getElementById("row-header-" + game);
-          if (!header) return;
-          var label = header.getAttribute("data-label") || game;
-          header.innerHTML = renderRowHeader(label, game, state);
-          syncExpandButton(game);
-        });
-      })
-      .catch(function(error) {
-        if (error.status === 429) retryDelay = STATUS_RETRY_INTERVAL_MS;
-      })
-      .finally(function() {
-        var delay = retryDelay;
-        if (Date.now() < suspendPollingUntil) {
-          delay = Math.max(1000, suspendPollingUntil - Date.now());
-        }
-        window.setTimeout(refreshStatuses, delay);
-      });
-  }
-
-  function appendLogLines(inner, lines) {
-    lines.forEach(function(line) {
-      var div = document.createElement("div");
-      div.className = "log-line";
-      div.textContent = line;
-      inner.appendChild(div);
-    });
-    inner.scrollTop = inner.scrollHeight;
-  }
-
-  function pollLogs(game, inner) {
-    if (inner.getAttribute("data-log-mode") !== "poll") return;
-    if (inner.getAttribute("data-log-open") !== "1") return;
-    if (Date.now() < suspendPollingUntil) {
-      window.setTimeout(function() { pollLogs(game, inner); }, Math.max(1000, suspendPollingUntil - Date.now()));
-      return;
-    }
-    var pp = getPassphrase();
-    var cursor = inner.getAttribute("data-log-cursor") || "";
-    var url = inner.getAttribute("data-log-url");
-    var retryDelay = LOG_POLL_INTERVAL_MS;
-    if (!url) return;
-    var sep = url.indexOf("?") >= 0 ? "&" : "?";
-    fetch(url + sep + "token=" + encodeURIComponent(pp) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""))
-      .then(function(res) {
-        if (!res.ok) {
-          var error = new Error("HTTP " + res.status);
-          error.status = res.status;
-          throw error;
-        }
-        return res.json();
-      })
-      .then(function(payload) {
-        if (Array.isArray(payload.lines) && payload.lines.length > 0) {
-          appendLogLines(inner, payload.lines);
-        }
-        if (payload.cursor) inner.setAttribute("data-log-cursor", payload.cursor);
-      })
-      .catch(function(error) {
-        if (error.status === 429) retryDelay = LOG_RETRY_INTERVAL_MS;
-        if (error.status !== 429) {
-          appendLogLines(inner, ["[log poll error: " + error.message + "]"]);
-        }
-      })
-      .finally(function() {
-        if (inner.getAttribute("data-log-open") === "1") {
-          var delay = retryDelay;
-          if (Date.now() < suspendPollingUntil) {
-            delay = Math.max(1000, suspendPollingUntil - Date.now());
-          }
-          window.setTimeout(function() { pollLogs(game, inner); }, delay);
-        }
-      });
-  }
-
-  window.toggleRow = function(game) {
-    var body = document.getElementById("row-body-" + game);
-    var btn = document.getElementById("expand-btn-" + game);
-    if (!body || !btn) return;
-    var open = body.classList.toggle("open");
-    btn.textContent = open ? "[collapse \u25B2]" : "[expand \u25BC]";
-  };
-
-  window.copyConnect = function(text) {
-    navigator.clipboard.writeText(text).catch(function() {});
-  };
-
-  function unlockAll(pp) {
-    document.querySelectorAll(".admin-section").forEach(function(section) {
-      section.setAttribute("hx-headers", JSON.stringify({"X-Passphrase": pp}));
-      section.classList.add("unlocked");
-      htmx.process(section);
-    });
-    var authForm = document.getElementById("auth-form");
-    var status = document.getElementById("auth-status");
-    if (!authForm || !status) return;
-    authForm.style.display = "none";
-    status.style.display = "";
-    status.textContent = "admin";
-  }
-
-  document.addEventListener("click", function(event) {
-    var target = event.target;
-    if (!(target instanceof Element)) return;
-    if (!target.closest("[data-admin-action]")) return;
-    suspendPollingUntil = Date.now() + POLL_PAUSE_AFTER_ADMIN_MS;
-  });
-
-  window.authenticate = function() {
-    var input = document.getElementById("passphrase-input");
-    var btn = document.getElementById("passphrase-btn");
-    if (!(input instanceof HTMLInputElement) || !(btn instanceof HTMLButtonElement)) return;
-    var val = input.value;
-    if (!val) return;
-    btn.disabled = true;
-    btn.textContent = "checking...";
-    fetch("/", { headers: { "X-Passphrase": val, "HX-Request": "true" } })
-      .then(function(res) {
-        if (res.status === 401) {
-          btn.disabled = false;
-          btn.textContent = "unlock";
-          input.style.borderColor = "#f44";
-          return;
-        }
-        sessionStorage.setItem(SESSION_KEY, val);
-        unlockAll(val);
-      })
-      .catch(function() {
-        btn.disabled = false;
-        btn.textContent = "unlock";
-      });
-  };
-
-  window.toggleLogs = function(game) {
-    var section = document.getElementById("log-section-" + game);
-    var inner = document.getElementById("log-sse-" + game);
-    if (!section || !inner) return;
-    var isOpen = section.classList.toggle("open");
-    inner.setAttribute("data-log-open", isOpen ? "1" : "0");
-    if (isOpen) {
-      if (inner.getAttribute("data-log-mode") === "poll") {
-        if (!inner.getAttribute("data-log-started")) {
-          inner.setAttribute("data-log-started", "1");
-          appendLogLines(inner, ["[connecting to " + game + " logs]"]);
-          pollLogs(game, inner);
-        }
-      } else if (!inner.getAttribute("sse-connect")) {
-        var pp = getPassphrase();
-        var baseUrl = inner.getAttribute("data-log-url");
-        var separator = baseUrl && baseUrl.indexOf("?") >= 0 ? "&" : "?";
-        inner.setAttribute("hx-ext", "sse");
-        inner.setAttribute("sse-connect", (baseUrl || "/logs?game=" + game) + separator + "token=" + encodeURIComponent(pp));
-        htmx.process(inner);
-        var observer = new MutationObserver(function() { inner.scrollTop = inner.scrollHeight; });
-        observer.observe(inner, { childList: true });
-      }
-    }
-  };
-
-  (function() {
-    refreshStatuses();
-    var pp = getPassphrase();
-    if (!pp) return;
-    fetch("/", { headers: { "X-Passphrase": pp, "HX-Request": "true" } })
-      .then(function(res) {
-        if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); return; }
-        unlockAll(pp);
-      });
-  })();
-})();
-`;
-
-// src/ui-styles.ts
-var css = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #111; color: #eee; font-family: monospace; padding: 2rem; }
-  .title-bar { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
-  h1 { font-size: 1.4rem; }
-  #auth-form { display: flex; align-items: center; gap: 0.5rem; }
-  #auth-form input { padding: 0.35rem 0.5rem; background: #222; color: #eee; border: 1px solid #444; font-family: monospace; font-size: 0.85rem; width: 12rem; }
-  #auth-form button { padding: 0.35rem 0.7rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; font-size: 0.85rem; }
-  #auth-status { font-size: 0.8rem; color: #aaa; }
-
-  .accordion { display: flex; flex-direction: column; gap: 0.5rem; }
-
-  .row { border: 1px solid #333; background: #1a1a1a; }
-  .row-header {
-    display: flex; align-items: center; gap: 1rem;
-    padding: 0.75rem 1rem; cursor: pointer; user-select: none;
-    width: 100%;
-  }
-  .row-header:hover { background: #222; }
-  .status-dot { font-size: 0.8rem; flex-shrink: 0; }
-  .game-name { font-weight: bold; min-width: 8rem; }
-  .row-meta { display: flex; gap: 1.5rem; flex: 1; color: #aaa; font-size: 0.85rem; flex-wrap: wrap; }
-  .row-meta .online { color: #4f4; }
-  .row-meta .starting { color: #fa4; }
-  .row-meta .offline { color: #666; }
-  .expand-btn {
-    background: none; border: none; color: #aaa; cursor: pointer;
-    font-family: monospace; font-size: 0.85rem; padding: 0; flex-shrink: 0;
-  }
-
-  .row-body { border-top: 1px solid #333; padding: 1rem; display: none; }
-  .row-body.open { display: block; }
-
-  .row-details { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
-  .connect code { background: #222; padding: 0.2rem 0.5rem; border: 1px solid #444; cursor: pointer; }
-  .connect code:hover { background: #2a2a2a; }
-  .client-link { font-size: 0.85rem; color: #aaa; }
-  .client-link a { color: #88f; text-decoration: none; }
-  .client-link a:hover { text-decoration: underline; }
-
-  .admin-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
-  .admin-section.unlocked { display: block; }
-  .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-  .admin-controls button { padding: 0.4rem 0.8rem; background: #333; color: #eee; border: 1px solid #555; cursor: pointer; font-family: monospace; }
-  .admin-controls button:hover { background: #444; }
-
-  .status-frag { font-size: 0.85rem; color: #aaa; margin-top: 0.5rem; min-height: 1.4em; }
-  .status-frag .online { color: #4f4; }
-  .status-frag .starting { color: #fa4; }
-  .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
-  .htmx-request .htmx-indicator { opacity: 1; }
-
-  .log-section { margin-top: 0.75rem; border-top: 1px solid #222; padding-top: 0.75rem; display: none; }
-  .log-section.open { display: block; }
-  .log-panel { height: 300px; overflow-y: scroll; background: #0a0a0a; font-size: 0.75rem; padding: 0.75rem; border: 1px solid #222; }
-  .log-line { white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
-  .term-fg1 { font-weight: bold; }
-  .term-fg2 { color: #838887; }
-  .term-fg3 { font-style: italic; }
-  .term-fg4 { text-decoration: underline; }
-  .term-fg30 { color: #666; }
-  .term-fg31 { color: #ff7070; }
-  .term-fg32 { color: #b0f986; }
-  .term-fg33 { color: #c6c502; }
-  .term-fg34 { color: #8db7e0; }
-  .term-fg35 { color: #f271fb; }
-  .term-fg36 { color: #6bf7ff; }
-  .term-fg37 { color: #eee; }
-  .term-fgi90 { color: #838887; }
-  .term-fgi91 { color: #ff3333; }
-  .term-fgi92 { color: #00ff00; }
-  .term-fgi93 { color: #fffc67; }
-  .term-fgi94 { color: #6871ff; }
-  .term-fgi95 { color: #ff76ff; }
-  .term-fgi96 { color: #60fcff; }
-
-  @media (max-width: 640px) {
-    body { padding: 1rem; }
-    .title-bar { gap: 0.75rem; margin-bottom: 1rem; }
-    #auth-form { width: 100%; }
-    #auth-form input { width: 100%; min-width: 0; }
-
-    .row-header {
-      gap: 0.75rem;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      padding: 0.75rem;
-    }
-    .game-name { min-width: 0; }
-    .row-meta { width: 100%; gap: 0.5rem 1rem; }
-    .expand-btn { margin-left: auto; }
-
-    .row-body { padding: 0.75rem; }
-    .row-details { gap: 0.75rem; margin-bottom: 0.75rem; }
-    .connect { width: 100%; }
-    .connect code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
-
-    .admin-controls { gap: 0.75rem; }
-    .admin-controls button {
-      flex: 1 1 5.5rem;
-      min-height: 2.75rem;
-    }
-
-    .log-panel { height: 220px; padding: 0.5rem; }
-  }
-`;
-
-// node_modules/hono/dist/jsx/constants.js
-var DOM_RENDERER = /* @__PURE__ */ Symbol("RENDERER");
-var DOM_ERROR_HANDLER = /* @__PURE__ */ Symbol("ERROR_HANDLER");
-var DOM_INTERNAL_TAG = /* @__PURE__ */ Symbol("INTERNAL");
-var PERMALINK = /* @__PURE__ */ Symbol("PERMALINK");
-
-// node_modules/hono/dist/jsx/dom/utils.js
-var setInternalTagFlag = (fn) => {
-  ;
-  fn[DOM_INTERNAL_TAG] = true;
-  return fn;
-};
-
-// node_modules/hono/dist/jsx/dom/context.js
-var createContextProviderFunction = (values) => ({ value, children }) => {
-  if (!children) {
-    return void 0;
-  }
-  const props = {
-    children: [
-      {
-        tag: setInternalTagFlag(() => {
-          values.push(value);
-        }),
-        props: {}
-      }
-    ]
-  };
-  if (Array.isArray(children)) {
-    props.children.push(...children.flat());
-  } else {
-    props.children.push(children);
-  }
-  props.children.push({
-    tag: setInternalTagFlag(() => {
-      values.pop();
-    }),
-    props: {}
-  });
-  const res = { tag: "", props, type: "" };
-  res[DOM_ERROR_HANDLER] = (err) => {
-    values.pop();
-    throw err;
-  };
-  return res;
-};
-
-// node_modules/hono/dist/jsx/context.js
-var globalContexts = [];
-var createContext = (defaultValue) => {
-  const values = [defaultValue];
-  const context = ((props) => {
-    values.push(props.value);
-    let string;
-    try {
-      string = props.children ? (Array.isArray(props.children) ? new JSXFragmentNode("", {}, props.children) : props.children).toString() : "";
-    } catch (e) {
-      values.pop();
-      throw e;
-    }
-    if (string instanceof Promise) {
-      return string.finally(() => values.pop()).then((resString) => raw(resString, resString.callbacks));
-    } else {
-      values.pop();
-      return raw(string);
-    }
-  });
-  context.values = values;
-  context.Provider = context;
-  context[DOM_RENDERER] = createContextProviderFunction(values);
-  globalContexts.push(context);
-  return context;
-};
-var useContext = (context) => {
-  return context.values.at(-1);
-};
-
-// node_modules/hono/dist/jsx/intrinsic-element/common.js
-var deDupeKeyMap = {
-  title: [],
-  script: ["src"],
-  style: ["data-href"],
-  link: ["href"],
-  meta: ["name", "httpEquiv", "charset", "itemProp"]
-};
-var domRenderers = {};
-var dataPrecedenceAttr = "data-precedence";
-var isStylesheetLinkWithPrecedence = (props) => props.rel === "stylesheet" && "precedence" in props;
-var shouldDeDupeByKey = (tagName, supportSort) => {
-  if (tagName === "link") {
-    return supportSort;
-  }
-  return deDupeKeyMap[tagName].length > 0;
-};
-
-// node_modules/hono/dist/jsx/intrinsic-element/components.js
-var components_exports = {};
-__export(components_exports, {
-  button: () => button,
-  form: () => form,
-  input: () => input,
-  link: () => link,
-  meta: () => meta,
-  script: () => script,
-  style: () => style,
-  title: () => title
-});
-
-// node_modules/hono/dist/jsx/children.js
-var toArray = (children) => Array.isArray(children) ? children : [children];
-
-// node_modules/hono/dist/jsx/intrinsic-element/components.js
-var metaTagMap = /* @__PURE__ */ new WeakMap();
-var insertIntoHead = (tagName, tag, props, precedence) => ({ buffer, context }) => {
-  if (!buffer) {
-    return;
-  }
-  const map = metaTagMap.get(context) || {};
-  metaTagMap.set(context, map);
-  const tags = map[tagName] ||= [];
-  let duped = false;
-  const deDupeKeys = deDupeKeyMap[tagName];
-  const deDupeByKey = shouldDeDupeByKey(tagName, precedence !== void 0);
-  if (deDupeByKey) {
-    LOOP: for (const [, tagProps] of tags) {
-      if (tagName === "link" && !(tagProps.rel === "stylesheet" && tagProps[dataPrecedenceAttr] !== void 0)) {
-        continue;
-      }
-      for (const key of deDupeKeys) {
-        if ((tagProps?.[key] ?? null) === props?.[key]) {
-          duped = true;
-          break LOOP;
-        }
-      }
-    }
-  }
-  if (duped) {
-    buffer[0] = buffer[0].replaceAll(tag, "");
-  } else if (deDupeByKey || tagName === "link") {
-    tags.push([tag, props, precedence]);
-  } else {
-    tags.unshift([tag, props, precedence]);
-  }
-  if (buffer[0].indexOf("</head>") !== -1) {
-    let insertTags;
-    if (tagName === "link" || precedence !== void 0) {
-      const precedences = [];
-      insertTags = tags.map(([tag2, , tagPrecedence], index) => {
-        if (tagPrecedence === void 0) {
-          return [tag2, Number.MAX_SAFE_INTEGER, index];
-        }
-        let order = precedences.indexOf(tagPrecedence);
-        if (order === -1) {
-          precedences.push(tagPrecedence);
-          order = precedences.length - 1;
-        }
-        return [tag2, order, index];
-      }).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([tag2]) => tag2);
-    } else {
-      insertTags = tags.map(([tag2]) => tag2);
-    }
-    insertTags.forEach((tag2) => {
-      buffer[0] = buffer[0].replaceAll(tag2, "");
-    });
-    buffer[0] = buffer[0].replace(/(?=<\/head>)/, insertTags.join(""));
-  }
-};
-var returnWithoutSpecialBehavior = (tag, children, props) => raw(new JSXNode(tag, props, toArray(children ?? [])).toString());
-var documentMetadataTag = (tag, children, props, sort) => {
-  if ("itemProp" in props) {
-    return returnWithoutSpecialBehavior(tag, children, props);
-  }
-  let { precedence, blocking, ...restProps } = props;
-  precedence = sort ? precedence ?? "" : void 0;
-  if (sort) {
-    restProps[dataPrecedenceAttr] = precedence;
-  }
-  const string = new JSXNode(tag, restProps, toArray(children || [])).toString();
-  if (string instanceof Promise) {
-    return string.then(
-      (resString) => raw(string, [
-        ...resString.callbacks || [],
-        insertIntoHead(tag, resString, restProps, precedence)
-      ])
-    );
-  } else {
-    return raw(string, [insertIntoHead(tag, string, restProps, precedence)]);
-  }
-};
-var title = ({ children, ...props }) => {
-  const nameSpaceContext2 = getNameSpaceContext();
-  if (nameSpaceContext2) {
-    const context = useContext(nameSpaceContext2);
-    if (context === "svg" || context === "head") {
-      return new JSXNode(
-        "title",
-        props,
-        toArray(children ?? [])
-      );
-    }
-  }
-  return documentMetadataTag("title", children, props, false);
-};
-var script = ({
-  children,
-  ...props
-}) => {
-  const nameSpaceContext2 = getNameSpaceContext();
-  if (["src", "async"].some((k) => !props[k]) || nameSpaceContext2 && useContext(nameSpaceContext2) === "head") {
-    return returnWithoutSpecialBehavior("script", children, props);
-  }
-  return documentMetadataTag("script", children, props, false);
-};
-var style = ({
-  children,
-  ...props
-}) => {
-  if (!["href", "precedence"].every((k) => k in props)) {
-    return returnWithoutSpecialBehavior("style", children, props);
-  }
-  props["data-href"] = props.href;
-  delete props.href;
-  return documentMetadataTag("style", children, props, true);
-};
-var link = ({ children, ...props }) => {
-  if (["onLoad", "onError"].some((k) => k in props) || props.rel === "stylesheet" && (!("precedence" in props) || "disabled" in props)) {
-    return returnWithoutSpecialBehavior("link", children, props);
-  }
-  return documentMetadataTag("link", children, props, isStylesheetLinkWithPrecedence(props));
-};
-var meta = ({ children, ...props }) => {
-  const nameSpaceContext2 = getNameSpaceContext();
-  if (nameSpaceContext2 && useContext(nameSpaceContext2) === "head") {
-    return returnWithoutSpecialBehavior("meta", children, props);
-  }
-  return documentMetadataTag("meta", children, props, false);
-};
-var newJSXNode = (tag, { children, ...props }) => (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  new JSXNode(tag, props, toArray(children ?? []))
-);
-var form = (props) => {
-  if (typeof props.action === "function") {
-    props.action = PERMALINK in props.action ? props.action[PERMALINK] : void 0;
-  }
-  return newJSXNode("form", props);
-};
-var formActionableElement = (tag, props) => {
-  if (typeof props.formAction === "function") {
-    props.formAction = PERMALINK in props.formAction ? props.formAction[PERMALINK] : void 0;
-  }
-  return newJSXNode(tag, props);
-};
-var input = (props) => formActionableElement("input", props);
-var button = (props) => formActionableElement("button", props);
-
-// node_modules/hono/dist/jsx/utils.js
-var normalizeElementKeyMap = /* @__PURE__ */ new Map([
-  ["className", "class"],
-  ["htmlFor", "for"],
-  ["crossOrigin", "crossorigin"],
-  ["httpEquiv", "http-equiv"],
-  ["itemProp", "itemprop"],
-  ["fetchPriority", "fetchpriority"],
-  ["noModule", "nomodule"],
-  ["formAction", "formaction"]
-]);
-var normalizeIntrinsicElementKey = (key) => normalizeElementKeyMap.get(key) || key;
-var styleObjectForEach = (style2, fn) => {
-  for (const [k, v] of Object.entries(style2)) {
-    const key = k[0] === "-" || !/[A-Z]/.test(k) ? k : k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
-    fn(
-      key,
-      v == null ? null : typeof v === "number" ? !key.match(
-        /^(?:a|border-im|column(?:-c|s)|flex(?:$|-[^b])|grid-(?:ar|[^a])|font-w|li|or|sca|st|ta|wido|z)|ty$/
-      ) ? `${v}px` : `${v}` : v
-    );
-  }
-};
-
-// node_modules/hono/dist/jsx/base.js
-var nameSpaceContext = void 0;
-var getNameSpaceContext = () => nameSpaceContext;
-var toSVGAttributeName = (key) => /[A-Z]/.test(key) && // Presentation attributes are findable in style object. "clip-path", "font-size", "stroke-width", etc.
-// Or other un-deprecated kebab-case attributes. "overline-position", "paint-order", "strikethrough-position", etc.
-key.match(
-  /^(?:al|basel|clip(?:Path|Rule)$|co|do|fill|fl|fo|gl|let|lig|i|marker[EMS]|o|pai|pointe|sh|st[or]|text[^L]|tr|u|ve|w)/
-) ? key.replace(/([A-Z])/g, "-$1").toLowerCase() : key;
-var emptyTags = [
-  "area",
-  "base",
-  "br",
-  "col",
-  "embed",
-  "hr",
-  "img",
-  "input",
-  "keygen",
-  "link",
-  "meta",
-  "param",
-  "source",
-  "track",
-  "wbr"
-];
-var booleanAttributes = [
-  "allowfullscreen",
-  "async",
-  "autofocus",
-  "autoplay",
-  "checked",
-  "controls",
-  "default",
-  "defer",
-  "disabled",
-  "download",
-  "formnovalidate",
-  "hidden",
-  "inert",
-  "ismap",
-  "itemscope",
-  "loop",
-  "multiple",
-  "muted",
-  "nomodule",
-  "novalidate",
-  "open",
-  "playsinline",
-  "readonly",
-  "required",
-  "reversed",
-  "selected"
-];
-var childrenToStringToBuffer = (children, buffer) => {
-  for (let i = 0, len = children.length; i < len; i++) {
-    const child = children[i];
-    if (typeof child === "string") {
-      escapeToBuffer(child, buffer);
-    } else if (typeof child === "boolean" || child === null || child === void 0) {
-      continue;
-    } else if (child instanceof JSXNode) {
-      child.toStringToBuffer(buffer);
-    } else if (typeof child === "number" || child.isEscaped) {
-      ;
-      buffer[0] += child;
-    } else if (child instanceof Promise) {
-      buffer.unshift("", child);
-    } else {
-      childrenToStringToBuffer(child, buffer);
-    }
-  }
-};
-var JSXNode = class {
-  tag;
-  props;
-  key;
-  children;
-  isEscaped = true;
-  localContexts;
-  constructor(tag, props, children) {
-    this.tag = tag;
-    this.props = props;
-    this.children = children;
-  }
-  get type() {
-    return this.tag;
-  }
-  // Added for compatibility with libraries that rely on React's internal structure
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get ref() {
-    return this.props.ref || null;
-  }
-  toString() {
-    const buffer = [""];
-    this.localContexts?.forEach(([context, value]) => {
-      context.values.push(value);
-    });
-    try {
-      this.toStringToBuffer(buffer);
-    } finally {
-      this.localContexts?.forEach(([context]) => {
-        context.values.pop();
-      });
-    }
-    return buffer.length === 1 ? "callbacks" in buffer ? resolveCallbackSync(raw(buffer[0], buffer.callbacks)).toString() : buffer[0] : stringBufferToString(buffer, buffer.callbacks);
-  }
-  toStringToBuffer(buffer) {
-    const tag = this.tag;
-    const props = this.props;
-    let { children } = this;
-    buffer[0] += `<${tag}`;
-    const normalizeKey = nameSpaceContext && useContext(nameSpaceContext) === "svg" ? (key) => toSVGAttributeName(normalizeIntrinsicElementKey(key)) : (key) => normalizeIntrinsicElementKey(key);
-    for (let [key, v] of Object.entries(props)) {
-      key = normalizeKey(key);
-      if (key === "children") {
-      } else if (key === "style" && typeof v === "object") {
-        let styleStr = "";
-        styleObjectForEach(v, (property, value) => {
-          if (value != null) {
-            styleStr += `${styleStr ? ";" : ""}${property}:${value}`;
-          }
-        });
-        buffer[0] += ' style="';
-        escapeToBuffer(styleStr, buffer);
-        buffer[0] += '"';
-      } else if (typeof v === "string") {
-        buffer[0] += ` ${key}="`;
-        escapeToBuffer(v, buffer);
-        buffer[0] += '"';
-      } else if (v === null || v === void 0) {
-      } else if (typeof v === "number" || v.isEscaped) {
-        buffer[0] += ` ${key}="${v}"`;
-      } else if (typeof v === "boolean" && booleanAttributes.includes(key)) {
-        if (v) {
-          buffer[0] += ` ${key}=""`;
-        }
-      } else if (key === "dangerouslySetInnerHTML") {
-        if (children.length > 0) {
-          throw new Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.");
-        }
-        children = [raw(v.__html)];
-      } else if (v instanceof Promise) {
-        buffer[0] += ` ${key}="`;
-        buffer.unshift('"', v);
-      } else if (typeof v === "function") {
-        if (!key.startsWith("on") && key !== "ref") {
-          throw new Error(`Invalid prop '${key}' of type 'function' supplied to '${tag}'.`);
-        }
-      } else {
-        buffer[0] += ` ${key}="`;
-        escapeToBuffer(v.toString(), buffer);
-        buffer[0] += '"';
-      }
-    }
-    if (emptyTags.includes(tag) && children.length === 0) {
-      buffer[0] += "/>";
-      return;
-    }
-    buffer[0] += ">";
-    childrenToStringToBuffer(children, buffer);
-    buffer[0] += `</${tag}>`;
-  }
-};
-var JSXFunctionNode = class extends JSXNode {
-  toStringToBuffer(buffer) {
-    const { children } = this;
-    const props = { ...this.props };
-    if (children.length) {
-      props.children = children.length === 1 ? children[0] : children;
-    }
-    const res = this.tag.call(null, props);
-    if (typeof res === "boolean" || res == null) {
-      return;
-    } else if (res instanceof Promise) {
-      if (globalContexts.length === 0) {
-        buffer.unshift("", res);
-      } else {
-        const currentContexts = globalContexts.map((c) => [c, c.values.at(-1)]);
-        buffer.unshift(
-          "",
-          res.then((childRes) => {
-            if (childRes instanceof JSXNode) {
-              childRes.localContexts = currentContexts;
-            }
-            return childRes;
-          })
-        );
-      }
-    } else if (res instanceof JSXNode) {
-      res.toStringToBuffer(buffer);
-    } else if (typeof res === "number" || res.isEscaped) {
-      buffer[0] += res;
-      if (res.callbacks) {
-        buffer.callbacks ||= [];
-        buffer.callbacks.push(...res.callbacks);
-      }
-    } else {
-      escapeToBuffer(res, buffer);
-    }
-  }
-};
-var JSXFragmentNode = class extends JSXNode {
-  toStringToBuffer(buffer) {
-    childrenToStringToBuffer(this.children, buffer);
-  }
-};
-var initDomRenderer = false;
-var jsxFn = (tag, props, children) => {
-  if (!initDomRenderer) {
-    for (const k in domRenderers) {
-      ;
-      components_exports[k][DOM_RENDERER] = domRenderers[k];
-    }
-    initDomRenderer = true;
-  }
-  if (typeof tag === "function") {
-    return new JSXFunctionNode(tag, props, children);
-  } else if (components_exports[tag]) {
-    return new JSXFunctionNode(
-      components_exports[tag],
-      props,
-      children
-    );
-  } else if (tag === "svg" || tag === "head") {
-    nameSpaceContext ||= createContext("");
-    return new JSXNode(tag, props, [
-      new JSXFunctionNode(
-        nameSpaceContext,
-        {
-          value: tag
-        },
-        children
-      )
-    ]);
-  } else {
-    return new JSXNode(tag, props, children);
-  }
-};
-
-// node_modules/hono/dist/jsx/jsx-dev-runtime.js
-function jsxDEV(tag, props, key) {
-  let node;
-  if (!props || !("children" in props)) {
-    node = jsxFn(tag, props, []);
-  } else {
-    const children = props.children;
-    node = Array.isArray(children) ? jsxFn(tag, props, children) : jsxFn(tag, props, [children]);
-  }
-  node.key = key;
-  return node;
-}
-
-// src/ui-render.tsx
-var AccordionRow = ({ game, displayName, state, connectAddress, clientDownloadUrl, startBlocked, logsEnabled, logMode, logUrl }) => {
-  const label = displayName ?? game;
-  const indicator = `#status-result-${game}`;
-  return /* @__PURE__ */ jsxDEV("div", { class: "row", id: `row-${game}`, children: [
-    /* @__PURE__ */ jsxDEV(
-      "div",
-      {
-        id: rowHeaderId(game),
-        class: "row-header",
-        "data-label": label,
-        onclick: `toggleRow('${game}')`,
-        dangerouslySetInnerHTML: { __html: renderRowHeaderContent(label, game, state) }
-      }
-    ),
-    /* @__PURE__ */ jsxDEV("div", { class: "row-body", id: rowBodyId(game), children: [
-      /* @__PURE__ */ jsxDEV("div", { class: "row-details", children: [
-        connectAddress ? /* @__PURE__ */ jsxDEV("div", { class: "connect", children: [
-          "connect: ",
-          /* @__PURE__ */ jsxDEV("code", { onclick: `copyConnect(${JSON.stringify(connectAddress)})`, title: "click to copy", children: connectAddress })
-        ] }) : null,
-        clientDownloadUrl ? /* @__PURE__ */ jsxDEV("div", { class: "client-link", children: /* @__PURE__ */ jsxDEV("a", { href: clientDownloadUrl, target: "_blank", rel: "noopener", children: "get client \u2197" }) }) : null
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "admin-section", id: `admin-section-${game}`, children: [
-        /* @__PURE__ */ jsxDEV("div", { class: "admin-controls", children: [
-          /* @__PURE__ */ jsxDEV(
-            "button",
-            {
-              "hx-post": `/?game=${game}&operation=start`,
-              "data-admin-action": "start",
-              "hx-target": indicator,
-              "hx-indicator": indicator,
-              "hx-disabled-elt": "this",
-              disabled: startBlocked || void 0,
-              title: startBlocked ? "a conflicting game is already running on the same port" : void 0,
-              children: "start"
-            }
-          ),
-          /* @__PURE__ */ jsxDEV(
-            "button",
-            {
-              "hx-post": `/?game=${game}&operation=stop`,
-              "data-admin-action": "stop",
-              "hx-target": indicator,
-              "hx-indicator": indicator,
-              "hx-disabled-elt": "this",
-              children: "stop"
-            }
-          ),
-          logsEnabled ? /* @__PURE__ */ jsxDEV("button", { type: "button", onclick: `toggleLogs('${game}')`, children: "logs" }) : null
-        ] }),
-        /* @__PURE__ */ jsxDEV("div", { id: `status-result-${game}`, class: "status-frag", children: /* @__PURE__ */ jsxDEV("span", { class: "htmx-indicator", children: "working..." }) })
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "log-section", id: logSectionId(game), children: /* @__PURE__ */ jsxDEV(
-        "div",
-        {
-          id: logPanelId(game),
-          class: "log-panel",
-          "data-log-mode": logMode,
-          "data-log-open": "0",
-          "data-log-url": logUrl,
-          "data-log-cursor": "",
-          "sse-swap": "log",
-          "hx-swap": "beforeend"
-        }
-      ) })
-    ] })
-  ] });
-};
-function renderUi(games) {
-  const page = /* @__PURE__ */ jsxDEV("html", { lang: "en", children: [
-    /* @__PURE__ */ jsxDEV("head", { children: [
-      /* @__PURE__ */ jsxDEV("meta", { charset: "utf-8" }),
-      /* @__PURE__ */ jsxDEV("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
-      /* @__PURE__ */ jsxDEV("title", { children: "insta-game" }),
-      /* @__PURE__ */ jsxDEV("style", { children: css })
-    ] }),
-    /* @__PURE__ */ jsxDEV("body", { children: [
-      /* @__PURE__ */ jsxDEV("div", { class: "title-bar", children: [
-        /* @__PURE__ */ jsxDEV("h1", { children: "insta-game" }),
-        /* @__PURE__ */ jsxDEV("form", { id: "auth-form", onsubmit: "authenticate(); return false;", children: [
-          /* @__PURE__ */ jsxDEV(
-            "input",
-            {
-              type: "text",
-              id: "passphrase-input",
-              placeholder: "passphrase",
-              autocomplete: "off",
-              spellcheck: false,
-              style: "letter-spacing:0.15em;",
-              oninput: "this.style.borderColor=''"
-            }
-          ),
-          /* @__PURE__ */ jsxDEV("button", { id: "passphrase-btn", type: "submit", children: "unlock" })
-        ] }),
-        /* @__PURE__ */ jsxDEV("span", { id: "auth-status", style: "display:none" })
-      ] }),
-      /* @__PURE__ */ jsxDEV("div", { class: "accordion", children: games.map(({ key, state, ui }) => /* @__PURE__ */ jsxDEV(
-        AccordionRow,
-        {
-          game: key,
-          displayName: ui.displayName,
-          state,
-          connectAddress: ui.connectAddress,
-          clientDownloadUrl: ui.clientDownloadUrl,
-          startBlocked: ui.startBlocked,
-          logsEnabled: ui.logsEnabled,
-          logMode: ui.logMode,
-          logUrl: ui.logUrl
-        },
-        key
-      )) }),
-      /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx.org@2/dist/htmx.min.js" }),
-      /* @__PURE__ */ jsxDEV("script", { src: "https://unpkg.com/htmx-ext-sse@2/sse.js" }),
-      /* @__PURE__ */ jsxDEV("script", { dangerouslySetInnerHTML: { __html: initScript } })
-    ] })
-  ] });
-  return "<!DOCTYPE html>" + page.toString();
-}
-
 // src/app.ts
 var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
@@ -4659,24 +3591,19 @@ var ENABLE_LOG_STREAMS = (process.env.ENABLE_LOG_STREAMS ?? "1") === "1";
 var REGION2 = process.env.AWS_REGION ?? "ca-central-1";
 var SIDECAR_HOST2 = process.env.SIDECAR_HOST ?? "localhost";
 var cloudwatchLogs = new import_client_cloudwatch_logs.CloudWatchLogsClient({ region: REGION2 });
-function statusFragment(state) {
-  const ip = state.publicIp ? ` \u2014 ${state.publicIp}` : "";
-  const players = state.players ? ` (${state.players} players)` : "";
-  return `<span class="status ${state.status}">${state.status}${ip}${players}</span>`;
-}
-function gameUiConfig(gameKey, config, state, startBlocked) {
-  const c = config;
-  const logMode = BACKEND === "ecs" ? "poll" : "sse";
-  return {
-    displayName: c.displayName ?? null,
-    connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
-    clientDownloadUrl: c.clientDownloadUrl ?? null,
-    startBlocked,
-    logsEnabled: ENABLE_LOG_STREAMS,
-    logMode,
-    logUrl: `/logs?game=${encodeURIComponent(gameKey)}`
-  };
-}
+var HTML_SHELL = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>insta-game</title>
+  <link rel="stylesheet" href="/client.css">
+</head>
+<body>
+  <div id="app"></div>
+  <script src="/client.js"></script>
+</body>
+</html>`;
 function splitLogMessages(events) {
   const lines = [];
   for (const event of events) {
@@ -4693,9 +3620,7 @@ function occupiedHostPorts(games, cache2) {
     const state = cache2.get(key);
     if (!state || state.status === "offline") continue;
     const ports = config.ports ?? {};
-    for (const binding of Object.values(ports)) {
-      occupied.add(binding.hostPort);
-    }
+    for (const binding of Object.values(ports)) occupied.add(binding.hostPort);
   }
   return occupied;
 }
@@ -4708,8 +3633,27 @@ function hasPortConflict(config, occupied, ownKey, games, cache2) {
   }
   return false;
 }
+function buildGameEntry(key, config, state, startBlocked) {
+  const c = config;
+  return {
+    ...state,
+    displayName: c.displayName ?? key,
+    connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
+    clientDownloadUrl: c.clientDownloadUrl ?? null,
+    startBlocked
+  };
+}
 function createApp(backend2, cache2) {
   const app2 = new Hono2();
+  const distDir = __dirname;
+  let clientBundle = null;
+  let clientCss = null;
+  try {
+    clientBundle = (0, import_fs2.readFileSync)((0, import_path2.join)(distDir, "client.js"));
+    clientCss = (0, import_fs2.readFileSync)((0, import_path2.join)(distDir, "client.css"));
+  } catch {
+    log.warn("app: dist/client.js not found \u2014 run npm run build:client");
+  }
   app2.use("*", async (c, next) => {
     const startedAt = Date.now();
     const method = c.req.method;
@@ -4726,26 +3670,38 @@ function createApp(backend2, cache2) {
     const durationMs = Date.now() - startedAt;
     const status = c.res.status;
     const base = `http: ${method} ${path2}${game}${operation} -> ${status} (${durationMs}ms)`;
-    if (status >= 500) {
-      log.error(base);
-    } else if (status >= 400) {
-      log.warn(base);
-    } else {
-      log.info(base);
-    }
+    if (status >= 500) log.error(base);
+    else if (status >= 400) log.warn(base);
+    else log.info(base);
+  });
+  app2.get("/client.js", (c) => {
+    if (!clientBundle) return c.text("client bundle not found \u2014 run npm run build:client", 503);
+    return new Response(new Uint8Array(clientBundle), {
+      headers: { "Content-Type": "application/javascript" }
+    });
+  });
+  app2.get("/client.css", (c) => {
+    if (!clientCss) return c.text("client CSS not found \u2014 run npm run build:client", 503);
+    return new Response(new Uint8Array(clientCss), {
+      headers: { "Content-Type": "text/css" }
+    });
   });
   app2.get("/", async (c) => {
     const passphrase = c.req.header("x-passphrase") ?? "";
+    if (c.req.header("x-validate") && WEB_UI_PASSPHRASE !== "") {
+      if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
+      return c.text("ok");
+    }
     const game = c.req.query("game");
     const operation = c.req.query("operation");
     if (game && operation) {
       if (passphrase !== WEB_UI_PASSPHRASE) {
         log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
-        return c.text("unauthorized", 401);
+        return c.json({ error: "unauthorized" }, 401);
       }
-      const games2 = backend2.getGames();
-      const config = games2[game];
-      if (!config) return c.html(`<span class="status">unknown game: ${game}</span>`, 400);
+      const games = backend2.getGames();
+      const config = games[game];
+      if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
       let state;
       if (operation === "start") {
         log.info(`web: start ${game}`);
@@ -4760,38 +3716,21 @@ function createApp(backend2, cache2) {
       } else {
         state = await backend2.getGameState(config);
       }
-      return c.html(statusFragment(state));
+      return c.json(state);
     }
-    if (c.req.header("hx-request") && WEB_UI_PASSPHRASE !== "") {
-      if (passphrase !== WEB_UI_PASSPHRASE) return c.text("unauthorized", 401);
-      return c.text("ok");
-    }
-    await cache2.refreshIfStale();
-    const games = backend2.getGames();
-    const occupied = occupiedHostPorts(games, cache2);
-    const rows = Object.entries(games).map(([key, config]) => {
-      const state = cache2.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
-      return {
-        key,
-        state,
-        ui: gameUiConfig(key, config, state, hasPortConflict(config, occupied, key, games, cache2))
-      };
-    });
-    return c.html(renderUi(rows));
+    return c.html(HTML_SHELL);
   });
   app2.post("/", async (c) => {
     const passphrase = c.req.header("x-passphrase") ?? "";
     if (passphrase !== WEB_UI_PASSPHRASE) {
       log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
-      const isHtmx2 = !!c.req.header("hx-request");
-      if (isHtmx2) return c.html(`<span class="status">unauthorized</span>`, 401);
       return c.json({ error: "unauthorized" }, 401);
     }
     const game = c.req.query("game");
     const opFromQuery = c.req.query("operation");
-    const isHtmx = !!c.req.header("hx-request");
     let gameKey;
     let operation;
+    let launchConfig;
     if (game && opFromQuery) {
       gameKey = game;
       operation = opFromQuery;
@@ -4799,17 +3738,17 @@ function createApp(backend2, cache2) {
       const body = await c.req.json();
       gameKey = body.game;
       operation = body.operation;
+      if (body.configText || body.configUrl) {
+        launchConfig = { configText: body.configText, configUrl: body.configUrl };
+      }
     }
     const games = backend2.getGames();
     const config = games[gameKey];
-    if (!config) {
-      if (isHtmx) return c.html(`<span class="status">unknown game: ${gameKey}</span>`, 400);
-      return c.json({ error: `unknown game: ${gameKey}` }, 400);
-    }
+    if (!config) return c.json({ error: `unknown game: ${gameKey}` }, 400);
     let state;
     if (operation === "start") {
       log.info(`web: start ${gameKey}`);
-      state = await backend2.startGame(config);
+      state = await backend2.startGame(config, launchConfig);
       log.info(`web: start ${gameKey} \u2192 ${state.status}`);
       cache2.set(gameKey, await backend2.getCachedState(config));
     } else if (operation === "stop") {
@@ -4820,19 +3759,34 @@ function createApp(backend2, cache2) {
     } else {
       state = await backend2.getGameState(config);
     }
-    if (isHtmx) return c.html(statusFragment(state));
     return c.json(state);
   });
   app2.get("/status", async (c) => {
     await cache2.refreshIfStale();
     const games = backend2.getGames();
-    const states = Object.fromEntries(
-      Object.keys(games).map((game) => [
-        game,
-        cache2.get(game) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() }
-      ])
+    const occupied = occupiedHostPorts(games, cache2);
+    const result = Object.fromEntries(
+      Object.entries(games).map(([key, config]) => {
+        const state = cache2.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
+        return [key, buildGameEntry(key, config, state, hasPortConflict(config, occupied, key, games, cache2))];
+      })
     );
-    return c.json(states);
+    return c.json(result);
+  });
+  app2.get("/config-editor", async (c) => {
+    const passphrase = c.req.header("x-passphrase") ?? "";
+    if (passphrase !== WEB_UI_PASSPHRASE) {
+      log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const game = c.req.query("game") ?? "";
+    const games = backend2.getGames();
+    const config = games[game];
+    if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
+    return c.json({
+      configText: String(config.defaultConfigText ?? ""),
+      configEditor: config.configEditor ?? null
+    });
   });
   app2.get("/logs", async (c) => {
     if (!ENABLE_LOG_STREAMS) return c.text("log streaming disabled for this deployment", 503);
@@ -4852,6 +3806,7 @@ function createApp(backend2, cache2) {
         limit: 100,
         startTime: cursor ? void 0 : Date.now() - 5 * 60 * 1e3
       }));
+      c.header("X-Log-Mode", "poll");
       return c.json({
         lines: splitLogMessages(res.events ?? []),
         cursor: res.nextToken ?? cursor ?? null
@@ -4860,9 +3815,10 @@ function createApp(backend2, cache2) {
     const cached = cache2.get(game);
     if (!cached || cached.status === "offline") return c.text("game offline", 503);
     const sidecarUrl = `http://${SIDECAR_HOST2}:${config.sidecarPort}/logs`;
+    c.header("X-Log-Mode", "sse");
     return streamSSE(c, async (stream2) => {
       log.info(`logs: stream opened for ${game}`);
-      await stream2.writeSSE({ data: `<div class="log-line">[connecting to ${game} logs]</div>`, event: "log" });
+      await stream2.writeSSE({ data: `[connecting to ${game} logs]`, event: "log" });
       let res;
       try {
         res = await fetch(sidecarUrl, {
@@ -4871,17 +3827,17 @@ function createApp(backend2, cache2) {
         });
       } catch (error) {
         log.info(`logs: stream closed for ${game} (connection error)`);
-        await stream2.writeSSE({ data: `<div class="log-line">[log proxy error: ${error instanceof Error ? error.message : String(error)}]</div>`, event: "log" });
+        await stream2.writeSSE({ data: `[log proxy error: ${error instanceof Error ? error.message : String(error)}]`, event: "log" });
         await stream2.close();
         return;
       }
       if (!res.ok || !res.body) {
         log.warn(`logs: sidecar returned ${res.status} for ${game}`);
-        await stream2.writeSSE({ data: `<div class="log-line">[log proxy error: sidecar returned HTTP ${res.status}]</div>`, event: "log" });
+        await stream2.writeSSE({ data: `[log proxy error: sidecar returned HTTP ${res.status}]`, event: "log" });
         await stream2.close();
         return;
       }
-      await stream2.writeSSE({ data: `<div class="log-line">[connected to ${game} logs]</div>`, event: "log" });
+      await stream2.writeSSE({ data: `[connected to ${game} logs]`, event: "log" });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -4893,7 +3849,9 @@ function createApp(backend2, cache2) {
           const lines = buf.split("\n");
           buf = lines.pop() ?? "";
           for (const line of lines) {
-            if (line.startsWith("data: ")) await stream2.writeSSE({ data: `<div class="log-line">${line.slice(6)}</div>`, event: "log" });
+            if (line.startsWith("data: ")) {
+              await stream2.writeSSE({ data: line.slice(6), event: "log" });
+            }
           }
         }
       } catch {

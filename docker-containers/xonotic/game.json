@@ -17,5 +17,192 @@
   "gameQuitCmd": "exit",
   "gameQuitTimeout": 30,
   "dataUrlEnv": "XONOTIC_DATA_URL",
-  "clientDownloadUrl": "https://xonotic.org/download/"
+  "clientDownloadUrl": "https://xonotic.org/download/",
+  "configEditor": {
+    "managedBlockStart": "// insta-game managed config: start",
+    "managedBlockEnd": "// insta-game managed config: end",
+    "controls": [
+      {
+        "id": "hostname",
+        "type": "text",
+        "label": "Server name",
+        "defaultValue": "Insta Game Xonotic InstaGib 4-12",
+        "render": {
+          "mode": "template",
+          "lines": [
+            "hostname \"{{value}}\"",
+            "sv_motd \"{{value}}\"",
+            "sv_status_privacy 1"
+          ]
+        }
+      },
+      {
+        "id": "maxplayers",
+        "type": "number",
+        "label": "Max players",
+        "defaultValue": 12,
+        "min": 2,
+        "max": 24,
+        "render": {
+          "mode": "template",
+          "lines": [
+            "",
+            "maxplayers {{value}}",
+            "g_maxplayers {{value}}",
+            "g_start_delay 8"
+          ]
+        }
+      },
+      {
+        "id": "gametype",
+        "type": "radio",
+        "label": "Game type",
+        "defaultValue": "dm",
+        "options": [
+          { "label": "Deathmatch", "value": "dm" },
+          { "label": "Team DM", "value": "tdm" },
+          { "label": "CTF", "value": "ctf" },
+          { "label": "Freeze Tag", "value": "ft" }
+        ],
+        "render": {
+          "mode": "choice",
+          "choices": {
+            "dm": ["", "gametype dm"],
+            "tdm": ["", "gametype tdm"],
+            "ctf": ["", "gametype ctf"],
+            "ft": ["", "gametype ft"]
+          }
+        }
+      },
+      {
+        "id": "instagib",
+        "type": "checkbox",
+        "label": "Instagib",
+        "defaultValue": true,
+        "render": {
+          "mode": "toggle",
+          "trueLines": ["g_instagib 1"],
+          "falseLines": ["g_instagib 0"]
+        }
+      },
+      {
+        "id": "powerups",
+        "type": "checkbox",
+        "label": "Powerups",
+        "defaultValue": false,
+        "render": {
+          "mode": "toggle",
+          "trueLines": ["g_powerups 1"],
+          "falseLines": ["g_powerups 0"]
+        }
+      },
+      {
+        "id": "teamsBalance",
+        "type": "checkbox",
+        "label": "Auto-balance teams",
+        "defaultValue": true,
+        "render": {
+          "mode": "toggle",
+          "trueLines": [
+            "g_balance_teams 1",
+            "g_balance_teams_prevent_imbalance 1"
+          ],
+          "falseLines": [
+            "g_balance_teams 0",
+            "g_balance_teams_prevent_imbalance 0"
+          ]
+        }
+      },
+      {
+        "id": "fraglimit",
+        "type": "number",
+        "label": "Frag limit",
+        "defaultValue": 35,
+        "min": 5,
+        "max": 200,
+        "render": {
+          "mode": "template",
+          "lines": [
+            "",
+            "timelimit_override 10",
+            "fraglimit_override {{value}}",
+            "capturelimit_override 5",
+            "g_domination_point_limit 150"
+          ]
+        }
+      },
+      {
+        "id": "botPlayers",
+        "type": "number",
+        "label": "Bot players",
+        "defaultValue": 4,
+        "min": 0,
+        "max": 24,
+        "render": {
+          "mode": "template",
+          "lines": [
+            "",
+            "skill 7",
+            "minplayers {{value}}",
+            "minplayers_per_team 2",
+            "alias bots \"minplayers {{value}}; minplayers_per_team 2\""
+          ]
+        }
+      },
+      {
+        "id": "maps",
+        "type": "multiselect",
+        "label": "Map rotation",
+        "defaultValue": [
+          "afterslime",
+          "boil",
+          "catharsis",
+          "courtfun",
+          "drain",
+          "erbium",
+          "finalrage",
+          "fuse",
+          "glowplant",
+          "implosion",
+          "runningman",
+          "silentsiege",
+          "solarium",
+          "stormkeep",
+          "xoylent"
+        ],
+        "options": [
+          { "label": "Afterslime", "value": "afterslime" },
+          { "label": "Boil", "value": "boil" },
+          { "label": "Catharsis", "value": "catharsis" },
+          { "label": "Courtfun", "value": "courtfun" },
+          { "label": "Drain", "value": "drain" },
+          { "label": "Erbium", "value": "erbium" },
+          { "label": "Finalrage", "value": "finalrage" },
+          { "label": "Fuse", "value": "fuse" },
+          { "label": "Glowplant", "value": "glowplant" },
+          { "label": "Implosion", "value": "implosion" },
+          { "label": "Runningman", "value": "runningman" },
+          { "label": "Silentsiege", "value": "silentsiege" },
+          { "label": "Solarium", "value": "solarium" },
+          { "label": "Stormkeep", "value": "stormkeep" },
+          { "label": "Xoylent", "value": "xoylent" }
+        ],
+        "render": {
+          "mode": "join",
+          "separator": " ",
+          "lines": [
+            "",
+            "g_maplist \"{{joined}}\"",
+            "g_maplist_shuffle 1",
+            "g_maplist_mostrecent_count 4",
+            "g_maplist_votable 8",
+            "g_maplist_votable_suggestions 2",
+            "g_maplist_votable_abstain 1",
+            "g_maplist_votable_nodetail 1",
+            "g_maplist_check_waypoints 1"
+          ]
+        }
+      }
+    ]
+  }
 }

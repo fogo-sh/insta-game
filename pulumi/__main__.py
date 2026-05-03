@@ -54,7 +54,18 @@ def load_game_definitions() -> list[dict]:
         if not metadata_path.exists() or not dockerfile_path.exists():
             continue
         with metadata_path.open() as f:
-            definitions.append(json.load(f))
+            metadata = json.load(f)
+        default_config_file = metadata.get("defaultConfigFile")
+        config_candidates = [
+            game_dir / default_config_file if default_config_file else None,
+            game_dir / "server.cfg",
+            game_dir / "UnrealTournament.ini",
+        ]
+        for candidate in config_candidates:
+            if candidate and candidate.exists():
+                metadata["defaultConfigText"] = candidate.read_text()
+                break
+        definitions.append(metadata)
     return definitions
 
 
@@ -342,6 +353,10 @@ launcher_games = {
         "serviceName": game_services[metadata["id"]].service_name,
         "sidecarPort": int(metadata.get("sidecarPort", 5001)),
         "logGroupName": game_services[metadata["id"]].log_group_name,
+        "displayName": metadata.get("displayName"),
+        "clientDownloadUrl": metadata.get("clientDownloadUrl"),
+        "configEditor": metadata.get("configEditor"),
+        "defaultConfigText": metadata.get("defaultConfigText"),
     }
     for metadata in game_definitions
 }
@@ -356,6 +371,10 @@ launcher_game_configs = {
             "serviceName": args["service_name"],
             "sidecarPort": launcher_games[game_id]["sidecarPort"],
             "logGroupName": args["log_group_name"],
+            "displayName": launcher_games[game_id]["displayName"],
+            "clientDownloadUrl": launcher_games[game_id]["clientDownloadUrl"],
+            "configEditor": launcher_games[game_id]["configEditor"],
+            "defaultConfigText": launcher_games[game_id]["defaultConfigText"],
         }
     )
     for game_id in launcher_game_ids

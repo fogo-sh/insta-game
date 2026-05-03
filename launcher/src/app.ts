@@ -3,7 +3,7 @@ import { join } from "path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { CloudWatchLogsClient, FilterLogEventsCommand } from "@aws-sdk/client-cloudwatch-logs";
-import type { Backend, CachedGameState, GameConfig } from "./backend.js";
+import type { Backend, CachedGameState, GameConfig, GameLaunchConfig } from "./backend.js";
 import type { GameCache } from "./cache.js";
 import type { DockerGameConfig } from "./backends/docker.js";
 import { makeDiscordHandler } from "./discord.js";
@@ -198,11 +198,21 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     const opFromQuery = c.req.query("operation");
     let gameKey: string;
     let operation: string;
+    let launchConfig: GameLaunchConfig | undefined;
     if (game && opFromQuery) {
       gameKey = game; operation = opFromQuery;
     } else {
-      const body = await c.req.json<{ game: string; operation: string }>();
-      gameKey = body.game; operation = body.operation;
+      const body = await c.req.json<{
+        game: string;
+        operation: string;
+        configText?: string;
+        configUrl?: string;
+      }>();
+      gameKey = body.game;
+      operation = body.operation;
+      if (body.configText || body.configUrl) {
+        launchConfig = { configText: body.configText, configUrl: body.configUrl };
+      }
     }
 
     const games = backend.getGames();
@@ -212,7 +222,7 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     let state;
     if (operation === "start") {
       log.info(`web: start ${gameKey}`);
-      state = await backend.startGame(config);
+      state = await backend.startGame(config, launchConfig);
       log.info(`web: start ${gameKey} → ${state.status}`);
       cache.set(gameKey, await backend.getCachedState(config));
     } else if (operation === "stop") {
@@ -238,6 +248,24 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
       })
     );
     return c.json(result);
+  });
+
+  app.get("/config-editor", async c => {
+    const passphrase = c.req.header("x-passphrase") ?? "";
+    if (passphrase !== WEB_UI_PASSPHRASE) {
+      log.warn(`web: auth failure from ${c.req.header("x-forwarded-for") ?? "unknown"}`);
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    const game = c.req.query("game") ?? "";
+    const games = backend.getGames();
+    const config = games[game];
+    if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
+
+    return c.json({
+      configText: String(config.defaultConfigText ?? ""),
+      configEditor: config.configEditor ?? null,
+    });
   });
 
   // Logs endpoint

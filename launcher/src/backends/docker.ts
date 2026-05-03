@@ -1,5 +1,5 @@
 import http from "http";
-import type { Backend, GameConfig, GameState, CachedGameState } from "../backend.js";
+import type { Backend, GameConfig, GameState, CachedGameState, GameLaunchConfig } from "../backend.js";
 import { loadDockerGameDefinitions } from "../game-definitions.js";
 import type { PortBinding } from "../game-definitions.js";
 import { log } from "../logger.js";
@@ -194,11 +194,14 @@ async function waitForState(backend: DockerBackend, config: GameConfig, desired:
   return state;
 }
 
-async function restartWithConfig(port: number, configUrl: string): Promise<void> {
+async function restartWithConfig(port: number, launchConfig: GameLaunchConfig): Promise<void> {
   await fetch(`http://${SIDECAR_HOST}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ config_url: configUrl }),
+    body: JSON.stringify({
+      config_url: launchConfig.configUrl,
+      config_text: launchConfig.configText,
+    }),
     signal: AbortSignal.timeout(10000),
   });
 }
@@ -230,6 +233,8 @@ export class DockerBackend implements Backend {
         displayName: definition.displayName,
         connectPort: definition.gamePort,
         clientDownloadUrl: definition.clientDownloadUrl,
+        defaultConfigText: definition.defaultConfigText,
+        configEditor: definition.configEditor,
         sidecarPort: definition.sidecarPort,
         ports: definition.ports,
         environment,
@@ -291,7 +296,7 @@ export class DockerBackend implements Backend {
     }
   }
 
-  async startGame(config: GameConfig, configUrl?: string): Promise<GameState> {
+  async startGame(config: GameConfig, launchConfig?: GameLaunchConfig): Promise<GameState> {
     const c = config as DockerGameConfig;
     log.info(`docker: starting container ${c.containerName}`);
     try {
@@ -302,13 +307,13 @@ export class DockerBackend implements Backend {
       return { status: "offline", players: 0, ready: false };
     }
     let state = await waitForState(this, config, "online");
-    if (configUrl && state.status === "online") {
+    if ((launchConfig?.configText || launchConfig?.configUrl) && state.status === "online") {
       const inspect = await inspectContainer(c.containerName);
       const hostPort = inspect ? getHostPort(inspect, c.sidecarPort) : null;
       if (hostPort) {
-        await restartWithConfig(hostPort, configUrl);
+        await restartWithConfig(hostPort, launchConfig);
         state = await waitForState(this, config, "online");
-        state.configUrl = configUrl;
+        state.configUrl = launchConfig.configUrl;
       }
     }
     return state;

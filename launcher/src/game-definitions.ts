@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "fs";
 import path from "path";
+import type { ConfigEditorDefinition } from "./config-editor.js";
 
 export interface PortBinding {
   hostIp?: string;
@@ -23,6 +24,28 @@ export interface DockerGameDefinition {
   image?: string;
   containerName?: string;
   clientDownloadUrl?: string;
+  defaultConfigFile?: string;
+  defaultConfigText?: string;
+  configEditor?: ConfigEditorDefinition;
+}
+
+function loadDefaultConfigText(gameDir: string, definition: DockerGameDefinition): string | undefined {
+  const candidates = [
+    definition.defaultConfigFile,
+    "server.cfg",
+    "UnrealTournament.ini",
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    const configPath = path.join(gameDir, candidate);
+    try {
+      return readFileSync(configPath, "utf8");
+    } catch {
+      continue;
+    }
+  }
+
+  return undefined;
 }
 
 export function loadDockerGameDefinitions(repoRoot: string): DockerGameDefinition[] {
@@ -41,7 +64,10 @@ export function loadDockerGameDefinitions(repoRoot: string): DockerGameDefinitio
     try {
       const metadata = JSON.parse(readFileSync(metadataPath, "utf8")) as DockerGameDefinition;
       readFileSync(dockerfilePath, "utf8");
-      definitions.push(metadata);
+      definitions.push({
+        ...metadata,
+        defaultConfigText: loadDefaultConfigText(gameDir, metadata),
+      });
     } catch {
       continue;
     }

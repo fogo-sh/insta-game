@@ -108307,6 +108307,8 @@ var import_client_ec2 = __toESM(require_dist_cjs57());
 var REGION = process.env.AWS_REGION ?? "ca-central-1";
 var CLUSTER = process.env.ECS_CLUSTER ?? "";
 var SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
+var MAX_POLLS = 20;
+var POLL_INTERVAL_MS = 3e3;
 var ecs = new import_client_ecs.ECSClient({ region: REGION });
 var ec2 = new import_client_ec2.EC2Client({ region: REGION });
 var EcsBackend = class {
@@ -108369,18 +108371,30 @@ var EcsBackend = class {
     await setDesiredCount(c5.serviceName, 0);
     return { status: "offline", players: 0, ready: false };
   }
-  async startGame(config, configUrl) {
+  async startGame(config, launchConfig) {
     const c5 = config;
     const current = await this.getGameState(config);
-    if (current.status === "online" && !configUrl) return current;
+    if (current.status === "online" && !launchConfig?.configUrl && !launchConfig?.configText) return current;
     await setDesiredCount(c5.serviceName, 1);
-    if (configUrl && current.publicIp) {
-      await restartWithConfig(current.publicIp, c5.sidecarPort, configUrl);
-      return { ...current, configUrl };
+    if (launchConfig?.configUrl || launchConfig?.configText) {
+      const state2 = await waitForReachableState(this, config);
+      if (state2.publicIp) {
+        await restartWithConfig(state2.publicIp, c5.sidecarPort, launchConfig);
+        return { ...state2, configUrl: launchConfig.configUrl };
+      }
     }
     return { status: "starting", players: 0, ready: false };
   }
 };
+async function waitForReachableState(backend2, config) {
+  let state2 = await backend2.getGameState(config);
+  for (let i5 = 0; i5 < MAX_POLLS; i5 += 1) {
+    if (state2.publicIp) return state2;
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    state2 = await backend2.getGameState(config);
+  }
+  return state2;
+}
 async function setDesiredCount(serviceName, count) {
   await ecs.send(new import_client_ecs.UpdateServiceCommand({ cluster: CLUSTER, service: serviceName, desiredCount: count }));
 }
@@ -108393,11 +108407,14 @@ async function getSidecarStatus(ip, port) {
     return null;
   }
 }
-async function restartWithConfig(ip, port, configUrl) {
+async function restartWithConfig(ip, port, launchConfig) {
   await fetch(`http://${ip}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ config_url: configUrl }),
+    body: JSON.stringify({
+      config_url: launchConfig.configUrl,
+      config_text: launchConfig.configText
+    }),
     signal: AbortSignal.timeout(1e4)
   });
 }
@@ -108408,6 +108425,22 @@ var import_http3 = __toESM(require("http"));
 // src/game-definitions.ts
 var import_fs = require("fs");
 var import_path = __toESM(require("path"));
+function loadDefaultConfigText(gameDir, definition) {
+  const candidates = [
+    definition.defaultConfigFile,
+    "server.cfg",
+    "UnrealTournament.ini"
+  ].filter((candidate) => Boolean(candidate));
+  for (const candidate of candidates) {
+    const configPath = import_path.default.join(gameDir, candidate);
+    try {
+      return (0, import_fs.readFileSync)(configPath, "utf8");
+    } catch {
+      continue;
+    }
+  }
+  return void 0;
+}
 function loadDockerGameDefinitions(repoRoot) {
   const dockerRoot = import_path.default.join(repoRoot, "docker-containers");
   const entries = (0, import_fs.readdirSync)(dockerRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -108419,7 +108452,10 @@ function loadDockerGameDefinitions(repoRoot) {
     try {
       const metadata = JSON.parse((0, import_fs.readFileSync)(metadataPath, "utf8"));
       (0, import_fs.readFileSync)(dockerfilePath, "utf8");
-      definitions.push(metadata);
+      definitions.push({
+        ...metadata,
+        defaultConfigText: loadDefaultConfigText(gameDir, metadata)
+      });
     } catch {
       continue;
     }
@@ -108446,8 +108482,8 @@ var SIDECAR_TOKEN2 = process.env.SIDECAR_TOKEN ?? "";
 var SIDECAR_HOST = process.env.SIDECAR_HOST ?? "localhost";
 var DATA_DIR = process.env.DATA_DIR ?? "/data";
 var HOST_DATA_DIR = process.env.HOST_DATA_DIR ?? DATA_DIR;
-var MAX_POLLS = 20;
-var POLL_INTERVAL_MS = 3e3;
+var MAX_POLLS2 = 20;
+var POLL_INTERVAL_MS2 = 3e3;
 var RCON_PASSWORD = process.env.RCON_PASSWORD ?? "";
 function dockerRequest(method, path2, body) {
   return new Promise((resolve, reject) => {
@@ -108587,20 +108623,23 @@ async function getSidecarStatus2(port) {
 async function waitForState(backend2, config, desired) {
   const c5 = config;
   let state2 = await backend2.getGameState(config);
-  for (let i5 = 0; i5 < MAX_POLLS; i5++) {
+  for (let i5 = 0; i5 < MAX_POLLS2; i5++) {
     if (state2.status === desired) return state2;
-    log.info(`docker: waiting for ${c5.containerName} to be ${desired} (currently ${state2.status}, poll ${i5 + 1}/${MAX_POLLS})`);
-    await new Promise((r5) => setTimeout(r5, POLL_INTERVAL_MS));
+    log.info(`docker: waiting for ${c5.containerName} to be ${desired} (currently ${state2.status}, poll ${i5 + 1}/${MAX_POLLS2})`);
+    await new Promise((r5) => setTimeout(r5, POLL_INTERVAL_MS2));
     state2 = await backend2.getGameState(config);
   }
-  if (state2.status !== desired) log.warn(`docker: ${c5.containerName} did not reach ${desired} after ${MAX_POLLS} polls (stuck at ${state2.status})`);
+  if (state2.status !== desired) log.warn(`docker: ${c5.containerName} did not reach ${desired} after ${MAX_POLLS2} polls (stuck at ${state2.status})`);
   return state2;
 }
-async function restartWithConfig2(port, configUrl) {
+async function restartWithConfig2(port, launchConfig) {
   await fetch(`http://${SIDECAR_HOST}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN2}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ config_url: configUrl }),
+    body: JSON.stringify({
+      config_url: launchConfig.configUrl,
+      config_text: launchConfig.configText
+    }),
     signal: AbortSignal.timeout(1e4)
   });
 }
@@ -108628,6 +108667,8 @@ var DockerBackend = class {
         displayName: definition.displayName,
         connectPort: definition.gamePort,
         clientDownloadUrl: definition.clientDownloadUrl,
+        defaultConfigText: definition.defaultConfigText,
+        configEditor: definition.configEditor,
         sidecarPort: definition.sidecarPort,
         ports: definition.ports,
         environment,
@@ -108681,7 +108722,7 @@ var DockerBackend = class {
       return offline;
     }
   }
-  async startGame(config, configUrl) {
+  async startGame(config, launchConfig) {
     const c5 = config;
     log.info(`docker: starting container ${c5.containerName}`);
     try {
@@ -108692,13 +108733,13 @@ var DockerBackend = class {
       return { status: "offline", players: 0, ready: false };
     }
     let state2 = await waitForState(this, config, "online");
-    if (configUrl && state2.status === "online") {
+    if ((launchConfig?.configText || launchConfig?.configUrl) && state2.status === "online") {
       const inspect = await inspectContainer(c5.containerName);
       const hostPort = inspect ? getHostPort(inspect, c5.sidecarPort) : null;
       if (hostPort) {
-        await restartWithConfig2(hostPort, configUrl);
+        await restartWithConfig2(hostPort, launchConfig);
         state2 = await waitForState(this, config, "online");
-        state2.configUrl = configUrl;
+        state2.configUrl = launchConfig.configUrl;
       }
     }
     return state2;
@@ -108724,7 +108765,7 @@ function createBackend() {
 }
 
 // src/cache.ts
-var POLL_INTERVAL_MS2 = 5e3;
+var POLL_INTERVAL_MS3 = 5e3;
 var GameCache = class {
   constructor(backend2) {
     this.backend = backend2;
@@ -108739,7 +108780,7 @@ var GameCache = class {
     void this.pollAll();
     this.timer = setInterval(() => {
       void this.pollAll();
-    }, POLL_INTERVAL_MS2);
+    }, POLL_INTERVAL_MS3);
   }
   stop() {
     if (this.timer) {
@@ -108753,7 +108794,7 @@ var GameCache = class {
   set(gameKey, state2) {
     this.cache.set(gameKey, state2);
   }
-  async refreshIfStale(maxAgeMs = POLL_INTERVAL_MS2) {
+  async refreshIfStale(maxAgeMs = POLL_INTERVAL_MS3) {
     if (Date.now() - this.lastPolledAt <= maxAgeMs) return;
     await this.pollAll();
   }
@@ -111228,6 +111269,7 @@ function createApp(backend2, cache6) {
     const opFromQuery = c5.req.query("operation");
     let gameKey;
     let operation2;
+    let launchConfig;
     if (game && opFromQuery) {
       gameKey = game;
       operation2 = opFromQuery;
@@ -111235,6 +111277,9 @@ function createApp(backend2, cache6) {
       const body = await c5.req.json();
       gameKey = body.game;
       operation2 = body.operation;
+      if (body.configText || body.configUrl) {
+        launchConfig = { configText: body.configText, configUrl: body.configUrl };
+      }
     }
     const games = backend2.getGames();
     const config = games[gameKey];
@@ -111242,7 +111287,7 @@ function createApp(backend2, cache6) {
     let state2;
     if (operation2 === "start") {
       log.info(`web: start ${gameKey}`);
-      state2 = await backend2.startGame(config);
+      state2 = await backend2.startGame(config, launchConfig);
       log.info(`web: start ${gameKey} \u2192 ${state2.status}`);
       cache6.set(gameKey, await backend2.getCachedState(config));
     } else if (operation2 === "stop") {
@@ -111266,6 +111311,21 @@ function createApp(backend2, cache6) {
       })
     );
     return c5.json(result);
+  });
+  app2.get("/config-editor", async (c5) => {
+    const passphrase = c5.req.header("x-passphrase") ?? "";
+    if (passphrase !== WEB_UI_PASSPHRASE) {
+      log.warn(`web: auth failure from ${c5.req.header("x-forwarded-for") ?? "unknown"}`);
+      return c5.json({ error: "unauthorized" }, 401);
+    }
+    const game = c5.req.query("game") ?? "";
+    const games = backend2.getGames();
+    const config = games[game];
+    if (!config) return c5.json({ error: `unknown game: ${game}` }, 400);
+    return c5.json({
+      configText: String(config.defaultConfigText ?? ""),
+      configEditor: config.configEditor ?? null
+    });
   });
   app2.get("/logs", async (c5) => {
     if (!ENABLE_LOG_STREAMS) return c5.text("log streaming disabled for this deployment", 503);

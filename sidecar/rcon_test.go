@@ -101,6 +101,36 @@ func TestConfigureRconBZFlagConfig(t *testing.T) {
 	}
 }
 
+func TestApplyRestartConfigWritesTextAndRcon(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "server.cfg")
+	err := applyRestartConfig(cfg{
+		Protocol:     "quake3",
+		ConfigPath:   path,
+		RconPassword: "new-secret",
+	}, restartRequest{
+		ConfigText: ptr("set sv_hostname \"Custom\"\nset sv_maxclients 10"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "set sv_hostname \"Custom\"") {
+		t.Fatalf("expected custom config content, got:\n%s", got)
+	}
+	if !strings.Contains(got, "seta rconPassword \"new-secret\"") {
+		t.Fatalf("expected rcon password to be restored, got:\n%s", got)
+	}
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}
+
 func TestResolveProtocolPrefersEnv(t *testing.T) {
 	t.Setenv("PROTOCOL", "quake2")
 

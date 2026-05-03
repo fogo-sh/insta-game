@@ -416,14 +416,28 @@
     });
     return res.ok;
   }
-  async function postAction(game, operation, passphrase) {
-    const res = await fetch(`/?game=${encodeURIComponent(game)}&operation=${operation}`, {
+  async function postAction(game, operation, passphrase, configText) {
+    const res = await fetch("/", {
       method: "POST",
-      headers: { "X-Passphrase": passphrase }
+      headers: {
+        "Content-Type": "application/json",
+        "X-Passphrase": passphrase
+      },
+      body: JSON.stringify({ game, operation, configText })
     });
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text || `${operation} returned ${res.status}`);
+    }
+    return res.json();
+  }
+  async function fetchConfigEditor(game, passphrase) {
+    const res = await fetch(`/config-editor?game=${encodeURIComponent(game)}`, {
+      headers: { "X-Passphrase": passphrase }
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `/config-editor returned ${res.status}`);
     }
     return res.json();
   }
@@ -520,18 +534,297 @@
     )) });
   }
 
+  // src/config-editor.ts
+  function buildInitialConfigEditorState(editor) {
+    return Object.fromEntries(editor.controls.map((control) => [control.id, control.defaultValue]));
+  }
+  function interpolate(template, context) {
+    return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_2, key) => {
+      const value = context[key];
+      return value === void 0 ? "" : String(value);
+    });
+  }
+  function renderLines(lines, context) {
+    return (lines ?? []).map((line) => interpolate(line, context));
+  }
+  function renderControl(control, rawValue) {
+    switch (control.type) {
+      case "checkbox": {
+        const value = Boolean(rawValue);
+        return value ? control.render.trueLines : control.render.falseLines ?? [];
+      }
+      case "radio": {
+        const value = String(rawValue);
+        return control.render.choices[value] ?? [];
+      }
+      case "number":
+      case "text": {
+        const value = control.type === "number" ? Number(rawValue) : String(rawValue);
+        return renderLines(control.render.lines, { value });
+      }
+      case "multiselect": {
+        const values = Array.isArray(rawValue) ? rawValue.map(String) : [];
+        if (control.render.mode === "join") {
+          const joined = values.join(control.render.separator ?? " ");
+          return renderLines(control.render.lines, {
+            joined,
+            count: values.length,
+            first: values[0] ?? "",
+            last: values[values.length - 1] ?? ""
+          });
+        }
+        if (values.length === 0) {
+          return renderLines(control.render.emptyLines, { count: 0 });
+        }
+        const lines = renderLines(control.render.beforeLines, {
+          count: values.length,
+          first: values[0] ?? "",
+          second: values[1] ?? values[0] ?? "",
+          secondIndex1: values.length > 1 ? 2 : 1,
+          last: values[values.length - 1] ?? ""
+        });
+        for (let index = 0; index < values.length; index += 1) {
+          const value = values[index] ?? "";
+          const nextValue = values[(index + 1) % values.length] ?? "";
+          lines.push(
+            ...renderLines(control.render.itemLines, {
+              value,
+              nextValue,
+              index,
+              index1: index + 1,
+              nextIndex: (index + 1) % values.length,
+              nextIndex1: (index + 1) % values.length + 1,
+              count: values.length,
+              first: values[0] ?? "",
+              last: values[values.length - 1] ?? ""
+            })
+          );
+        }
+        lines.push(
+          ...renderLines(control.render.afterLines, {
+            count: values.length,
+            first: values[0] ?? "",
+            second: values[1] ?? values[0] ?? "",
+            secondIndex1: values.length > 1 ? 2 : 1,
+            last: values[values.length - 1] ?? ""
+          })
+        );
+        return lines;
+      }
+    }
+  }
+  function buildManagedSections(editor, state) {
+    return editor.controls.map((control) => ({
+      controlId: control.id,
+      text: renderControl(control, state[control.id]).join("\n")
+    }));
+  }
+  function buildManagedConfig(editor, state) {
+    return buildManagedSections(editor, state).map((section) => section.text).join("\n");
+  }
+  function normalizeConfigText(text) {
+    return text.replace(/\r\n/g, "\n");
+  }
+  function applyManagedConfig(configText, editor, state) {
+    const normalized = normalizeConfigText(configText);
+    const managed = buildManagedConfig(editor, state);
+    const block = `${editor.managedBlockStart}
+${managed}
+${editor.managedBlockEnd}`;
+    const start = normalized.indexOf(editor.managedBlockStart);
+    const end = normalized.indexOf(editor.managedBlockEnd);
+    if (start >= 0 && end >= start) {
+      const afterEnd = end + editor.managedBlockEnd.length;
+      return `${normalized.slice(0, start)}${block}${normalized.slice(afterEnd)}`;
+    }
+    const separator = normalized.endsWith("\n") ? "" : "\n";
+    return `${normalized}${separator}
+${block}
+`;
+  }
+  function findControlSelection(configText, editor, state, controlId) {
+    const normalized = normalizeConfigText(configText);
+    const managedStart = normalized.indexOf(editor.managedBlockStart);
+    if (managedStart < 0) return null;
+    const sections = buildManagedSections(editor, state);
+    let offset = managedStart + editor.managedBlockStart.length + 1;
+    for (const section of sections) {
+      const start = offset;
+      const end = start + section.text.length;
+      if (section.controlId === controlId) {
+        return { start, end };
+      }
+      offset = end + 1;
+    }
+    return null;
+  }
+
   // src/client/GameRow.tsx
   function statusDot(status) {
     if (status === "online") return "\u{1F7E2}";
     if (status === "starting") return "\u{1F7E1}";
     return "\u26AB";
   }
+  function updateConfigFromControl(configText, configEditor, formState, control, nextValue) {
+    if (!configEditor || !formState) {
+      return { configText, formState };
+    }
+    const nextFormState = {
+      ...formState,
+      [control.id]: nextValue
+    };
+    return {
+      formState: nextFormState,
+      configText: applyManagedConfig(configText, configEditor, nextFormState)
+    };
+  }
+  function renderControl2(control, formState, configText, configEditor, setFormState, setConfigText, focusConfigSelection) {
+    const value = formState[control.id];
+    const commitValue = (nextValue) => {
+      const next = updateConfigFromControl(configText, configEditor, formState, control, nextValue);
+      setFormState(next.formState);
+      setConfigText(next.configText);
+      focusConfigSelection(next.configText, next.formState, control.id);
+    };
+    switch (control.type) {
+      case "checkbox":
+        return /* @__PURE__ */ u3("label", { class: "config-check", children: [
+          /* @__PURE__ */ u3(
+            "input",
+            {
+              type: "checkbox",
+              checked: Boolean(value),
+              onInput: (e3) => {
+                commitValue(e3.target.checked);
+              }
+            }
+          ),
+          /* @__PURE__ */ u3("span", { children: control.label })
+        ] }, control.id);
+      case "radio":
+        return /* @__PURE__ */ u3("fieldset", { class: "config-fieldset", children: [
+          /* @__PURE__ */ u3("legend", { children: control.label }),
+          /* @__PURE__ */ u3("div", { class: "config-radio-group", children: control.options.map((option) => /* @__PURE__ */ u3("label", { class: "config-check", children: [
+            /* @__PURE__ */ u3(
+              "input",
+              {
+                type: "radio",
+                name: control.id,
+                checked: value === option.value,
+                onInput: () => {
+                  commitValue(option.value);
+                }
+              }
+            ),
+            /* @__PURE__ */ u3("span", { children: option.label })
+          ] }, option.value)) })
+        ] }, control.id);
+      case "number":
+        return /* @__PURE__ */ u3("label", { class: "config-field", children: [
+          /* @__PURE__ */ u3("span", { children: control.label }),
+          /* @__PURE__ */ u3(
+            "input",
+            {
+              type: "number",
+              value: String(value),
+              min: control.min,
+              max: control.max,
+              step: control.step,
+              onInput: (e3) => {
+                commitValue(Number(e3.target.value));
+              }
+            }
+          )
+        ] }, control.id);
+      case "text":
+        return /* @__PURE__ */ u3("label", { class: "config-field", children: [
+          /* @__PURE__ */ u3("span", { children: control.label }),
+          /* @__PURE__ */ u3(
+            "input",
+            {
+              type: "text",
+              value: String(value),
+              placeholder: control.placeholder,
+              onInput: (e3) => {
+                commitValue(e3.target.value);
+              }
+            }
+          )
+        ] }, control.id);
+      case "multiselect":
+        return /* @__PURE__ */ u3("fieldset", { class: "config-fieldset", children: [
+          /* @__PURE__ */ u3("legend", { children: control.label }),
+          /* @__PURE__ */ u3("div", { class: "config-checkbox-grid", children: control.options.map((option) => {
+            const selected = Array.isArray(value) && value.includes(option.value);
+            return /* @__PURE__ */ u3("label", { class: "config-check", children: [
+              /* @__PURE__ */ u3(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: selected,
+                  onInput: (e3) => {
+                    const checked = e3.target.checked;
+                    const current = Array.isArray(value) ? value.filter((item) => item !== option.value) : [];
+                    commitValue(checked ? [...current, option.value] : current);
+                  }
+                }
+              ),
+              /* @__PURE__ */ u3("span", { children: option.label })
+            ] }, option.value);
+          }) })
+        ] }, control.id);
+    }
+  }
   function GameRow({ id, game, passphrase, onAction }) {
     const [open, setOpen] = d2(false);
     const [logsOpen, setLogsOpen] = d2(false);
     const [actionResult, setActionResult] = d2(null);
     const [acting, setActing] = d2(false);
+    const [editorLoading, setEditorLoading] = d2(false);
+    const [editorError, setEditorError] = d2(null);
+    const [configText, setConfigText] = d2(null);
+    const [configEditor, setConfigEditor] = d2(null);
+    const [formState, setFormState] = d2(null);
+    const textareaRef = A2(null);
     const expandable = game.status !== "offline" || passphrase !== null;
+    const focusConfigSelection = q2((nextText, nextState, controlId) => {
+      if (!configEditor || !nextState) return;
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        const selection = findControlSelection(nextText, configEditor, nextState, controlId);
+        textarea.focus();
+        if (selection) {
+          textarea.setSelectionRange(selection.start, selection.end);
+          const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight || "20");
+          const lineNumber = nextText.slice(0, selection.start).split("\n").length - 1;
+          textarea.scrollTop = Math.max(0, lineNumber * lineHeight - textarea.clientHeight / 3);
+        }
+        textarea.classList.remove("config-flash");
+        void textarea.offsetWidth;
+        textarea.classList.add("config-flash");
+      });
+    }, [configEditor]);
+    y2(() => {
+      if (!open || !passphrase || configText !== null) return;
+      let cancelled = false;
+      setEditorLoading(true);
+      setEditorError(null);
+      fetchConfigEditor(id, passphrase).then((response) => {
+        if (cancelled) return;
+        setConfigText(response.configText);
+        setConfigEditor(response.configEditor);
+        setFormState(response.configEditor ? buildInitialConfigEditorState(response.configEditor) : null);
+      }).catch((error) => {
+        if (cancelled) return;
+        setEditorError(error instanceof Error ? error.message : String(error));
+      }).finally(() => {
+        if (!cancelled) setEditorLoading(false);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [configText, id, open, passphrase]);
     const toggle = q2(() => {
       if (!expandable) return;
       setOpen((o3) => !o3);
@@ -542,14 +835,14 @@
       setActionResult(null);
       onAction();
       try {
-        const result = await postAction(id, operation, passphrase);
+        const result = await postAction(id, operation, passphrase, operation === "start" ? configText ?? void 0 : void 0);
         setActionResult({ message: `${operation} \u2192 ${result.status}`, ok: result.status !== "offline" });
       } catch (err) {
         setActionResult({ message: `${operation} failed: ${err instanceof Error ? err.message : String(err)}`, ok: false });
       } finally {
         setActing(false);
       }
-    }, [id, passphrase, onAction]);
+    }, [configText, id, passphrase, onAction]);
     const copyConnect = q2((address, e3) => {
       void navigator.clipboard.writeText(address);
       const btn = e3.currentTarget;
@@ -631,6 +924,35 @@
               }
             )
           ] }),
+          configText !== null ? /* @__PURE__ */ u3("div", { class: "config-editor", children: [
+            configEditor && formState ? /* @__PURE__ */ u3("div", { class: "config-controls", children: configEditor.controls.map((control) => /* @__PURE__ */ u3("div", { class: "config-control", children: [
+              renderControl2(
+                control,
+                formState,
+                configText,
+                configEditor,
+                setFormState,
+                setConfigText,
+                focusConfigSelection
+              ),
+              control.description ? /* @__PURE__ */ u3("div", { class: "config-help", children: control.description }) : null
+            ] }, control.id)) }) : null,
+            /* @__PURE__ */ u3("label", { class: "config-text-label", children: [
+              /* @__PURE__ */ u3("span", { children: "config" }),
+              /* @__PURE__ */ u3(
+                "textarea",
+                {
+                  ref: textareaRef,
+                  value: configText,
+                  onInput: (e3) => {
+                    setConfigText(e3.target.value);
+                  },
+                  rows: 18,
+                  spellcheck: false
+                }
+              )
+            ] })
+          ] }) : editorLoading ? /* @__PURE__ */ u3("div", { class: "action-result", children: "loading config editor..." }) : editorError ? /* @__PURE__ */ u3("div", { class: "action-result err", children: editorError }) : null,
           actionResult ? /* @__PURE__ */ u3("div", { class: `action-result ${actionResult.ok ? "ok" : "err"}`, children: actionResult.message }) : null
         ] }) : null,
         logsOpen && passphrase ? /* @__PURE__ */ u3("div", { class: "log-section", children: /* @__PURE__ */ u3(LogPanel, { game: id, passphrase }) }) : null

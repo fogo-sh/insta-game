@@ -20,5 +20,120 @@
   "volumes": [
     ".cache/openarena:/opt/baseoa"
   ],
-  "clientDownloadUrl": "https://openarena.ws/download.php"
+  "clientDownloadUrl": "https://openarena.ws/download.php",
+  "configEditor": {
+    "managedBlockStart": "// insta-game managed config: start",
+    "managedBlockEnd": "// insta-game managed config: end",
+    "controls": [
+      {
+        "id": "hostname",
+        "type": "text",
+        "label": "Server name",
+        "defaultValue": "Insta Game OpenArena",
+        "render": {
+          "mode": "template",
+          "lines": [
+            "set sv_hostname \"{{value}}\"",
+            "set g_motd \"{{value}}\"",
+            "seta rconPassword \"changeme\"",
+            "",
+            "set dedicated 2"
+          ]
+        }
+      },
+      {
+        "id": "maxclients",
+        "type": "number",
+        "label": "Max players",
+        "defaultValue": 12,
+        "min": 2,
+        "max": 24,
+        "render": {
+          "mode": "template",
+          "lines": [
+            "set sv_maxclients {{value}}"
+          ]
+        }
+      },
+      {
+        "id": "gametype",
+        "type": "radio",
+        "label": "Game type",
+        "defaultValue": "0",
+        "options": [
+          { "label": "FFA", "value": "0" },
+          { "label": "Team DM", "value": "3" },
+          { "label": "CTF", "value": "4" }
+        ],
+        "render": {
+          "mode": "choice",
+          "choices": {
+            "0": ["set g_gametype 0"],
+            "3": ["set g_gametype 3"],
+            "4": ["set g_gametype 4"]
+          }
+        }
+      },
+      {
+        "id": "instagib",
+        "type": "checkbox",
+        "label": "Instagib",
+        "defaultValue": true,
+        "render": {
+          "mode": "toggle",
+          "trueLines": ["set g_instantgib 1"],
+          "falseLines": ["set g_instantgib 0"]
+        }
+      },
+      {
+        "id": "botPlayers",
+        "type": "number",
+        "label": "Bot players",
+        "defaultValue": 4,
+        "min": 0,
+        "max": 24,
+        "render": {
+          "mode": "template",
+          "lines": [
+            "set bot_minplayers {{value}}",
+            "set timelimit 8",
+            "set fraglimit 30",
+            "set capturelimit 8",
+            "set sv_pure 1",
+            "set sv_allowDownload 1"
+          ]
+        }
+      },
+      {
+        "id": "maps",
+        "type": "multiselect",
+        "label": "Map rotation",
+        "defaultValue": [
+          "oa_ctf4ish",
+          "oa_dm5",
+          "oa_shine",
+          "oa_dm3"
+        ],
+        "options": [
+          { "label": "oa_ctf4ish", "value": "oa_ctf4ish" },
+          { "label": "oa_dm5", "value": "oa_dm5" },
+          { "label": "oa_shine", "value": "oa_shine" },
+          { "label": "oa_dm3", "value": "oa_dm3" },
+          { "label": "oa_koth2", "value": "oa_koth2" },
+          { "label": "oa_rpg3dm2", "value": "oa_rpg3dm2" }
+        ],
+        "render": {
+          "mode": "sequence",
+          "itemLines": [
+            "set d{{index1}} \"map {{value}}; set nextmap vstr d{{nextIndex1}}\""
+          ],
+          "afterLines": [
+            "set nextmap \"vstr d{{secondIndex1}}\"",
+            "",
+            "map {{first}}"
+          ]
+        }
+      }
+    ]
+  }
 }

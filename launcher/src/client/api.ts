@@ -1,3 +1,5 @@
+import type { ConfigEditorDefinition } from "../config-editor.js";
+
 export type GameStatus = "online" | "starting" | "offline";
 
 export interface GameEntry {
@@ -18,6 +20,11 @@ export interface ActionResult {
   publicIp: string;
   players: number;
   ready: boolean;
+}
+
+export interface ConfigEditorResponse {
+  configText: string;
+  configEditor: ConfigEditorDefinition | null;
 }
 
 export interface LogPollResult {
@@ -41,17 +48,33 @@ export async function validatePassphrase(passphrase: string): Promise<boolean> {
 export async function postAction(
   game: string,
   operation: "start" | "stop",
-  passphrase: string
+  passphrase: string,
+  configText?: string
 ): Promise<ActionResult> {
-  const res = await fetch(`/?game=${encodeURIComponent(game)}&operation=${operation}`, {
+  const res = await fetch("/", {
     method: "POST",
-    headers: { "X-Passphrase": passphrase },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Passphrase": passphrase,
+    },
+    body: JSON.stringify({ game, operation, configText }),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `${operation} returned ${res.status}`);
   }
   return res.json() as Promise<ActionResult>;
+}
+
+export async function fetchConfigEditor(game: string, passphrase: string): Promise<ConfigEditorResponse> {
+  const res = await fetch(`/config-editor?game=${encodeURIComponent(game)}`, {
+    headers: { "X-Passphrase": passphrase },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `/config-editor returned ${res.status}`);
+  }
+  return res.json() as Promise<ConfigEditorResponse>;
 }
 
 export async function fetchLogMode(game: string, token: string): Promise<"sse" | "poll"> {

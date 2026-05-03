@@ -353,6 +353,37 @@ func jsonResponse(w http.ResponseWriter, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
+type restartRequest struct {
+	ConfigURL  *string `json:"config_url"`
+	ConfigText *string `json:"config_text"`
+}
+
+func applyRestartConfig(c cfg, req restartRequest) error {
+	if req.ConfigText != nil {
+		content := strings.ReplaceAll(*req.ConfigText, "\r\n", "\n")
+		if !strings.HasSuffix(content, "\n") {
+			content += "\n"
+		}
+		if err := os.WriteFile(c.ConfigPath, []byte(content), 0644); err != nil {
+			return fmt.Errorf("write config: %w", err)
+		}
+	}
+
+	if req.ConfigURL != nil && strings.TrimSpace(*req.ConfigURL) != "" {
+		if err := downloadData(*req.ConfigURL, c.DefaultConfig, c.ConfigPath, c.UserAgent); err != nil {
+			return fmt.Errorf("download config: %w", err)
+		}
+	}
+
+	if req.ConfigText != nil || (req.ConfigURL != nil && strings.TrimSpace(*req.ConfigURL) != "") {
+		if err := configureRcon(c.Protocol, c.ConfigPath, c.RconPassword); err != nil {
+			return fmt.Errorf("configure rcon: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func statusHandler(c cfg) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		procMu.Lock()
@@ -384,6 +415,19 @@ func statusHandler(c cfg) http.HandlerFunc {
 
 func restartHandler(c cfg) http.HandlerFunc {
 	return authorize(c.Token, func(w http.ResponseWriter, r *http.Request) {
+		var req restartRequest
+		if r.ContentLength != 0 {
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, fmt.Sprintf("invalid restart payload: %v", err), http.StatusBadRequest)
+				return
+			}
+		}
+
+		if err := applyRestartConfig(c, req); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		exitGame(c)
 		if err := startGame(c); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

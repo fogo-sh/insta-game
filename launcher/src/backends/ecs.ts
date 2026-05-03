@@ -1,10 +1,12 @@
 import { ECSClient, UpdateServiceCommand, ListTasksCommand, DescribeTasksCommand } from "@aws-sdk/client-ecs";
 import { EC2Client, DescribeNetworkInterfacesCommand } from "@aws-sdk/client-ec2";
-import type { Backend, GameConfig, GameState, CachedGameState } from "../backend.js";
+import type { Backend, GameConfig, GameState, CachedGameState, GameLaunchConfig } from "../backend.js";
 
 const REGION = process.env.AWS_REGION ?? "ca-central-1";
 const CLUSTER = process.env.ECS_CLUSTER ?? "";
 const SIDECAR_TOKEN = process.env.SIDECAR_TOKEN ?? "";
+const MAX_POLLS = 20;
+const POLL_INTERVAL_MS = 3000;
 
 const ecs = new ECSClient({ region: REGION });
 const ec2 = new EC2Client({ region: REGION });
@@ -82,20 +84,33 @@ export class EcsBackend implements Backend {
     return { status: "offline", players: 0, ready: false };
   }
 
-  async startGame(config: GameConfig, configUrl?: string): Promise<GameState> {
+  async startGame(config: GameConfig, launchConfig?: GameLaunchConfig): Promise<GameState> {
     const c = config as EcsGameConfig;
     const current = await this.getGameState(config);
-    if (current.status === "online" && !configUrl) return current;
+    if (current.status === "online" && !launchConfig?.configUrl && !launchConfig?.configText) return current;
 
     await setDesiredCount(c.serviceName, 1);
 
-    if (configUrl && current.publicIp) {
-      await restartWithConfig(current.publicIp, c.sidecarPort, configUrl);
-      return { ...current, configUrl };
+    if (launchConfig?.configUrl || launchConfig?.configText) {
+      const state = await waitForReachableState(this, config);
+      if (state.publicIp) {
+        await restartWithConfig(state.publicIp, c.sidecarPort, launchConfig);
+        return { ...state, configUrl: launchConfig.configUrl };
+      }
     }
 
     return { status: "starting", players: 0, ready: false };
   }
+}
+
+async function waitForReachableState(backend: EcsBackend, config: GameConfig): Promise<GameState> {
+  let state = await backend.getGameState(config);
+  for (let i = 0; i < MAX_POLLS; i += 1) {
+    if (state.publicIp) return state;
+    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+    state = await backend.getGameState(config);
+  }
+  return state;
 }
 
 async function setDesiredCount(serviceName: string, count: number): Promise<void> {
@@ -112,11 +127,14 @@ async function getSidecarStatus(ip: string, port: number): Promise<Record<string
   }
 }
 
-async function restartWithConfig(ip: string, port: number, configUrl: string): Promise<void> {
+async function restartWithConfig(ip: string, port: number, launchConfig: GameLaunchConfig): Promise<void> {
   await fetch(`http://${ip}:${port}/restart`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${SIDECAR_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ config_url: configUrl }),
+    body: JSON.stringify({
+      config_url: launchConfig.configUrl,
+      config_text: launchConfig.configText,
+    }),
     signal: AbortSignal.timeout(10000),
   });
 }

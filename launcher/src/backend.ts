@@ -1,7 +1,18 @@
+import type { ConfigEditorDefinition } from "./config-editor.js";
+
 export interface GameConfig {
   sidecarPort: number;
+  displayName?: string;
+  clientDownloadUrl?: string;
+  defaultConfigText?: string;
+  configEditor?: ConfigEditorDefinition;
   // Backend-specific fields (e.g. serviceName, containerName) are opaque to callers.
   [key: string]: unknown;
+}
+
+export interface GameLaunchConfig {
+  configText?: string;
+  configUrl?: string;
 }
 
 export interface GameState {
@@ -26,6 +37,6 @@ export interface Backend {
   getGames(): Record<string, GameConfig>;
   getGameState(config: GameConfig): Promise<GameState>;
   getCachedState(config: GameConfig): Promise<CachedGameState>;
-  startGame(config: GameConfig, configUrl?: string): Promise<GameState>;
+  startGame(config: GameConfig, launchConfig?: GameLaunchConfig): Promise<GameState>;
   stopGame(config: GameConfig): Promise<GameState>;
 }
