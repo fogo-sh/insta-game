@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "build:catalog": "node scripts/build-game-catalog.mjs",
     "build:client": "esbuild src/client/index.tsx --bundle --platform=browser --target=es2020 --outfile=dist/client.js --jsx=automatic --jsx-import-source=preact",
-    "build": "npm run build:client && esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/*",
+    "build": "npm run build:catalog && npm run build:client && esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/*",
     "build:watch": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:@aws-sdk/* --watch",
-    "build:docker": "npm run build:client && esbuild src/server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js",
+    "build:docker": "npm run build:catalog && npm run build:client && esbuild src/server.ts --bundle --platform=node --target=node22 --outfile=dist/server.js",
     "lint": "eslint .",
     "register": "tsx register-commands.ts",
     "start": "node dist/server.js"

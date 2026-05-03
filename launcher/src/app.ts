@@ -7,6 +7,7 @@ import type { Backend, CachedGameState, GameConfig, GameLaunchConfig } from "./b
 import type { GameCache } from "./cache.js";
 import type { DockerGameConfig } from "./backends/docker.js";
 import { makeDiscordHandler } from "./discord.js";
+import { loadGameCatalog } from "./game-catalog.js";
 import { log } from "./logger.js";
 
 const WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
@@ -80,14 +81,16 @@ function buildGameEntry(
   key: string,
   config: GameConfig,
   state: CachedGameState,
-  startBlocked: boolean
+  startBlocked: boolean,
+  catalog: ReturnType<typeof loadGameCatalog>
 ) {
   const c = config as DockerGameConfig;
+  const catalogEntry = catalog[key];
   return {
     ...state,
-    displayName: c.displayName ?? key,
+    displayName: c.displayName ?? catalogEntry?.displayName ?? key,
     connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
-    clientDownloadUrl: c.clientDownloadUrl ?? null,
+    clientDownloadUrl: c.clientDownloadUrl ?? catalogEntry?.clientDownloadUrl ?? null,
     startBlocked,
   };
 }
@@ -99,6 +102,7 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
   // __dirname is the directory of the compiled bundle (e.g. /app/dist or launcher/dist).
   // client.js and client.css are always siblings of server.js in the same dist/ directory.
   const distDir = __dirname;
+  const gameCatalog = loadGameCatalog(distDir);
   let clientBundle: Buffer | null = null;
   let clientCss: Buffer | null = null;
   try {
@@ -244,7 +248,7 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     const result = Object.fromEntries(
       Object.entries(games).map(([key, config]) => {
         const state = cache.get(key) ?? { status: "offline" as const, players: 0, hostname: "", map: "", updatedAt: new Date() };
-        return [key, buildGameEntry(key, config, state, hasPortConflict(config, occupied, key, games, cache))];
+        return [key, buildGameEntry(key, config, state, hasPortConflict(config, occupied, key, games, cache), gameCatalog)];
       })
     );
     return c.json(result);
@@ -261,10 +265,11 @@ export function createApp(backend: Backend, cache: GameCache): Hono {
     const games = backend.getGames();
     const config = games[game];
     if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
+    const catalogEntry = gameCatalog[game];
 
     return c.json({
-      configText: String(config.defaultConfigText ?? ""),
-      configEditor: config.configEditor ?? null,
+      configText: String(config.defaultConfigText ?? catalogEntry?.defaultConfigText ?? ""),
+      configEditor: config.configEditor ?? catalogEntry?.configEditor ?? null,
     });
   });
 

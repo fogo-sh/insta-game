@@ -1289,8 +1289,8 @@ var GameCache = class {
 };
 
 // src/app.ts
-var import_fs2 = require("fs");
-var import_path2 = require("path");
+var import_fs3 = require("fs");
+var import_path3 = require("path");
 
 // node_modules/hono/dist/compose.js
 var compose = (middleware, onError, onNotFound) => {
@@ -3581,6 +3581,21 @@ function formatState(gameName, state) {
   return parts.join(" \u2014 ");
 }
 
+// src/game-catalog.ts
+var import_fs2 = require("fs");
+var import_path2 = require("path");
+var cachedCatalog = null;
+function loadGameCatalog(distDir) {
+  if (cachedCatalog) return cachedCatalog;
+  try {
+    const raw2 = (0, import_fs2.readFileSync)((0, import_path2.join)(distDir, "game-catalog.json"), "utf8");
+    cachedCatalog = JSON.parse(raw2);
+  } catch {
+    cachedCatalog = {};
+  }
+  return cachedCatalog;
+}
+
 // src/app.ts
 var WEB_UI_PASSPHRASE = process.env.WEB_UI_PASSPHRASE ?? "";
 var API_TOKEN = process.env.API_TOKEN ?? "";
@@ -3633,24 +3648,26 @@ function hasPortConflict(config, occupied, ownKey, games, cache2) {
   }
   return false;
 }
-function buildGameEntry(key, config, state, startBlocked) {
+function buildGameEntry(key, config, state, startBlocked, catalog) {
   const c = config;
+  const catalogEntry = catalog[key];
   return {
     ...state,
-    displayName: c.displayName ?? key,
+    displayName: c.displayName ?? catalogEntry?.displayName ?? key,
     connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
-    clientDownloadUrl: c.clientDownloadUrl ?? null,
+    clientDownloadUrl: c.clientDownloadUrl ?? catalogEntry?.clientDownloadUrl ?? null,
     startBlocked
   };
 }
 function createApp(backend2, cache2) {
   const app2 = new Hono2();
   const distDir = __dirname;
+  const gameCatalog = loadGameCatalog(distDir);
   let clientBundle = null;
   let clientCss = null;
   try {
-    clientBundle = (0, import_fs2.readFileSync)((0, import_path2.join)(distDir, "client.js"));
-    clientCss = (0, import_fs2.readFileSync)((0, import_path2.join)(distDir, "client.css"));
+    clientBundle = (0, import_fs3.readFileSync)((0, import_path3.join)(distDir, "client.js"));
+    clientCss = (0, import_fs3.readFileSync)((0, import_path3.join)(distDir, "client.css"));
   } catch {
     log.warn("app: dist/client.js not found \u2014 run npm run build:client");
   }
@@ -3768,7 +3785,7 @@ function createApp(backend2, cache2) {
     const result = Object.fromEntries(
       Object.entries(games).map(([key, config]) => {
         const state = cache2.get(key) ?? { status: "offline", players: 0, hostname: "", map: "", updatedAt: /* @__PURE__ */ new Date() };
-        return [key, buildGameEntry(key, config, state, hasPortConflict(config, occupied, key, games, cache2))];
+        return [key, buildGameEntry(key, config, state, hasPortConflict(config, occupied, key, games, cache2), gameCatalog)];
       })
     );
     return c.json(result);
@@ -3783,9 +3800,10 @@ function createApp(backend2, cache2) {
     const games = backend2.getGames();
     const config = games[game];
     if (!config) return c.json({ error: `unknown game: ${game}` }, 400);
+    const catalogEntry = gameCatalog[game];
     return c.json({
-      configText: String(config.defaultConfigText ?? ""),
-      configEditor: config.configEditor ?? null
+      configText: String(config.defaultConfigText ?? catalogEntry?.defaultConfigText ?? ""),
+      configEditor: config.configEditor ?? catalogEntry?.configEditor ?? null
     });
   });
   app2.get("/logs", async (c) => {
