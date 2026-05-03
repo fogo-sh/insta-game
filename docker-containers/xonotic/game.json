@@ -13,7 +13,7 @@
     }
   },
   "gameCmd": "./xonotic-linux-arm64-dedicated",
-  "gameArgs": "+serverconfig data/server.cfg",
+  "gameArgs": "+serverconfig server.cfg",
   "gameQuitCmd": "exit",
   "gameQuitTimeout": 30,
   "configPath": "/opt/data/server.cfg",
