@@ -40,6 +40,7 @@ for (const entry of readdirSync(dockerRoot, { withFileTypes: true })) {
     readFileSync(dockerfilePath, "utf8");
     catalog[metadata.id] = {
       displayName: metadata.displayName ?? metadata.id,
+      connectPort: metadata.gamePort ?? null,
       clientDownloadUrl: metadata.clientDownloadUrl ?? null,
       configEditor: metadata.configEditor ?? null,
       defaultConfigText: loadDefaultConfigText(gameDir, metadata),

@@ -1,24 +1,28 @@
 {
   "bzflag": {
     "displayName": "BZFlag",
+    "connectPort": 5154,
     "clientDownloadUrl": "https://www.bzflag.org/downloads/",
     "configEditor": null,
     "defaultConfigText": "-advertise NONE\n-j\n+r\n-mp 12\n"
   },
   "fteqw": {
     "displayName": "FTEQW (Quake 1)",
+    "connectPort": 26000,
     "clientDownloadUrl": "https://sourceforge.net/projects/fteqw/",
     "configEditor": null,
     "defaultConfigText": "hostname \"Insta Game FTEQW FFA 4-12\"\nrcon_password \"changeme\"\n\n// Allow compatible clients to download missing assets from the server.\nallow_download 1\n\ndeathmatch 1\nteamplay 0\ncoop 0\ntimelimit 12\nfraglimit 40\npausable 0\nsamelevel 0\nnoexit 0\nsv_aim 1\ntemp1 0\n\n// FrikBot settings.\n// skill 0-3; bots use this when added via impulse 100.\nskill 1\n\n// FrikBot bot persistence: these cvars are read by WaypointWatch on every\n// map load. saved1=1 sets OPT_SAVEBOTS; scratch1 is the bitmask of bots\n// to restore (bits 0-3 = bots 1-4, sum = 15); scratch2 packs each bot's\n// skill in 2 bits (all four at skill 1 → 1|4|16|64 = 85).\n// FrikBot resets scratch1 to the live bot set at end of each map, so the\n// count naturally follows humans joining/leaving across map changes.\nsaved1 1\nscratch1 15\nscratch2 85\n\nalias nextmap_dm1 \"map dm1; alias nextmap nextmap_dm2\"\nalias nextmap_dm2 \"map dm2; alias nextmap nextmap_dm3\"\nalias nextmap_dm3 \"map dm3; alias nextmap nextmap_dm4\"\nalias nextmap_dm4 \"map dm4; alias nextmap nextmap_dm5\"\nalias nextmap_dm5 \"map dm5; alias nextmap nextmap_dm6\"\nalias nextmap_dm6 \"map dm6; alias nextmap nextmap_dm1\"\nalias nextmap \"nextmap_dm2\"\n\nmap dm6\n"
   },
   "ioquake3": {
     "displayName": "ioquake3 (Quake 3 Arena)",
+    "connectPort": 27960,
     "clientDownloadUrl": "https://ioquake3.org/get-it/",
     "configEditor": null,
     "defaultConfigText": "set sv_hostname \"Insta Game Quake III Arena\"\nset g_motd \"Warm up and frag out.\"\nseta rconPassword \"changeme\"\n\n// Server basics\nset dedicated 2\nset sv_maxclients 12\nset sv_privateClients 0\nset sv_pure 1\nset sv_allowDownload 1\n\n// Deathmatch (FFA) settings\nset g_gametype 0\nset timelimit 15\nset fraglimit 50\nset g_weaponRespawn 5\nset g_forcerespawn 5\n\n// Bots — fill to 4 players minimum, kick when humans join\nset bot_enable 1\nset bot_minplayers 4\nset g_spskill 4\n\n// Map rotation — mid-size maps well-suited for 4-12 players FFA.\nset d1 \"set nextmap vstr d2; map q3dm6\"\nset d2 \"set nextmap vstr d3; map q3dm7\"\nset d3 \"set nextmap vstr d4; map q3dm14\"\nset d4 \"set nextmap vstr d5; map q3dm17\"\nset d5 \"set nextmap vstr d1; map q3dm12\"\nset nextmap \"vstr d1\"\n\nvstr nextmap\n"
   },
   "openarena": {
     "displayName": "OpenArena",
+    "connectPort": 27960,
     "clientDownloadUrl": "https://openarena.ws/download.php",
     "configEditor": {
       "managedBlockStart": "// insta-game managed config: start",
@@ -176,18 +180,21 @@
   },
   "q2repro": {
     "displayName": "q2repro (Quake 2)",
+    "connectPort": 27910,
     "clientDownloadUrl": "https://github.com/Paril/q2repro/releases",
     "configEditor": null,
     "defaultConfigText": "set hostname \"Insta Game Quake II FFA\"\n\n// Short public FFA rounds tuned for roughly 4-12 players.\nset deathmatch 1\nset coop 0\nset maxclients 12\nset timelimit 8\nset fraglimit 30\nset public 1\n\n// Keep movement responsive and make joining with custom assets easy.\nset allow_download 1\nset allow_download_maps 1\nset allow_download_models 1\nset allow_download_players 1\nset allow_download_sounds 1\n\n// Rotate through the classic DM maps that work well for smaller public games.\nset sv_maplist \"q2dm1 q2dm2 q2dm3 q2dm5 q2dm6 q2dm7 q2dm8\"\n\nmap q2dm1\n"
   },
   "ut99": {
     "displayName": "UT99 GOTY",
+    "connectPort": 7777,
     "clientDownloadUrl": "https://github.com/OldUnreal/UnrealTournamentPatches/releases",
     "configEditor": null,
     "defaultConfigText": "[URL]\nProtocol=unreal\nProtocolDescription=Unreal Protocol\nName=Player\nMap=DM-Deck16][\nLocalMap=DM-Deck16][\nHost=\nPortal=\nMapExt=unr\nEXEName=ucc-bin\nSaveExt=usa\nPort=7777\nClass=Botpack.DeathMatchPlus\n\n[Engine.Engine]\nGameRenderDevice=OpenGLDrv.OpenGLRenderDevice\nAudioDevice=ALAudio.ALAudioSubsystem\nNetworkDevice=IpDrv.TcpNetDriver\nDemoRecordingDevice=udemo.udemodriver\nConsole=UTMenu.UTConsole\nLanguage=int\nGameEngine=Engine.GameEngine\nEditorEngine=Editor.EditorEngine\nWindowedRenderDevice=OpenGLDrv.OpenGLRenderDevice\nRenderDevice=OpenGLDrv.OpenGLRenderDevice\nDefaultGame=Botpack.DeathMatchPlus\nDefaultServerGame=Botpack.DeathMatchPlus\nViewportManager=WinDrv.WindowsClient\nRender=Render.Render\nInput=Engine.Input\nCanvas=Engine.Canvas\nCdPath=G:\n\n[Core.System]\nPurgeCacheDays=0\nSavePath=../Save\nCachePath=../Cache\nCacheExt=.uxx\nPaths=../System/*.u\nPaths=../Maps/*.unr\nPaths=../Textures/*.utx\nPaths=../Sounds/*.uax\nPaths=../Music/*.umx\nLangPaths=../SystemLocalized/<lang>/*.<lang>\nLangPaths=../System/*.<lang>\n\n[Engine.GameEngine]\nCacheSizeMegs=4\nUseSound=False\nServerActors=IpDrv.UdpBeacon\nServerActors=IpServer.UdpServerQuery\nServerActors=IpServer.UdpServerUplink MasterServerAddress=master.oldunreal.com MasterServerPort=27900\n\n[Engine.GameReplicationInfo]\nServerName=insta-game UT99\nShortName=insta-game\nAdminName=\nAdminEmail=\nRegion=0\nMOTDLine1=insta-game UT99\nMOTDLine2=\nMOTDLine3=\nMOTDLine4=\n\n[Engine.AccessControl]\nAdminPassword=\nGamePassword=\nbBanByID=True\n\n[Botpack.DeathMatchPlus]\nbTournament=False\nMinPlayers=0\nInitialBots=0\nFragLimit=30\nTimeLimit=20\nbWeaponStay=True\nbAllowTranslocator=True\n\n[IpServer.UdpServerQuery]\nGameName=ut\n\n[IpDrv.TcpNetDriver]\nAllowDownloads=True\nConnectionTimeout=15.0\nInitialConnectTimeout=150.0\nAckTimeout=1.0\nKeepAliveTime=0.2\nMaxClientRate=20000\nSimLatency=0\nRelevantTimeout=5.0\nSpawnPrioritySeconds=1.0\nServerTravelPause=4.0\nNetServerMaxTickRate=50\nLanServerMaxTickRate=50\nDownloadManagers=IpDrv.HTTPDownload\nDownloadManagers=Engine.ChannelDownload\n\n[IpDrv.UdpBeacon]\nDoBeacon=True\nBeaconTime=0.50\nBeaconTimeout=5.00\nBeaconPort=7778\nBeaconProduct=ut\n"
   },
   "xonotic": {
     "displayName": "Xonotic",
+    "connectPort": 26000,
     "clientDownloadUrl": "https://xonotic.org/download/",
     "configEditor": {
       "managedBlockStart": "// insta-game managed config: start",
@@ -296,6 +303,21 @@
             ],
             "falseLines": [
               "g_powerups 0"
+            ]
+          }
+        },
+        {
+          "id": "grapplingHook",
+          "type": "checkbox",
+          "label": "Grappling hook",
+          "defaultValue": false,
+          "render": {
+            "mode": "toggle",
+            "trueLines": [
+              "g_grappling_hook 1"
+            ],
+            "falseLines": [
+              "g_grappling_hook 0"
             ]
           }
         },

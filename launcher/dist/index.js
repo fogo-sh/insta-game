@@ -3654,7 +3654,7 @@ function buildGameEntry(key, config, state, startBlocked, catalog) {
   return {
     ...state,
     displayName: c.displayName ?? catalogEntry?.displayName ?? key,
-    connectAddress: c.connectPort ? `${PUBLIC_HOST}:${c.connectPort}` : null,
+    connectAddress: c.connectPort ?? catalogEntry?.connectPort ? `${PUBLIC_HOST}:${c.connectPort ?? catalogEntry?.connectPort}` : null,
     clientDownloadUrl: c.clientDownloadUrl ?? catalogEntry?.clientDownloadUrl ?? null,
     startBlocked
   };

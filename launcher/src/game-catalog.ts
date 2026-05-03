@@ -4,6 +4,7 @@ import type { ConfigEditorDefinition } from "./config-editor.js";
 
 export interface GameCatalogEntry {
   displayName: string;
+  connectPort: number | null;
   clientDownloadUrl: string | null;
   configEditor: ConfigEditorDefinition | null;
   defaultConfigText: string;

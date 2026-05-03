@@ -13,9 +13,10 @@
     }
   },
   "gameCmd": "./xonotic-linux-arm64-dedicated",
-  "gameArgs": "",
+  "gameArgs": "+serverconfig /opt/data/server.cfg",
   "gameQuitCmd": "exit",
   "gameQuitTimeout": 30,
+  "configPath": "/opt/data/server.cfg",
   "dataUrlEnv": "XONOTIC_DATA_URL",
   "clientDownloadUrl": "https://xonotic.org/download/",
   "configEditor": {
@@ -94,6 +95,17 @@
           "mode": "toggle",
           "trueLines": ["g_powerups 1"],
           "falseLines": ["g_powerups 0"]
+        }
+      },
+      {
+        "id": "grapplingHook",
+        "type": "checkbox",
+        "label": "Grappling hook",
+        "defaultValue": false,
+        "render": {
+          "mode": "toggle",
+          "trueLines": ["g_grappling_hook 1"],
+          "falseLines": ["g_grappling_hook 0"]
         }
       },
       {

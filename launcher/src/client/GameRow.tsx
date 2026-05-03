@@ -55,11 +55,16 @@ function renderControl(
 ) {
   const value = formState[control.id];
 
-  const commitValue = (nextValue: boolean | number | string | string[]) => {
+  const commitValue = (
+    nextValue: boolean | number | string | string[],
+    spotlight = true
+  ) => {
     const next = updateConfigFromControl(configText, configEditor, formState, control, nextValue);
     setFormState(next.formState);
     setConfigText(next.configText);
-    focusConfigSelection(next.configText, next.formState, control.id);
+    if (spotlight) {
+      focusConfigSelection(next.configText, next.formState, control.id);
+    }
   };
 
   switch (control.type) {
@@ -108,7 +113,10 @@ function renderControl(
             max={control.max}
             step={control.step}
             onInput={e => {
-              commitValue(Number((e.target as HTMLInputElement).value));
+              commitValue(Number((e.target as HTMLInputElement).value), false);
+            }}
+            onBlur={() => {
+              focusConfigSelection(configText, formState, control.id);
             }}
           />
         </label>
@@ -122,7 +130,10 @@ function renderControl(
             value={String(value)}
             placeholder={control.placeholder}
             onInput={e => {
-              commitValue((e.target as HTMLInputElement).value);
+              commitValue((e.target as HTMLInputElement).value, false);
+            }}
+            onBlur={() => {
+              focusConfigSelection(configText, formState, control.id);
             }}
           />
         </label>

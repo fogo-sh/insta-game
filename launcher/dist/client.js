@@ -680,11 +680,13 @@ ${block}
   }
   function renderControl2(control, formState, configText, configEditor, setFormState, setConfigText, focusConfigSelection) {
     const value = formState[control.id];
-    const commitValue = (nextValue) => {
+    const commitValue = (nextValue, spotlight = true) => {
       const next = updateConfigFromControl(configText, configEditor, formState, control, nextValue);
       setFormState(next.formState);
       setConfigText(next.configText);
-      focusConfigSelection(next.configText, next.formState, control.id);
+      if (spotlight) {
+        focusConfigSelection(next.configText, next.formState, control.id);
+      }
     };
     switch (control.type) {
       case "checkbox":
@@ -731,7 +733,10 @@ ${block}
               max: control.max,
               step: control.step,
               onInput: (e3) => {
-                commitValue(Number(e3.target.value));
+                commitValue(Number(e3.target.value), false);
+              },
+              onBlur: () => {
+                focusConfigSelection(configText, formState, control.id);
               }
             }
           )
@@ -746,7 +751,10 @@ ${block}
               value: String(value),
               placeholder: control.placeholder,
               onInput: (e3) => {
-                commitValue(e3.target.value);
+                commitValue(e3.target.value, false);
+              },
+              onBlur: () => {
+                focusConfigSelection(configText, formState, control.id);
               }
             }
           )
