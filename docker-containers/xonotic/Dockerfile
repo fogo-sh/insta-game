@@ -3,10 +3,14 @@
 
 FROM golang:1.26-bookworm AS sidecar-builder
 WORKDIR /build
-COPY sidecar/ ./
+COPY go.mod go.sum ./
+COPY internal/ ./internal/
+COPY cmd/ ./cmd/
+COPY sidecar/ ./sidecar/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
+    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar ./sidecar && \
+    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
 
 FROM debian:bookworm-slim AS builder
 
@@ -35,6 +39,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     ca-certificates libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
+COPY --from=sidecar-builder /insta-game /usr/local/bin/insta-game
 
 WORKDIR /opt
 

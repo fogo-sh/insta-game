@@ -1,4 +1,4 @@
-package main
+package agent
 
 import (
 	"os"
@@ -103,7 +103,7 @@ func TestConfigureRconBZFlagConfig(t *testing.T) {
 
 func TestApplyRestartConfigWritesTextAndRcon(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "server.cfg")
-	err := applyRestartConfig(cfg{
+	err := applyRestartConfig(Config{
 		Protocol:     "quake3",
 		ConfigPath:   path,
 		RconPassword: "new-secret",
@@ -134,7 +134,7 @@ func ptr[T any](v T) *T {
 func TestResolveProtocolPrefersEnv(t *testing.T) {
 	t.Setenv("PROTOCOL", "quake2")
 
-	got := resolveProtocol(cfg{
+	got := resolveProtocol(Config{
 		ProtocolFile: filepath.Join(t.TempDir(), "missing"),
 		GameCmd:      "./xonotic-linux-arm64-dedicated",
 	})
@@ -150,7 +150,7 @@ func TestResolveProtocolReadsProtocolFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := resolveProtocol(cfg{
+	got := resolveProtocol(Config{
 		ProtocolFile: path,
 		GameCmd:      "./xonotic-linux-arm64-dedicated",
 	})
@@ -166,7 +166,7 @@ func TestResolveProtocolReadsMetadataFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := resolveProtocol(cfg{
+	got := resolveProtocol(Config{
 		MetadataPath: path,
 		ProtocolFile: filepath.Join(t.TempDir(), "missing"),
 		GameCmd:      "./xonotic-linux-arm64-dedicated",
@@ -178,7 +178,7 @@ func TestResolveProtocolReadsMetadataFile(t *testing.T) {
 }
 
 func TestResolveProtocolFallsBackToGameCmd(t *testing.T) {
-	got := resolveProtocol(cfg{
+	got := resolveProtocol(Config{
 		MetadataPath: filepath.Join(t.TempDir(), "missing-game-json"),
 		ProtocolFile: filepath.Join(t.TempDir(), "missing"),
 		GameCmd:      "./fteqw.sv",
@@ -190,7 +190,7 @@ func TestResolveProtocolFallsBackToGameCmd(t *testing.T) {
 }
 
 func TestResolveProtocolFallsBackToIoquake3GameCmd(t *testing.T) {
-	got := resolveProtocol(cfg{
+	got := resolveProtocol(Config{
 		MetadataPath: filepath.Join(t.TempDir(), "missing-game-json"),
 		ProtocolFile: filepath.Join(t.TempDir(), "missing"),
 		GameCmd:      "./ioq3ded",

@@ -13,7 +13,7 @@ func TestQueryXonotic(t *testing.T) {
 			t.Fatalf("unexpected query payload: %q", string(payload))
 		}
 
-		response := []byte("\xff\xff\xff\xffinfoResponse\n\\clients\\3\\hostname\\Arena")
+		response := []byte("\xff\xff\xff\xffinfoResponse\n\\clients\\3\\bots\\1\\hostname\\Arena\\mapname\\stormkeep")
 		if _, err := conn.WriteToUDP(response, addr); err != nil {
 			t.Fatalf("write response: %v", err)
 		}
@@ -24,7 +24,7 @@ func TestQueryXonotic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := &ServerInfo{Players: 3}
+	want := &ServerInfo{Players: 2, Hostname: "Arena", Map: "stormkeep"}
 	if !reflect.DeepEqual(info, want) {
 		t.Fatalf("unexpected info: got %+v want %+v", info, want)
 	}

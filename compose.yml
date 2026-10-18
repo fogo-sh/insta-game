@@ -152,10 +152,11 @@ services:
       - "127.0.0.1:5001:5001/tcp"
     environment:
       GAME_CMD: "./xonotic-linux-arm64-dedicated"
-      GAME_ARGS: ""
+      GAME_ARGS: "+serverconfig server.cfg"
       GAME_QUIT_CMD: "exit"
       GAME_QUIT_TIMEOUT: "30"
       GAME_PORT: "26000"
+      CONFIG_PATH: "/opt/data/server.cfg"
       RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
       TOKEN: "abc123"
       DATA_URL: "${XONOTIC_DATA_URL:-}"

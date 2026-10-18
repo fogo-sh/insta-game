@@ -6,6 +6,10 @@ on:
     paths:
       - "docker-containers/**"
       - "sidecar/**"
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
       - ".github/workflows/publish-images.yml"
   workflow_dispatch:
 
@@ -85,7 +89,7 @@ jobs:
 
               images.append(image)
 
-          global_prefixes = ("sidecar/",)
+          global_prefixes = ("sidecar/", "internal/", "cmd/", "go.mod", "go.sum")
           selected = []
           for image in images:
               if any(path.startswith(global_prefixes) for path in changed) or any(

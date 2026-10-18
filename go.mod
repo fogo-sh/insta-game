@@ -1,4 +1,4 @@
-module github.com/fogo-sh/insta-game/sidecar
+module github.com/fogo-sh/insta-game
 
 go 1.26
 
@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.41.4
 	github.com/buildkite/terminal-to-html/v3 v3.16.8
+	go.etcd.io/bbolt v1.4.3
 )
 
 require (
@@ -22,4 +23,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.28.6 // indirect
 	github.com/aws/smithy-go v1.20.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
 )

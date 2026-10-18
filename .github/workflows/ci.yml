@@ -5,6 +5,11 @@ on:
     paths:
       - "launcher/**"
       - "sidecar/**"
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - "docker-containers/**"
       - "pulumi/**"
       - ".github/workflows/ci.yml"
   push:
@@ -12,6 +17,11 @@ on:
     paths:
       - "launcher/**"
       - "sidecar/**"
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - "docker-containers/**"
       - "pulumi/**"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
@@ -38,6 +48,11 @@ jobs:
               - 'launcher/**'
             sidecar:
               - 'sidecar/**'
+              - 'cmd/**'
+              - 'internal/**'
+              - 'go.mod'
+              - 'go.sum'
+              - 'docker-containers/**'
             pulumi:
               - 'pulumi/**'
 
@@ -79,11 +94,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: sidecar/go.mod
-          cache-dependency-path: sidecar/go.sum
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
-      - name: Run tests
-        run: make test
+      - name: Run tests and vet
+        working-directory: .
+        run: |
+          go test -race ./...
+          go vet ./...
+          python3 generate-compose.py --check
 
   pulumi:
     needs: detect-changes

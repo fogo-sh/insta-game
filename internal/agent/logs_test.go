@@ -1,4 +1,4 @@
-package main
+package agent
 
 import (
 	"fmt"
@@ -260,7 +260,7 @@ func TestRingLog_ConcurrentWritesAndReads(t *testing.T) {
 // ---- logsHandler SSE tests -------------------------------------------------
 
 func TestLogsHandler_RequiresAuth(t *testing.T) {
-	c := cfg{Token: "secret"}
+	c := Config{Token: "secret"}
 	handler := logsHandler(c)
 
 	req := newTestRequest("GET", "/logs", "")
@@ -273,7 +273,7 @@ func TestLogsHandler_RequiresAuth(t *testing.T) {
 }
 
 func TestLogsHandler_SSEHeaders(t *testing.T) {
-	c := cfg{Token: "secret"}
+	c := Config{Token: "secret"}
 	handler := logsHandler(c)
 
 	req := newTestRequest("GET", "/logs", "Bearer secret")
@@ -316,7 +316,7 @@ func TestLogsHandler_FlushesExistingLines(t *testing.T) {
 
 	gameLogs.Write([]byte("existing-line\n"))
 
-	c := cfg{Token: "tok"}
+	c := Config{Token: "tok"}
 	handler := logsHandler(c)
 
 	req := newTestRequest("GET", "/logs", "Bearer tok")
@@ -346,7 +346,7 @@ func TestLogsHandler_StreamsNewLines(t *testing.T) {
 	gameLogs = NewRingLog(200)
 	defer func() { gameLogs = oldLogs }()
 
-	c := cfg{Token: "tok"}
+	c := Config{Token: "tok"}
 	handler := logsHandler(c)
 
 	req := newTestRequest("GET", "/logs", "Bearer tok")

@@ -1,7 +1,11 @@
 FROM golang:1.26-bookworm AS sidecar-builder
 WORKDIR /build
-COPY sidecar/ ./
-RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar .
+COPY go.mod go.sum ./
+COPY internal/ ./internal/
+COPY cmd/ ./cmd/
+COPY sidecar/ ./sidecar/
+RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar ./sidecar && \
+    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
 
 FROM debian:bookworm-slim AS q2repro-builder
 
@@ -57,6 +61,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 USER game
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
+COPY --from=sidecar-builder /insta-game /usr/local/bin/insta-game
 
 COPY docker-containers/q2repro/game.json /opt/game.json
 COPY docker-containers/q2repro/server.cfg /opt/default-server.cfg

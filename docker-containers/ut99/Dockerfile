@@ -1,8 +1,12 @@
 FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS sidecar-builder
 ARG TARGETARCH
 WORKDIR /build
-COPY sidecar/ ./
-RUN GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o /sidecar .
+COPY go.mod go.sum ./
+COPY internal/ ./internal/
+COPY cmd/ ./cmd/
+COPY sidecar/ ./sidecar/
+RUN GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o /sidecar ./sidecar && \
+    GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
 
 FROM debian:bookworm-slim
 
@@ -18,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV DEFAULT_CONFIG_PATH=/usr/local/share/ut99/UnrealTournament.ini
 
 COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
+COPY --from=sidecar-builder /insta-game /usr/local/bin/insta-game
 COPY docker-containers/ut99/game.json /opt/game.json
 COPY docker-containers/ut99/UnrealTournament.ini /usr/local/share/ut99/UnrealTournament.ini
 COPY --chmod=755 docker-containers/ut99/entrypoint.sh /usr/local/bin/entrypoint.sh
