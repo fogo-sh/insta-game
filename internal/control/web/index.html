@@ -3,89 +3,55 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#171b18" />
-    <title>insta-game / servers</title>
+    <meta name="theme-color" content="#111111" />
+    <title>insta-game</title>
     <link rel="stylesheet" href="/style.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
-    <header>
-      <a href="/" class="brand"
-        >insta-game<span>dedicated to a good game.</span></a
-      ><button id="signout" class="quiet" hidden>Lock controller</button>
-    </header>
-    <main>
-      <section id="login" class="login" hidden>
-        <p class="eyebrow">YOUR HOST, YOUR GAMES</p>
-        <h1>A place to play.</h1>
-        <p>
-          Connect to your controller to launch a server and get your friends in.
-        </p>
-        <form id="login-form">
-          <label for="token">Controller token</label>
-          <div class="inline">
-            <input
-              id="token"
-              type="password"
-              required
-              autocomplete="current-password"
-            /><button class="primary">Connect</button>
-          </div>
+    <header class="title-bar">
+      <h1><a href="/">insta-game</a></h1>
+      <section id="login" hidden>
+        <form id="login-form" class="inline">
+          <label for="token">token</label>
+          <input
+            id="token"
+            type="password"
+            required
+            autocomplete="current-password"
+          />
+          <button>unlock</button>
         </form>
         <p id="login-error" class="error" role="alert" hidden></p>
       </section>
+      <button id="signout" hidden>lock</button>
+    </header>
+    <main>
+      <p id="error" class="error" role="alert" hidden></p>
       <section id="dashboard" hidden>
-        <div class="heading">
-          <div>
-            <p class="eyebrow">THE SERVER ROOM</p>
-            <h1>Your next round.</h1>
-            <p id="summary">Loading your servers…</p>
-          </div>
-          <button id="create" class="primary">+ Create server</button>
-        </div>
-        <div id="error" class="error" role="alert" hidden></div>
-        <div class="list-head">
-          <h2>Servers</h2>
-          <span id="refresh-status" aria-live="polite">Connecting…</span>
+        <div class="toolbar">
+          <button id="create">create server</button>
+          <span id="summary" class="muted">loading...</span>
         </div>
         <div id="servers" aria-live="polite"></div>
+        <p id="refresh-status" class="muted" aria-live="polite"></p>
       </section>
       <section id="detail" hidden></section>
     </main>
-    <footer>
-      <span>insta-game</span
-      ><span>Bring the people. We’ll bring the server.</span>
-    </footer>
-    <dialog id="create-dialog">
+    <dialog id="create-dialog" aria-labelledby="create-title">
       <form id="create-form">
         <div class="dialog-heading">
-          <div>
-            <p class="eyebrow">SET UP A ROUND</p>
-            <h2>Create a server</h2>
-          </div>
-          <button
-            type="button"
-            id="close-create"
-            class="quiet"
-            aria-label="Close create server"
-          >
-            Close
-          </button>
+          <h2 id="create-title">create server</h2>
+          <button type="button" id="close-create">cancel</button>
         </div>
-        <label for="game">Game</label
-        ><select id="game" required></select
-        ><label for="name">Instance name</label
-        ><input
-          id="name"
-          required
-          maxlength="80"
-          placeholder="Friday night instagib"
-          autocomplete="off"
-        />
+        <label for="game">game</label>
+        <select id="game" required></select>
+        <label for="name">instance name</label>
+        <input id="name" required maxlength="80" autocomplete="off" />
         <div class="two-columns">
           <div>
-            <label for="idle">Stop when empty (minutes)</label
-            ><input
+            <label for="idle">stop when empty (minutes)</label>
+            <input
               id="idle"
               type="number"
               min="0"
@@ -95,8 +61,8 @@
             />
           </div>
           <div>
-            <label for="max">Maximum runtime (minutes)</label
-            ><input
+            <label for="max">maximum runtime (minutes)</label>
+            <input
               id="max"
               type="number"
               min="0"
@@ -106,33 +72,31 @@
             />
           </div>
         </div>
-        <p class="help">
-          Use 0 to disable a timeout. Unknown player counts never count as
-          empty.
-        </p>
-        <div id="settings"></div>
+        <p class="muted">0 disables a timeout.</p>
         <details>
-          <summary>Advanced configuration</summary>
-          <label for="config">Server configuration</label
-          ><textarea id="config" rows="14" spellcheck="false"></textarea>
+          <summary>game settings</summary>
+          <div id="settings"></div>
+        </details>
+        <details>
+          <summary>config</summary>
+          <label for="config">server config</label>
+          <textarea id="config" rows="14" spellcheck="false"></textarea>
         </details>
         <p id="create-error" class="error" role="alert" hidden></p>
-        <button type="submit" class="primary wide" id="launch">
-          Launch server
-        </button>
+        <button type="submit" id="launch">create server</button>
       </form>
     </dialog>
-    <template id="server-template"
-      ><article class="server">
+    <template id="server-template">
+      <article class="server">
         <div class="server-main">
-          <a class="server-name"></a><span class="server-meta"></span>
+          <a class="server-name"></a>
+          <span class="server-meta muted"></span>
         </div>
         <span class="phase"></span>
         <div class="server-connect">
-          <code></code><span class="players"></span>
+          <code></code><span class="players muted"></span>
         </div>
-        <button class="open quiet">Manage →</button>
-      </article></template
-    >
+      </article>
+    </template>
   </body>
 </html>

@@ -20,7 +20,7 @@ async function api(path, options = {}) {
   });
   if (response.status === 401) {
     lock();
-    throw new Error("Enter your controller token to continue.");
+    throw new Error("Invalid controller token.");
   }
   if (!response.ok) {
     const error = await response.json();
@@ -54,18 +54,12 @@ function phase(i) {
 function renderList() {
   const list = $("servers");
   list.replaceChildren();
-  const active = instances.filter((i) => i.desired === "running").length;
   $("summary").textContent =
-    `${active} active · ${instances.length} servers · Make room for another round.`;
+    `${instances.length} ${instances.length === 1 ? "server" : "servers"}`;
   if (!instances.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    const heading = document.createElement("h2");
-    heading.textContent = "The room is yours.";
-    const text = document.createElement("p");
-    text.textContent =
-      "Create your first server. Pick a game, give it a name, and invite your friends.";
-    empty.append(heading, text);
+    empty.textContent = "No servers.";
     list.append(empty);
     return;
   }
@@ -86,9 +80,6 @@ function renderList() {
     row.querySelector(".players").textContent =
       (i.players === null ? "Players unknown" : `${i.players} players`) +
       (i.map ? " · " + i.map : "");
-    row.querySelector(".open").onclick = () => {
-      location.hash = "server/" + i.id;
-    };
     list.append(row);
   }
 }
@@ -101,19 +92,19 @@ function element(tag, text, className) {
 function renderDetail(i) {
   const detail = $("detail");
   detail.replaceChildren();
-  const back = element("a", "← All servers", "back");
+  const back = element("a", "servers", "back");
   back.href = "#";
   detail.append(back);
   const heading = element("div", "", "detail-head");
   const title = element("div");
   title.append(
-    element("p", i.game.displayName, "eyebrow"),
-    element("h1", i.name),
+    element("p", i.game.displayName, "muted"),
+    element("h2", i.name),
   );
   const actions = element("div", "", "actions");
   for (const [label, action] of [
-    [i.desired === "stopped" ? "Start server" : "Stop server", "toggle"],
-    ["Delete", "delete"],
+    [i.desired === "stopped" ? "start" : "stop", "toggle"],
+    ["delete", "delete"],
   ]) {
     const button = element(
       "button",
@@ -123,12 +114,7 @@ function renderDetail(i) {
     button.disabled = i.desired === "deleted";
     if (action === "toggle") button.id = "toggle-server";
     button.onclick = async () => {
-      if (
-        action === "delete" &&
-        !confirm(
-          `Delete ${i.name}? This permanently removes its container and all server data.`,
-        )
-      )
+      if (action === "delete" && !confirm(`Delete ${i.name} and all its data?`))
         return;
       const current = instances.find((server) => server.id === i.id);
       const operation =
@@ -161,23 +147,23 @@ function renderDetail(i) {
   detail.append(error);
   const facts = element("dl", "", "facts");
   for (const [name, value] of [
-    ["Status", phase(i)],
-    ["Players / map", `${i.players ?? "Unknown"} / ${i.map || "—"}`],
-    ["Connection", connectAddress(i) || "Pending"],
+    ["status", phase(i)],
+    ["players / map", `${i.players ?? "Unknown"} / ${i.map || "-"}`],
+    ["address", connectAddress(i) || "Pending"],
   ]) {
     const fact = element("div");
     const valueElement = element("dd", value);
     valueElement.id =
-      name === "Status"
+      name === "status"
         ? "fact-status"
-        : name === "Connection"
+        : name === "address"
           ? "fact-address"
           : "fact-players";
     fact.append(element("dt", name), valueElement);
     facts.append(fact);
   }
   detail.append(facts);
-  const copy = element("button", "Copy address");
+  const copy = element("button", "copy address");
   copy.id = "copy-address";
   copy.disabled = !connectAddress(i);
   copy.onclick = async () => {
@@ -185,11 +171,11 @@ function renderDetail(i) {
       await navigator.clipboard.writeText(
         connectAddress(instances.find((server) => server.id === i.id)),
       );
-      copy.textContent = "Copied";
+      copy.textContent = "copied";
     } catch {
       message(
         "detail-error",
-        "Clipboard unavailable. Select and copy the connection address above.",
+        "Could not copy. Select the address to copy it manually.",
       );
     }
   };
@@ -198,7 +184,7 @@ function renderDetail(i) {
   const reason = element(
     "p",
     i.stopReason ||
-      `Stops after ${i.idleMinutes || "unlimited"} minutes empty; maximum runtime ${i.maxMinutes || "unlimited"} minutes.`,
+      `idle timeout: ${i.idleMinutes ? i.idleMinutes + " min" : "off"}; runtime limit: ${i.maxMinutes ? i.maxMinutes + " min" : "off"}`,
     "notice",
   );
   reason.id = "stop-reason";
@@ -207,22 +193,22 @@ function renderDetail(i) {
     detail.append(
       element(
         "p",
-        "Stop and start this server to retry. Open the logs for startup details.",
+        "Stop and start to retry. Check the logs for errors.",
         "notice",
       ),
     );
   const panel = element("section", "", "panel");
-  panel.append(element("h2", "Server console"));
-  const logs = element("pre", "Open the log stream to see game output.", "log");
+  panel.append(element("h2", "console"));
+  const logs = element("pre", "Logs are not streaming.", "log");
   logs.id = "log";
-  const open = element("button", "Stream logs", "quiet");
+  const open = element("button", "show logs", "quiet");
   open.onclick = () => streamLogs(i.id);
   const commandForm = element("form", "", "inline");
   const command = element("input");
-  command.placeholder = "Console command";
-  command.setAttribute("aria-label", "Console command");
+  command.placeholder = "command";
+  command.setAttribute("aria-label", "command");
   command.required = true;
-  const send = element("button", "Send");
+  const send = element("button", "send");
   commandForm.append(command, send);
   commandForm.onsubmit = async (event) => {
     event.preventDefault();
@@ -240,7 +226,7 @@ function renderDetail(i) {
   detail.append(panel);
   const config = element("details");
   config.append(
-    element("summary", "Launch configuration"),
+    element("summary", "config"),
     element("pre", i.config, "config-view"),
   );
   detail.append(config);
@@ -248,14 +234,13 @@ function renderDetail(i) {
 function updateDetail(i) {
   if (!$("fact-status")) return;
   $("fact-status").textContent = phase(i);
-  $("fact-players").textContent = `${i.players ?? "Unknown"} / ${i.map || "—"}`;
+  $("fact-players").textContent = `${i.players ?? "Unknown"} / ${i.map || "-"}`;
   $("fact-address").textContent = connectAddress(i) || "Pending";
   $("copy-address").disabled = !connectAddress(i);
   $("detail-error").textContent = i.error || "";
   const toggle = $("toggle-server");
   if (toggle) {
-    toggle.textContent =
-      i.desired === "stopped" ? "Start server" : "Stop server";
+    toggle.textContent = i.desired === "stopped" ? "start" : "stop";
     toggle.disabled = i.desired === "deleted";
   }
   if (i.stopReason) $("stop-reason").textContent = i.stopReason;
@@ -269,8 +254,7 @@ async function streamLogs(id) {
       headers: { Authorization: "Bearer " + token },
       signal: stream.signal,
     });
-    if (!response.ok)
-      throw new Error("Could not open logs. Is the server running?");
+    if (!response.ok) throw new Error("Could not open logs.");
     const reader = response.body.getReader(),
       decoder = new TextDecoder();
     let pending = "";
@@ -310,9 +294,7 @@ function route(force = false) {
         renderDetail(i);
       }
     } else {
-      $("detail").replaceChildren(
-        element("p", "Server not found. Return to all servers."),
-      );
+      $("detail").replaceChildren(element("p", "Server not found."));
     }
   } else if (selectedID) stopLogs();
   selectedID = id;

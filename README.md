@@ -9,7 +9,7 @@ provider-independent; Fly Machines and ECS instance providers are future work.
 The existing AWS/Pulumi and TypeScript launcher remain available through the
 [legacy deployment guide](docs/legacy-deployment.md).
 
-![Server room with two independent Xonotic servers](docs/images/server-room.png)
+![Two Xonotic servers](docs/images/server-room.png)
 
 ## Run
 

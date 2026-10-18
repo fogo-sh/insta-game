@@ -6,10 +6,6 @@ export function settings(game, container, textarea) {
   const values = Object.fromEntries(
     editor.controls.map((c) => [c.id, c.defaultValue]),
   );
-  const title = document.createElement("h3");
-  title.className = "settings-title";
-  title.textContent = "Game settings";
-  container.append(title);
   function apply() {
     const lines = editor.controls.flatMap((c) => {
       const value = values[c.id],
