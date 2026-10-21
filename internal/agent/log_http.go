@@ -34,15 +34,13 @@ func logsHandler(c Config) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("X-Accel-Buffering", "no")
 
-		// Flush existing buffered lines first.
-		for _, line := range gameLogs.Lines() {
-			fmt.Fprintf(w, "data: %s\n\n", formatLog(line, r.URL.Query().Get("format")))
+		history, ch, cancel := gameLogs.Subscribe()
+		defer cancel()
+		format := r.URL.Query().Get("format")
+		for _, line := range history {
+			fmt.Fprintf(w, "data: %s\n\n", formatLog(line, format))
 		}
 		flusher.Flush()
-
-		// Subscribe to new lines.
-		ch, cancel := gameLogs.Subscribe()
-		defer cancel()
 
 		for {
 			select {
@@ -50,7 +48,7 @@ func logsHandler(c Config) http.HandlerFunc {
 				if !ok {
 					return
 				}
-				fmt.Fprintf(w, "data: %s\n\n", formatLog(line, r.URL.Query().Get("format")))
+				fmt.Fprintf(w, "data: %s\n\n", formatLog(line, format))
 				flusher.Flush()
 			case <-r.Context().Done():
 				return

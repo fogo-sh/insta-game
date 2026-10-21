@@ -1,4 +1,3 @@
-// The existing game.json editor definitions remain the source of engine-specific settings.
 export function settings(game, container, textarea) {
   container.replaceChildren();
   const editor = game.configEditor;

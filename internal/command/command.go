@@ -30,7 +30,6 @@ const help = `insta-game — on-demand dedicated servers
   delete   Permanently remove a server and its data
   logs     Stream game logs
   console  Send a command to the game's standard input
-  files    Serve a directory of game downloads, read-only
 
 Run any command with -h for its flags. Client commands accept --url and --token-file.
 INSTA_GAME_TOKEN overrides the token file. Defaults use .insta-game/token.
@@ -53,8 +52,6 @@ func Run(ctx context.Context, args []string, out io.Writer) error {
 			return fmt.Errorf("agent accepts no flags; configure GAME_CMD, TOKEN and GAME_* variables")
 		}
 		return agent.Run(ctx, agent.FromEnv())
-	case "files":
-		return files(ctx, args[1:], out)
 	default:
 		return client(ctx, args[0], args[1:], out)
 	}
@@ -124,14 +121,11 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	go func() { defer close(done); controller.Run(runCtx) }()
 	defer func() { cancel(); <-done }()
 	fmt.Fprintf(out, "insta-game listening on http://%s\nController token: %s (or INSTA_GAME_TOKEN)\n", *listen, filepath.Join(*dataDir, "token"))
-	return httpServe(ctx, *listen, controller.Handler(token))
-}
-func httpServe(ctx context.Context, address string, handler http.Handler) error {
-	server := &http.Server{Addr: address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}
-	done := make(chan error, 1)
-	go func() { done <- server.ListenAndServe() }()
+	server := &http.Server{Addr: *listen, Handler: controller.Handler(token), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}
+	serverDone := make(chan error, 1)
+	go func() { serverDone <- server.ListenAndServe() }()
 	select {
-	case err := <-done:
+	case err := <-serverDone:
 		return err
 	case <-ctx.Done():
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)

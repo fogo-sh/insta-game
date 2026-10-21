@@ -7,23 +7,21 @@ import (
 )
 
 type Game struct {
-	ID                string                     `json:"id"`
-	DisplayName       string                     `json:"displayName"`
-	Protocol          string                     `json:"protocol"`
-	Image             string                     `json:"image"`
-	SidecarPort       int                        `json:"sidecarPort"`
-	GamePort          int                        `json:"gamePort"`
-	Ports             map[string]json.RawMessage `json:"ports"`
-	GameCmd           string                     `json:"gameCmd"`
-	GameArgs          string                     `json:"gameArgs"`
-	GameQuitCmd       string                     `json:"gameQuitCmd"`
-	GameQuitTimeout   int                        `json:"gameQuitTimeout"`
-	ConfigPath        string                     `json:"configPath"`
-	DataURLEnv        string                     `json:"dataUrlEnv"`
-	DefaultConfigFile string                     `json:"defaultConfigFile,omitempty"`
-	DefaultConfig     string                     `json:"defaultConfig"`
-	ConfigEditor      json.RawMessage            `json:"configEditor,omitempty"`
-	ClientDownloadURL string                     `json:"clientDownloadUrl,omitempty"`
+	ID              string                     `json:"id"`
+	DisplayName     string                     `json:"displayName"`
+	Protocol        string                     `json:"protocol"`
+	Image           string                     `json:"image"`
+	SidecarPort     int                        `json:"sidecarPort"`
+	GamePort        int                        `json:"gamePort"`
+	Ports           map[string]json.RawMessage `json:"ports"`
+	GameCmd         string                     `json:"gameCmd"`
+	GameArgs        string                     `json:"gameArgs"`
+	GameQuitCmd     string                     `json:"gameQuitCmd"`
+	GameQuitTimeout int                        `json:"gameQuitTimeout"`
+	ConfigPath      string                     `json:"configPath"`
+	DataURLEnv      string                     `json:"dataUrlEnv"`
+	DefaultConfig   string                     `json:"defaultConfig"`
+	ConfigEditor    json.RawMessage            `json:"configEditor,omitempty"`
 }
 
 type CreateRequest struct {

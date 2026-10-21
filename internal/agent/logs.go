@@ -9,7 +9,7 @@ import (
 // fans them out to SSE subscribers.
 type RingLog struct {
 	mu   sync.Mutex
-	buf  []string // circular buffer of capacity cap
+	buf  []string
 	cap  int
 	head int // index of the oldest entry (wraps)
 	size int // number of valid entries (<= cap)
@@ -18,10 +18,9 @@ type RingLog struct {
 	pendingCR bool   // previous write ended with \r, so skip a leading \n next write
 
 	subs map[int]chan string
-	next int // next subscriber ID
+	next int
 }
 
-// NewRingLog creates a RingLog with the given capacity.
 func NewRingLog(capacity int) *RingLog {
 	return &RingLog{
 		buf:  make([]string, capacity),
@@ -75,7 +74,6 @@ func (r *RingLog) appendLocked(line string) {
 		r.buf[(r.head+r.size)%r.cap] = line
 		r.size++
 	} else {
-		// Overwrite the oldest slot and advance head.
 		r.buf[r.head] = line
 		r.head = (r.head + 1) % r.cap
 	}
@@ -89,25 +87,15 @@ func (r *RingLog) appendLocked(line string) {
 	}
 }
 
-// Lines returns a snapshot of all buffered lines in order (oldest first).
-func (r *RingLog) Lines() []string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	out := make([]string, r.size)
-	for i := 0; i < r.size; i++ {
-		out[i] = r.buf[(r.head+i)%r.cap]
-	}
-	return out
-}
-
-// Subscribe returns a channel that receives each new line as it arrives, and
-// a cancel function to unsubscribe. The channel is buffered (64 entries) so
-// that a slow reader does not block the writer.
-func (r *RingLog) Subscribe() (<-chan string, func()) {
+// Subscribe captures history and registers live delivery under one lock, so no
+// lines fall between replay and subscription. Network writes happen after return.
+func (r *RingLog) Subscribe() ([]string, <-chan string, func()) {
 	ch := make(chan string, 64)
-
 	r.mu.Lock()
+	history := make([]string, r.size)
+	for i := range history {
+		history[i] = r.buf[(r.head+i)%r.cap]
+	}
 	id := r.next
 	r.next++
 	r.subs[id] = ch
@@ -122,5 +110,5 @@ func (r *RingLog) Subscribe() (<-chan string, func()) {
 			close(ch)
 		})
 	}
-	return ch, cancel
+	return history, ch, cancel
 }

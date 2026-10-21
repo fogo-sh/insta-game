@@ -8,7 +8,7 @@ Game IDs never identify running infrastructure.
 ## Packages
 
 - `cmd/insta-game`: signal handling and executable entrypoint.
-- `internal/command`: CLI, controller startup, and confined read-only file serving.
+- `internal/command`: CLI and controller startup.
 - `internal/control`: catalog, transactional instance store, provider boundary,
   reconciliation, API, and embedded web assets. Its Docker provider owns
   container allocation and connection discovery.

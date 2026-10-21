@@ -103,7 +103,6 @@ supported. Mounting the Docker socket grants control over that Docker host.
 ```sh
 bin/insta-game serve                  # API, embedded UI, instance reconciliation
 bin/insta-game agent                  # One game process inside a game image
-bin/insta-game files --dir ./downloads # Authenticated, read-only file server
 bin/insta-game help
 ```
 
@@ -113,9 +112,7 @@ management; `CONFIG_TEXT` supplies the launch configuration. `/status` reports
 readiness, human player count where available, map, and process failure.
 Authenticated `/logs`, `/config`, `/console`, `/restart`, and `/stop` handle
 local management. Console commands go to process stdin; native remote RCON
-clients are not implemented yet. `files` confines reads to its selected
-directory, requires bearer authentication, and is not an unauthenticated FastDL
-endpoint for game clients.
+clients are not implemented yet.
 
 The game images retain `/usr/local/bin/sidecar` for existing deployments and
 also include `/usr/local/bin/insta-game`. Both reuse `internal/agent`; only the

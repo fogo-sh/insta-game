@@ -185,7 +185,6 @@ func (d *Docker) Ensure(ctx context.Context, i Instance) (Observation, error) {
 		}
 	}
 	body := map[string]any{"Image": i.Game.Image, "Env": env, "ExposedPorts": exposed, "Labels": map[string]string{"gg.insta-game.instance": i.ID, "gg.insta-game.owner": owner(i)}, "HostConfig": map[string]any{"PortBindings": ports, "Init": true, "RestartPolicy": map[string]string{"Name": "no"}, "LogConfig": map[string]any{"Type": "json-file", "Config": map[string]string{"max-size": "10m", "max-file": "2"}}}}
-	// Docker creates isolated writable layers. No legacy shared game-directory mounts.
 	err = d.request(ctx, "POST", "/containers/create?name="+url.QueryEscape(containerName(i)), body, nil)
 	if e, ok := err.(*dockerError); ok && e.status == 404 {
 		return Observation{}, fmt.Errorf("image %s is not installed; build or pull it before creating a server", i.Game.Image)

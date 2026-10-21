@@ -15,8 +15,7 @@ import (
 )
 
 func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) error {
-	// Sentinels live in the same directory as the game config, which is
-	// always on a volume mount and therefore persists across restarts.
+	// Keep download sentinels beside the config so restarts reuse cached assets.
 	sentinelDir := filepath.Dir(configPath)
 	entries := parseDataURL(dataURL)
 
@@ -86,9 +85,6 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 	return copyFile(defaultConfigPath, configPath)
 }
 
-// sentinelPath returns the path of the cache sentinel file for a given URL.
-// Sentinels are written to sentinelDir, which should be a volume-mounted
-// directory that persists across container restarts.
 func sentinelPath(sentinelDir, url string) string {
 	sum := sha256.Sum256([]byte(url))
 	return filepath.Join(sentinelDir, fmt.Sprintf(".cache-%x", sum[:8]))
@@ -163,7 +159,6 @@ func fetchWithRetry(url, userAgent string) (string, error) {
 	return "", lastErr
 }
 
-// countingReader wraps an io.Reader and atomically tracks bytes read.
 type countingReader struct {
 	r io.Reader
 	n atomic.Int64
@@ -225,7 +220,6 @@ func streamToFile(r io.Reader, total int64, label string) (string, error) {
 	return tmpPath, nil
 }
 
-// isZip peeks the first 4 bytes of the file to check for a PK zip header.
 func isZip(path string) (bool, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -243,7 +237,6 @@ func isZip(path string) (bool, error) {
 	return magic[0] == 'P' && magic[1] == 'K' && magic[2] == 0x03 && magic[3] == 0x04, nil
 }
 
-// extractZip extracts the zip at zipPath into dest, streaming each entry to disk.
 func extractZip(zipPath, dest string) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {

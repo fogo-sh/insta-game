@@ -63,11 +63,8 @@ func LoadCatalog(root string) ([]Game, error) {
 		if game.ConfigPath == "" {
 			game.ConfigPath = "/opt/data/server.cfg"
 		}
-		candidates := []string{game.DefaultConfigFile, "server.cfg", "UnrealTournament.ini"}
+		candidates := []string{"server.cfg", "UnrealTournament.ini"}
 		for _, name := range candidates {
-			if name == "" {
-				continue
-			}
 			b, err := os.ReadFile(filepath.Join(filepath.Dir(path), name))
 			if err == nil {
 				game.DefaultConfig = string(b)
