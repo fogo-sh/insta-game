@@ -1,14 +1,15 @@
 #
 # syntax=docker/dockerfile:1.7
 
-FROM golang:1.26-bookworm AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS go-builder
+ARG TARGETARCH
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY internal/ ./internal/
 COPY cmd/ ./cmd/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
+    GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
 
 FROM debian:bookworm-slim AS builder
 
@@ -38,19 +39,22 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 COPY --from=go-builder /insta-game /usr/local/bin/insta-game
 
-WORKDIR /opt
+WORKDIR /usr/local/share/insta-game/seed
 
 COPY --from=builder /build/xonotic/darkplaces/darkplaces-dedicated ./xonotic-linux-arm64-dedicated
 COPY --from=builder /usr/local/lib/libd0_blind_id* /usr/local/lib/
 RUN ldconfig
 
 COPY docker-containers/xonotic/Xonotic-clean/data ./data
-RUN mkdir -p /opt/data && touch /opt/data/server.cfg
+RUN mkdir -p /usr/local/share/insta-game/seed/data && touch /usr/local/share/insta-game/seed/data/server.cfg
 
-COPY docker-containers/xonotic/game.json /opt/game.json
-COPY docker-containers/xonotic/server.cfg /opt/default-server.cfg
+COPY docker-containers/xonotic/server.cfg /usr/local/share/insta-game/seed/default-server.cfg
 
 EXPOSE 26000/udp
 EXPOSE 5001/tcp
+
+ENV DATA_SEED=/usr/local/share/insta-game/seed DATA_ROOT=/opt
+
+WORKDIR /opt
 
 ENTRYPOINT ["/usr/local/bin/insta-game", "agent"]

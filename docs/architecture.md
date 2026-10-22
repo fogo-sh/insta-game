@@ -1,128 +1,122 @@
 # Architecture
 
-This describes the current implementation. The [Go unification design](go-unification.md)
-sets the completion criteria: local, Docker, and AWS in one executable, with
-the superseded runtime and deployment code removed before merge.
+One Go module builds `insta-game`. A game catalog entry describes an engine;
+an instance owns its selected provider, immutable catalog/config snapshot,
+credentials, desired state, observations, and activity policy. Several instances
+can use the same game without sharing runtime identity or writable data.
 
-The game catalog describes what can be launched. An instance describes one
-particular server: immutable game/config snapshot, provider, allocated endpoints,
-per-instance credentials, desired state, observed phase, and activity policy.
-Game IDs never identify running infrastructure.
+## Responsibilities
 
-## Packages
+| Package | Responsibility |
+| --- | --- |
+| `cmd/insta-game` | Entrypoint and signal handling |
+| `internal/command` | CLI, controller startup, AWS operator commands, Discord registration |
+| `internal/control` | Instance store, reconciliation, providers, authenticated API, Discord interactions, embedded UI |
+| `internal/agent` | One game process, startup assets/config, readiness, console, logs, authenticated management |
+| `internal/protocol` | Engine status queries and player counts |
+| `internal/cloud` | AWS environment configuration and embedded CloudFormation bootstrap |
 
-- `cmd/insta-game`: signal handling and executable entrypoint.
-- `internal/command`: CLI and controller startup.
-- `internal/control`: catalog, transactional instance store, provider boundary,
-  reconciliation, API, and embedded web assets. Its Docker provider owns
-  container allocation and connection discovery.
-- `internal/agent`: one child process, readiness queries, configuration, logs,
-  and authenticated management endpoints. It owns no cloud provisioning logic.
-- `sidecar/protocol`: engine query implementations shared by the agent.
-- `sidecar/main.go`: compatibility entrypoint for the existing AWS images.
-- `launcher/`, `pulumi/`: existing deployment path, preserved independently.
+The controller owns lifecycle policy. Providers implement `Ensure`, `Inspect`,
+`Start`, `Stop`, and `Delete`; asynchronous work returns a pending observation
+or `ErrPending`. The agent supervises its child and reports game state. Its AWS
+credentials are limited to instance storage and asset reads; it does not create
+infrastructure or decide when to stop an instance.
 
-The Go controller owns cloud/hosting credentials. A container gets only its
-agent token and game administration password. Mutations verify Docker ownership
-and target the inspected immutable container ID. Per-instance writable layers
-replace the legacy shared per-game bind mounts.
+## State and recovery
 
-## Reconciliation
+Creation commits intent to bbolt before allocating resources. A stable request
+ID supports retries with the same settings. Up to four independent instances
+reconcile concurrently. Provider calls have deadlines; generation checks prevent
+an old observation from replacing newer user intent. Errors remain visible.
 
-Creation persists intent before any provider operation. An optional stable
-request ID makes retries idempotent. One controller process owns the bbolt file;
-separate instances reconcile concurrently with a limit of four. Each provider
-operation has a deadline. A generation counter prevents stale observations from
-replacing a newer user request.
+Readiness requires a game query, not merely a running process or container.
+Unknown/unready activity resets the idle interval. Maximum runtime is a separate
+bound. Timeout decisions run only while the controller is online. Unexpected
+exits require explicit stop/start.
 
-Stopping retains data. Deletion leaves a database tombstone for request history
-and idempotency, but removes the container and writable data. A stopped or failed
-server does not become an absent game; it remains an independently managed
-instance. A failed observation is recorded as an error, never inferred to mean
-that infrastructure is stopped or there are no players.
+The database contains private credentials and provider attempt records. Keep it
+with its provider configuration and run one controller per database. Deletion
+retains a tombstone while removing owned runtime resources and data. Ownership
+verification is required before destructive operations.
 
-Readiness is different from container liveness. A successfully started container
-that subsequently exits is failed, including failures during startup. Retrying
-requires stop/start. Idle timeout requires consecutive confirmed empty samples;
-unknown or unready samples reset the empty interval. Maximum runtime provides a
-separate bound when readiness cannot be established. Timeout enforcement resumes
-when a controller restarts; it does not run while the controller is down.
+## Provider lifecycle
 
-## Scope and next provider
+**Local:** Linux runs a detached agent per instance. An ownership file and held
+filesystem lock identify it without trusting a reused PID. The provider copies
+operator-supplied assets into a private working directory and allocates ports.
+Stop leaves the agent and files available; start restarts the child; delete
+shuts down the agent before removing its directory. A killed Linux agent also
+kills its direct child. Native commands and argument placeholders are described
+in the [README](../README.md#native-linux-games).
 
-The implemented runtime providers are local Docker and Linux native processes.
-The retained AWS stack
-still uses singleton ECS services; it is not a multi-instance provider for the
-Go controller. There is no Fly adapter or automatic migration of existing
-servers. No cloud resources are provisioned by this change.
+**Docker:** Each instance owns a container and its writable layer. Labels bind
+ownership to the instance credentials; mutations target the verified immutable
+container ID. Host ports are allocated independently, with matching external
+ports for TCP/UDP pairs. Agents are published on host loopback. Stop retains the
+container; delete removes it. The controller must share the Docker host's
+network view; a remote daemon is unsupported.
 
-A second provider should implement the small infrastructure boundary in
-`model.go` and return actual game endpoints plus an agent address reachable by
-the controller. It should not add provider branches to HTTP handlers or the CLI.
-The runtime API creates/stops game instances; account bootstrap (networks,
-permissions, registries) remains a separate operator concern. Avoid writing an
-infrastructure framework before a second provider proves what is shared.
+**AWS:** A shared CloudFormation environment provides networking, ECS, EFS,
+registry, assets, and logs. Each instance has its own CloudFormation stack with
+an EFS access point, task role, task definition, and game security group. ECS
+runs standalone Fargate tasks. Stop terminates the task but retains the instance
+stack and data. Start creates a new task attempt and may change its public IP.
 
-For Fly Machines, validate two independently reachable same-game servers before
-committing to resource layout. Current images are ARM64, while Fly currently
-runs x86 hardware. Public UDP requires a dedicated IPv4, binding the engine to
-`fly-global-services`, and matching internal/external ports. Verify auxiliary
-ports, per-instance routing, stop/start, writable storage, architecture, and
-address costs. Relevant sources:
+Before submitting a task, the provider persists its attempt identity. Retries
+reuse an ECS client token, task ARN, and `startedBy` identity; terminal results
+are saved before ECS task history expires. An unresolved request is reconciled
+even if user intent changes to stop or delete. Missing history requires a search
+for live attempts before the attempt can be closed.
 
-- https://docs.fly.io/networking/udp-and-tcp
-- https://community.fly.io/t/x86-architecture-guarantee/28811
+AWS deletion stops the game, runs an owned cleanup task against only that
+instance's access point, verifies a successful exit, then deletes the instance
+stack. Removing an access point alone would leave its files. Failed cleanup
+keeps the instance visible and can be retried. Environment destruction is a
+separate operator command and refuses remaining game stacks/tasks.
 
-Portable Go binaries do not make native game engines portable. Multi-architecture
-game image builds, cloud storage/backups, provider bootstrap, account-based
-ownership, native RCON clients, and Discord on the new instance API remain
-separate follow-ups. The existing TypeScript Discord integration remains usable
-on the legacy deployment.
+## Persistent game roots
 
-## Native processes
+Images place a complete seed of their `/opt` game root at
+`/usr/local/share/insta-game/seed`, outside the runtime data mount. The agent claims
+the root, copies missing seed files, records completed seeding, downloads any
+configured assets, applies launch configuration, then starts the engine.
 
-The `local` provider runs a detached `insta-game agent` per instance on Linux.
-The agent holds a filesystem lock while alive, so a controller restart can
-rediscover it without trusting a reused PID. Stopping keeps the agent available
-and stops its game; deleting shuts down the agent and removes its owned files.
-A killed Linux agent also kills its direct game child. macOS builds currently
-support the Docker controller, not native process supervision.
+On AWS, the instance's EFS access point mounts at `dataRoot` (default `/opt`).
+Persisting the full root keeps downloaded mods and other engine files alongside
+configuration, rather than losing everything outside a narrow config directory
+on task replacement. The owner marker scopes cleanup; seeding does not overwrite
+existing files. Image changes therefore need a deliberate game-data upgrade or
+a new instance. Docker retains this root in its writable layer. Native instances
+copy their operator-supplied asset directory instead.
 
-Enable native execution with `serve --native-config /path/to/native.json`.
-Each configured engine supplies an absolute executable, an absolute directory
-of assets to copy, a relative config path inside that copy, and explicit args:
+## Transport and API
 
-```json
-{
-  "fteqw": {
-    "command": "/home/jack/games/fteqw.sv",
-    "assets": "/home/jack/games/quake-assets",
-    "configPath": "id1/server.cfg",
-    "args": ["-dedicated", "8", "-nohome", "-basedir", "{data}",
-             "-game", "id1", "-port", "{port}", "+exec", "server.cfg"]
-  }
-}
-```
+Local and Docker agents use loopback HTTP with bearer authentication. AWS agents
+use TLS with a public key pinned to their private instance token, plus bearer
+authentication. Cloud management TCP port 5001 is restricted to the controller's
+configured public IPv4 CIDR; game ports are public. Bootstrap provisions game
+hosting resources, not the controller host or an HTTPS frontend for its UI.
 
-Assets must contain regular files and directories; symlinks are rejected.
-Copying costs disk space and startup time, but prevents games from modifying a
-shared asset directory. `{data}` is the private working directory; `{config}`
-is its absolute config filename. `{port}` is the allocated primary game port;
-`{port:27960}` names another port from the game metadata. Configure every engine
-port explicitly when its defaults would collide with another instance.
+All `/api/` routes require `Authorization: Bearer <controller-token>`:
 
-Use `create --provider local ...` or choose `local` in the existing create form.
-`--default-provider local` changes the default; saved instances retain their
-provider. The controller exposes only configured providers through
-`GET /api/providers`. The agent configuration and credentials stay in private
-files under the controller's data directory.
+| Method | Route | Operation |
+| --- | --- | --- |
+| GET | `/api/catalog` | Game definitions and default configurations |
+| GET | `/api/providers` | Configured providers and default |
+| GET / POST | `/api/instances` | List / create instances |
+| GET / DELETE | `/api/instances/{id}` | Read / request permanent deletion |
+| POST | `/api/instances/{id}/start` | Request start |
+| POST | `/api/instances/{id}/stop` | Request stop |
+| GET | `/api/instances/{id}/logs` | Stream plain-text SSE events |
+| POST | `/api/instances/{id}/console` | Send `{ "command": "status" }` to game stdin |
 
-## Agent transport
+Creation accepts `id`, `provider`, `game`, `name`, `config`, `idleMinutes`, and
+`maxMinutes`. ID, provider, and config can be omitted. Zero timeouts disable
+limits; clients choose their defaults. Mutations return HTTP 202 before provider
+work completes. Ordinary responses omit instance credentials and private AWS
+attempt state.
 
-Native and Docker agents use host loopback. Cloud agents can enable
-`AGENT_TLS=true`. The controller pins the TLS public key to the instance's
-private management token, so a changing task IP does not require public DNS or
-a public certificate authority. A different instance's certificate is rejected
-before sending credentials. Plain bearer authentication is still required after
-the encrypted connection is established. Restrict cloud management ports to
-the controller's network address as an additional boundary.
+The embedded UI and CLI use these routes. Discord `/discord` verifies signed
+interactions and an allowed guild, then calls the same instance operations.
+There is no separate launcher or deployment application. Fly and automatic
+adoption of earlier deployed resources are outside the implementation.

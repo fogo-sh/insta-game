@@ -2,7 +2,7 @@
   "id": "bzflag",
   "displayName": "BZFlag",
   "protocol": "bzflag",
-  "sidecarPort": 5001,
+  "agentPort": 5001,
   "gamePort": 5154,
   "ports": {
     "5154/tcp": {

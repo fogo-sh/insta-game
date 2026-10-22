@@ -32,10 +32,10 @@ func LoadCatalog(root string) ([]Game, error) {
 		if err := json.Unmarshal(data, &game); err != nil {
 			return nil, fmt.Errorf("%s: %w", path, err)
 		}
-		if !validID.MatchString(game.ID) || seen[game.ID] || game.GameCmd == "" || game.GamePort < 1 || game.SidecarPort < 1 {
+		if !validID.MatchString(game.ID) || seen[game.ID] || game.GameCmd == "" || game.GamePort < 1 || game.AgentPort < 1 {
 			return nil, fmt.Errorf("%s: invalid or duplicate game definition", path)
 		}
-		if game.GamePort > 65535 || game.SidecarPort > 65535 || game.GamePort == game.SidecarPort {
+		if game.GamePort > 65535 || game.AgentPort > 65535 || game.GamePort == game.AgentPort {
 			return nil, fmt.Errorf("%s: invalid game/agent port", path)
 		}
 		gamePortFound := false
@@ -59,6 +59,9 @@ func LoadCatalog(root string) ([]Game, error) {
 		seen[game.ID] = true
 		if game.Image == "" {
 			game.Image = "ghcr.io/fogo-sh/insta-game:" + game.ID
+		}
+		if game.DataRoot == "" {
+			game.DataRoot = "/opt"
 		}
 		if game.ConfigPath == "" {
 			game.ConfigPath = "/opt/data/server.cfg"

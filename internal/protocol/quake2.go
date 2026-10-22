@@ -8,7 +8,7 @@ import (
 )
 
 // QueryQuake2 sends a Quake II getstatus query to 127.0.0.1:port and returns
-// basic server info. It falls back to the legacy status query if needed.
+// basic server info. It falls back to the original status query if needed.
 func QueryQuake2(port int) (*ServerInfo, error) {
 	for _, query := range []string{"\xff\xff\xff\xffgetstatus", "\xff\xff\xff\xffstatus"} {
 		info, err := queryQuake2(port, query)

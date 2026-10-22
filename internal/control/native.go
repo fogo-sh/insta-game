@@ -209,7 +209,7 @@ func (n *Native) Ensure(ctx context.Context, i Instance) (Observation, error) {
 	reserved := map[int]int{}
 	for key := range i.Game.Ports {
 		original, err := strconv.Atoi(strings.Split(key, "/")[0])
-		if original == i.Game.SidecarPort {
+		if original == i.Game.AgentPort {
 			continue
 		}
 		if err != nil {

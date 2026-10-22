@@ -1,11 +1,9 @@
 docker-containers/xonotic/xonotic.zip
 docker-containers/xonotic/Xonotic*
-sidecar/sidecar
 
 .cache/
 .idea/
 .codex
-.pulumi
 __pycache__/
 node_modules/
 .ruff_cache/
@@ -13,8 +11,6 @@ venv/
 .venv/
 .env
 
-lambda/launcher/node_modules/
-lambda/launcher/dist/
 
 /bin/
 /.insta-game/

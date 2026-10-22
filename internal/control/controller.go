@@ -2,9 +2,11 @@ package control
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/fogo-sh/insta-game/internal/agent"
 	"io"
@@ -16,6 +18,8 @@ import (
 )
 
 type Controller struct {
+	DiscordKey      ed25519.PublicKey
+	DiscordGuild    string
 	Store           *Store
 	Games           []Game
 	Providers       map[string]Provider
@@ -83,7 +87,14 @@ func (c *Controller) SetDesired(id, desired string) error {
 	}
 	return c.Store.Update(id, func(i *Instance) error {
 		if i.Desired == "deleted" {
-			return fmt.Errorf("instance has been deleted")
+			if desired != "deleted" {
+				return fmt.Errorf("instance has been deleted")
+			}
+			if i.Phase != "deleted" && i.Error != "" {
+				i.Generation++
+				i.Error = ""
+			}
+			return nil
 		}
 		if i.Desired == desired {
 			return nil
@@ -138,6 +149,9 @@ func (c *Controller) Reconcile(ctx context.Context) {
 func (c *Controller) reconcileInstance(ctx context.Context, instance Instance) {
 	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	observation, phase, opErr := c.reconcile(opCtx, instance)
+	if errors.Is(opErr, ErrPending) {
+		opErr = nil
+	}
 	cancel()
 	now := time.Now().UTC()
 	if saveErr := c.Store.Update(instance.ID, func(current *Instance) error {
@@ -175,6 +189,9 @@ func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, st
 	}
 	if i.Desired == "deleted" {
 		err := provider.Delete(ctx, i)
+		if errors.Is(err, ErrPending) {
+			return Observation{}, "deleting", nil
+		}
 		return Observation{}, "deleted", err
 	}
 	if i.Desired == "running" && i.MaxMinutes > 0 && time.Since(i.StartedAt) >= time.Duration(i.MaxMinutes)*time.Minute {
@@ -204,6 +221,9 @@ func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, st
 		if err != nil {
 			return observation, "queued", err
 		}
+	}
+	if observation.Pending {
+		return observation, "starting", nil
 	}
 	if !observation.Running {
 		// A crashed game needs an explicit stop/start, not an endless restart loop.

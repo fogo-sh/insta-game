@@ -2,7 +2,7 @@
   "id": "ut99",
   "displayName": "UT99 GOTY",
   "protocol": "ut99",
-  "sidecarPort": 5001,
+  "agentPort": 5001,
   "gamePort": 7777,
   "ports": {
     "7777/udp": {

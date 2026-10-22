@@ -127,7 +127,7 @@ func (d *Docker) Inspect(ctx context.Context, i Instance) (Observation, error) {
 		}
 		parts := strings.Split(key, "/")
 		port, _ := strconv.Atoi(parts[0])
-		if port == i.Game.SidecarPort && parts[1] == "tcp" {
+		if port == i.Game.AgentPort && parts[1] == "tcp" {
 			observation.AgentURL = "http://" + net.JoinHostPort("127.0.0.1", bindings[0].HostPort)
 			continue
 		}
@@ -168,17 +168,17 @@ func (d *Docker) Ensure(ctx context.Context, i Instance) (Observation, error) {
 		shared[port] = number
 	}
 	for port := range i.Game.Ports {
-		if port == fmt.Sprintf("%d/tcp", i.Game.SidecarPort) {
+		if port == fmt.Sprintf("%d/tcp", i.Game.AgentPort) {
 			continue
 		}
 		number, _, _ := strings.Cut(port, "/")
 		ports[port] = []map[string]string{{"HostIp": d.BindIP, "HostPort": shared[number]}}
 		exposed[port] = struct{}{}
 	}
-	sidecar := fmt.Sprintf("%d/tcp", i.Game.SidecarPort)
-	ports[sidecar] = []map[string]string{{"HostIp": "127.0.0.1", "HostPort": ""}}
-	exposed[sidecar] = struct{}{}
-	env := []string{"GAME_CMD=" + i.Game.GameCmd, "GAME_ARGS=" + i.Game.GameArgs, "GAME_PORT=" + strconv.Itoa(i.Game.GamePort), "PROTOCOL=" + i.Game.Protocol, "PORT=" + strconv.Itoa(i.Game.SidecarPort), "CONFIG_PATH=" + i.Game.ConfigPath, "CONFIG_TEXT=" + i.Config, "TOKEN=" + i.AgentToken, "RCON_PASSWORD=" + i.RconPassword, "GAME_QUIT_CMD=" + i.Game.GameQuitCmd, "GAME_QUIT_TIMEOUT=" + strconv.Itoa(i.Game.GameQuitTimeout)}
+	management := fmt.Sprintf("%d/tcp", i.Game.AgentPort)
+	ports[management] = []map[string]string{{"HostIp": "127.0.0.1", "HostPort": ""}}
+	exposed[management] = struct{}{}
+	env := []string{"GAME_CMD=" + i.Game.GameCmd, "GAME_ARGS=" + i.Game.GameArgs, "GAME_PORT=" + strconv.Itoa(i.Game.GamePort), "PROTOCOL=" + i.Game.Protocol, "PORT=" + strconv.Itoa(i.Game.AgentPort), "CONFIG_PATH=" + i.Game.ConfigPath, "CONFIG_TEXT=" + i.Config, "TOKEN=" + i.AgentToken, "RCON_PASSWORD=" + i.RconPassword, "GAME_QUIT_CMD=" + i.Game.GameQuitCmd, "GAME_QUIT_TIMEOUT=" + strconv.Itoa(i.Game.GameQuitTimeout)}
 	if i.Game.DataURLEnv != "" {
 		if value := os.Getenv(i.Game.DataURLEnv); value != "" {
 			env = append(env, "DATA_URL="+value)

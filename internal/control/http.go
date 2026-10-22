@@ -19,6 +19,9 @@ var web embed.FS
 
 func (c *Controller) Handler(token string) http.Handler {
 	mux := http.NewServeMux()
+	if len(c.DiscordKey) == 32 && c.DiscordGuild != "" {
+		mux.HandleFunc("POST /discord", c.discord)
+	}
 	mux.HandleFunc("GET /api/providers", func(w http.ResponseWriter, r *http.Request) {
 		names := []string{}
 		for name := range c.Providers {
@@ -156,7 +159,7 @@ func (c *Controller) logs(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 409, map[string]string{"error": "Server is not running"})
 		return
 	}
-	req, err := http.NewRequestWithContext(r.Context(), "GET", observation.AgentURL+"/logs?format=text", nil)
+	req, err := http.NewRequestWithContext(r.Context(), "GET", observation.AgentURL+"/logs", nil)
 	if err != nil {
 		writeError(w, err)
 		return

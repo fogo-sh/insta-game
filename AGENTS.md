@@ -1,57 +1,43 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-`pulumi/` contains AWS infrastructure code in Python. `pulumi/__main__.py` defines the stack, and `pulumi/game_service.py` holds the reusable ECS game service component. `launcher/` contains the TypeScript Hono app (Lambda + Docker), Discord command registration script, and bundled output in `launcher/dist/`. `sidecar/` contains the Go sidecar binary source and protocol query implementations in `sidecar/protocol/`. `docker-containers/xonotic/`, `docker-containers/fteqw/`, `docker-containers/q2repro/`, and `docker-containers/bzflag/` contain the game image builds and local shell scripts. There is no dedicated `tests/` directory yet; validation is mostly command-based.
+The application is one Go module. `cmd/insta-game` is the entrypoint;
+`internal/command` contains CLI dispatch; `internal/control` owns instances,
+providers, the API, Discord interactions, and the embedded web UI.
+`internal/agent` supervises one game and `internal/protocol` queries engines.
+`internal/cloud` contains AWS environment provisioning and its embedded
+CloudFormation template. `docker-containers/*` contains engine image builds,
+game metadata, and default configurations.
 
-## Build, Test, and Development Commands
-From `pulumi/`:
+Keep lifecycle policy in the controller. Providers manage their own resources;
+agents do not provision infrastructure. Verify ownership before mutations.
+Preserve independent instances, private credentials, stop-retains-data behavior,
+and actual failure reporting. Prefer simple code and deletion over compatibility
+layers. Do not reintroduce another application runtime or deployment program.
 
-```sh
-uv sync
-uv run ruff format .
-uv run ruff check .
-uv run pulumi preview
-uv run pulumi up
-```
-
-Use `preview` before applying infrastructure changes.
-
-From `sidecar/`:
+From the repository root:
 
 ```sh
-make build      # cross-compile for linux/arm64
-make test       # go test ./...
-make vet        # go vet ./...
+make build
+make test
+make check
+python3 generate-compose.py
+python3 generate-compose.py --check
 ```
 
-From `launcher/`:
+`compose.yml` is generated from game metadata. Do not edit it manually. Its game
+services are image-build targets; the Go controller creates running instances.
+Run the generator after modifying `game.json`.
 
-```sh
-npm install
-npm run build          # Lambda bundle (dist/index.js)
-npm run build:docker   # Docker bundle (dist/server.js)
-npm run register       # register Discord slash commands
-```
+Game image preparation uses `make download`, `make clean`, and `make build`
+inside the engine folder. Build images before creating Docker instances.
+Native process supervision currently requires Linux.
 
-From `docker-containers/xonotic/`, `docker-containers/fteqw/`, `docker-containers/q2repro/`, or `docker-containers/bzflag/`:
+For AWS, review `insta-game aws plan` before `aws apply`. Use an isolated stack
+for integration checks, track created resources, and verify deletion. Do not
+rename or destroy pre-existing deployed resources as a side effect of source
+migration. Live tests require operator credentials and are separate from the
+ordinary test suite.
 
-```sh
-make download   # fetch required game assets when applicable
-make clean      # remove generated local assets when applicable
-make build      # build the local Docker image
-make run        # run the local container
-```
-
-## Generated Files
-
-`compose.yml` is generated from `docker-containers/*/game.json` metadata. Do not edit it by hand.
-
-```sh
-python3 generate-compose.py          # regenerate compose.yml
-python3 generate-compose.py --check  # verify compose.yml is up to date
-```
-
-Run the generator after adding or modifying any `game.json` file.
-
-## Coding Style & Naming Conventions
-Use 4-space indentation in Python. Keep code straightforward and avoid unnecessary abstraction. Format and lint Python with Ruff via the `pulumi/` UV project. AWS resource names should follow the current stack convention: regional resources include the region code, and global IAM-style resources include both region and account suffix. Keep Pulumi logical resource names stable unless replacement is intended.
+Run `go test -race ./...`, `go vet ./...`, the Compose freshness check, and
+appropriate real provider tests before finishing. Preserve the user's running
+game servers unless changing them is part of the current request.

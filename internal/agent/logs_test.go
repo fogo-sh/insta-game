@@ -122,45 +122,39 @@ func TestLogsHandlerStreaming(t *testing.T) {
 	if res.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated status = %d", res.StatusCode)
 	}
-	for _, format := range []string{"text", "html"} {
-		t.Run(format, func(t *testing.T) {
-			gameLogs = NewRingLog(10)
-			gameLogs.Write([]byte("<replay>\n"))
-			req, err := http.NewRequest(http.MethodGet, server.URL+"?format="+format, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			req.Header.Set("Authorization", "Bearer secret")
-			res, err := client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer res.Body.Close()
-			if res.StatusCode != http.StatusOK {
-				t.Fatalf("status = %d", res.StatusCode)
-			}
-			for key, want := range map[string]string{"Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no"} {
-				if got := res.Header.Get(key); got != want {
-					t.Fatalf("%s = %q", key, got)
-				}
-			}
-			scanner := bufio.NewScanner(res.Body)
-			readEvent := func(want string) {
-				t.Helper()
-				if !scanner.Scan() || scanner.Text() != "data: "+want {
-					t.Fatalf("event = %q, error = %v; want %q", scanner.Text(), scanner.Err(), want)
-				}
-				if !scanner.Scan() || scanner.Text() != "" {
-					t.Fatal("missing event separator")
-				}
-			}
-			replay, live := "<replay>", "<live>"
-			if format == "html" {
-				replay, live = "&lt;replay&gt;", "&lt;live&gt;"
-			}
-			readEvent(replay)
-			gameLogs.Write([]byte("<live>\n"))
-			readEvent(live)
-		})
+
+	gameLogs = NewRingLog(10)
+	gameLogs.Write([]byte("<replay>\n"))
+	req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
+	req.Header.Set("Authorization", "Bearer secret")
+	res, err = client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", res.StatusCode)
+	}
+	for key, want := range map[string]string{"Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no"} {
+		if got := res.Header.Get(key); got != want {
+			t.Fatalf("%s = %q", key, got)
+		}
+	}
+	scanner := bufio.NewScanner(res.Body)
+	readEvent := func(want string) {
+		t.Helper()
+		if !scanner.Scan() || scanner.Text() != "data: "+want {
+			t.Fatalf("event = %q, error = %v; want %q", scanner.Text(), scanner.Err(), want)
+		}
+		if !scanner.Scan() || scanner.Text() != "" {
+			t.Fatal("missing event separator")
+		}
+	}
+	replay, live := "<replay>", "<live>"
+	readEvent(replay)
+	gameLogs.Write([]byte("<live>\n"))
+	readEvent(live)
 }

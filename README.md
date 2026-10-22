@@ -1,37 +1,37 @@
 # insta-game
 
-On-demand dedicated game servers, with a Go controller, CLI, and in-container
-agent. Create several servers for the same game, configure them independently,
-and manage them from the embedded web UI or terminal.
+Run independent dedicated game servers from one Go executable. The controller,
+CLI, embedded web UI, Discord integration, and game agent share one instance
+model. Choose native Linux processes (`local`), local containers (`docker`), or
+AWS Fargate (`aws`). Fly is not implemented.
 
-The new controller manages **local Docker**. Its infrastructure boundary is
-provider-independent; Fly Machines and ECS instance providers are future work.
-The existing AWS/Pulumi and TypeScript launcher remain available through the
-[legacy deployment guide](docs/legacy-deployment.md).
+## Start with Docker
 
-![Two Xonotic servers](docs/images/server-room.png)
+Requires Go 1.26, Docker Compose, and game images matching the runtime
+architecture. The supplied game image builds target Linux ARM64; use an ARM64
+host or suitable emulation for local Docker.
 
-## Run
-
-Requires Go 1.26 and a local Docker daemon. Build or pull game images first; the
-controller never pulls images or builds game engines implicitly.
+From the repository root:
 
 ```sh
 make build
-# Existing game images are ARM64; use a matching host or Docker emulation.
-./build.sh xonotic
+make -C docker-containers/xonotic download
+make -C docker-containers/xonotic clean
+docker compose --profile images build xonotic
 bin/insta-game serve
 ```
 
-Open **http://localhost:3000**. The first run creates a controller token in
-`.insta-game/token`; paste it into the login form. The web UI and CLI use the
-same API. No Node build is needed for the new Go application.
+Open **http://localhost:3000** and enter the token from `.insta-game/token`.
+The simple UI lists servers, creates instances with game settings, shows their
+current addresses and status, and provides logs, console commands, stop/start,
+and deletion. It is embedded in the binary; there is no frontend build step.
 
 ```sh
 bin/insta-game games
-bin/insta-game create --game xonotic --name "Friday instagib" --id friday
-bin/insta-game create --game xonotic --name "Sunday CTF" --id sunday --config ./ctf.cfg
+bin/insta-game create --provider docker --game xonotic --name "Friday games" --id friday
+bin/insta-game create --provider docker --game xonotic --name "Sunday CTF" --id sunday --config ./ctf.cfg
 bin/insta-game list
+bin/insta-game show friday
 bin/insta-game logs friday
 bin/insta-game console friday status
 bin/insta-game stop friday
@@ -39,138 +39,206 @@ bin/insta-game start friday
 bin/insta-game delete friday
 ```
 
-`stop` keeps the container and its writable data. `delete` permanently removes
-both; the CLI applies it immediately, while the web UI asks for confirmation.
-Use a stable `--id` when retrying creation: the same ID/settings returns the
-existing instance, and different settings return a conflict. Configurations
-are captured at creation and applied before the game starts.
+Client flags, including `--url` and `--token-file`, go before positional IDs.
+`INSTA_GAME_TOKEN` overrides the token file. The controller loads game metadata
+and default configs from `docker-containers`; use `serve --catalog PATH` for a
+separate catalog. Docker images must already be built or pulled.
 
-Servers default to stopping after 10 minutes of confirmed emptiness or 120
-minutes of total runtime. `--idle 0` and `--max-runtime 0` disable these limits.
-Bots are excluded where the game protocol identifies them. Query failures mean
-"unknown", not "empty". Unexpected game/container exits remain failed until you
-stop and start the server; they are not restarted indefinitely.
+## Lifecycle and storage
 
-## Hosting and data
+Creation saves the selected provider, configuration, credentials, and desired
+state before allocating resources. A stable `--id` makes creation retries
+idempotent. Changing the default provider affects new instances only.
 
-The controller binds HTTP and game ports to loopback by default. For a LAN host:
+| Provider | Stop | Start again | Delete |
+| --- | --- | --- | --- |
+| `local` | Stop the game; keep its agent and private directory | Restart the game with the saved configuration | Shut down the agent and remove the owned directory |
+| `docker` | Stop the container; keep its writable layer | Start the same container | Remove the owned container and its data |
+| `aws` | Stop the Fargate task; keep its instance stack and EFS data | Launch a new task attempt using the same EFS access point | Stop the task, verify scoped data cleanup, then remove the instance stack |
+
+Mutations request a desired state; check `show` or the UI for completion and
+errors. Deletion permanently removes instance data. A failed AWS cleanup remains
+visible and can be retried with `delete`. Use the current connection address
+after a restart, especially when AWS assigns a new task IP.
+
+The CLI and UI default to 10 minutes of confirmed emptiness and 120 minutes of
+maximum runtime. `--idle 0` and `--max-runtime 0` disable those limits. Query
+failures mean unknown activity. Bots are excluded where the protocol identifies
+them. A game crash requires an explicit stop/start; it is not an unlimited
+restart loop. Keep the controller running to enforce timeout policy.
+
+`--data` selects the controller directory, containing the private bbolt database,
+token, and native instance files. Back up this directory and the game data you
+need. Run one controller per database. Stopping the controller leaves game
+resources running; restarting it with the same data and provider configuration
+resumes reconciliation.
+
+Game images keep a seed copy outside `/opt` and populate each instance's full
+`/opt` game root on first startup. AWS mounts the instance's EFS directory there,
+so engine files, downloaded assets, mods, configuration, and writable game files
+share the same persistent root. Completed seeding is recorded and existing files
+are preserved. Changing an image does not upgrade an existing seeded root.
+
+## Native Linux games
+
+Install the engine and assets yourself, then define their paths and arguments in
+`native.json`. Assets are copied into each instance; directories and regular
+files are accepted, while symlinks are rejected.
+
+```json
+{
+  "fteqw": {
+    "command": "/srv/games/fteqw.sv",
+    "assets": "/srv/games/quake-assets",
+    "configPath": "id1/server.cfg",
+    "args": ["-dedicated", "8", "-nohome", "-basedir", "{data}",
+             "-game", "id1", "-port", "{port}", "+exec", "server.cfg"]
+  }
+}
+```
+
+```sh
+bin/insta-game serve --native-config ./native.json --default-provider local
+bin/insta-game create --provider local --game fteqw --name "Quake night"
+```
+
+`command` and `assets` must be absolute; `configPath` is relative to the copied
+assets. Arguments support `{data}`, `{config}`, `{port}`, and `{port:27960}` for
+another catalog port. Configure every engine port that could collide. Native
+game bind addresses are controlled by engine arguments/configuration;
+`--game-bind` controls Docker port publishing. Native supervision requires Linux.
+
+## AWS
+
+AWS setup uses the Go binary and its embedded CloudFormation template. Configure
+AWS credentials for the operator account, choose a dedicated stack name, and
+replace the example CIDR below with the controller's public IPv4 `/32`. The
+controller runs on your machine or another host you manage; bootstrap does not
+deploy it. It must remain online and retain its database.
+
+```sh
+bin/insta-game aws plan --region ca-central-1 --stack insta-game-dev \
+  --controller-cidr 203.0.113.4/32
+```
+
+Review the printed resource changes and change-set ARN, then apply that exact
+change set:
+
+```sh
+bin/insta-game aws apply --region ca-central-1 --stack insta-game-dev \
+  --change-set REVIEWED_CHANGE_SET_ARN --out ./aws.json
+# Recover the environment config later if needed:
+bin/insta-game aws config --region ca-central-1 --stack insta-game-dev --out ./aws.json
+```
+
+Bootstrap creates a VPC/public subnet, security groups, ECS cluster, EFS storage,
+private asset bucket, ECR repository, IAM execution role, and log group. Game
+ports are public. Agent management uses pinned TLS plus bearer authentication
+and is restricted to the configured controller CIDR. Update the environment
+through another plan/apply if that address changes.
+
+Publish a built game image to the environment's registry:
+
+```sh
+bin/insta-game aws push --config ./aws.json \
+  --image ghcr.io/fogo-sh/insta-game:xonotic --tag xonotic
+```
+
+`push` uses the local Docker CLI and prints the ECR image URI. In a copy of the
+game catalog, set that game's `image` to this URI and set `architecture` to the
+image's ECS architecture (`ARM64` for the supplied builds). Keep its default
+config file beside `game.json`. Then run:
+
+```sh
+bin/insta-game serve --catalog ./aws-catalog --aws-config ./aws.json \
+  --default-provider aws
+bin/insta-game create --provider aws --game xonotic --name "AWS Friday" --id aws-friday
+```
+
+For licensed game data, upload your archive and use the printed private S3 URL
+as the game's asset environment variable before starting the controller:
+
+```sh
+bin/insta-game aws upload --config ./aws.json --file ./quake-assets.zip --key quake-assets.zip
+export FTEQW_DATA_URL=s3://YOUR_ASSETS_BUCKET/quake-assets.zip
+```
+
+The task role reads assets from this environment's bucket. Equivalent variables
+are `Q2REPRO_DATA_URL`, `IOQUAKE3_DATA_URL`, and `UT99_DATA_URL`. Asset URLs are
+captured when AWS resources are created. ZIP files normally extract into `/opt`;
+use versioned archives with the engine's expected directory layout. Docker can
+use HTTP(S) asset URLs passed through these same variables. Native instances use
+the configured local asset directory.
+
+Stopping AWS games retains EFS data, uploaded assets, images, and logs. Deleting
+an instance also leaves shared environment resources. These retained resources
+can continue to incur charges; stopping tasks is not environment teardown.
+Delete all instances and wait for completion before destroying their environment:
+
+```sh
+bin/insta-game delete aws-friday
+bin/insta-game show aws-friday
+# After every instance is deleted:
+bin/insta-game aws destroy --region ca-central-1 --stack insta-game-dev
+# If uploaded assets remain and you intend to remove them too:
+bin/insta-game aws destroy --region ca-central-1 --stack insta-game-dev --delete-assets
+```
+
+Destroy refuses an environment with remaining game tasks/stacks or a nonempty
+asset bucket unless `--delete-assets` is supplied. Successful destruction removes
+the shared filesystem, logs, registry images, and environment resources. Export
+anything you intend to keep first. Existing deployments are not adopted or
+retired automatically by this migration.
+
+## Controller access and Discord
+
+HTTP listens on loopback by default. For Docker games reachable on a LAN:
 
 ```sh
 bin/insta-game serve --listen 0.0.0.0:3000 \
   --game-bind 0.0.0.0 --public-host 192.168.1.20
 ```
 
-Use HTTPS in front of the controller when accessing it over an untrusted
-network. The controller token grants full administration; this is a private
-hosting tool, not a public multi-user service.
-
-Docker allocates independent host ports. The agent port is always published on
-loopback; game connection addresses use the actual allocated ports. TCP/UDP
-pairs for the same game port share an external port. Stopping and restarting a
-server may change its connection address, so use the current server page.
-
-`--data` selects the private controller data directory. It contains a bbolt
-transactional database and token file; back it up, keep its permissions private,
-and run one controller per database. The database stores instance intent,
-configuration snapshots, and credentials. Container writable layers isolate game
-data between instances and survive stop/start. They are not durable backups;
-deleting a container deletes its data. Catalog `volumes` and fixed `hostPort`
-values belong to the legacy deployment and are deliberately not reused.
-
-For games requiring licensed assets, supply their existing environment variables
-(`FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, `IOQUAKE3_DATA_URL`, `UT99_DATA_URL`) to the
-controller. New containers receive the asset URL, download into their own
-filesystem, and cache downloads for subsequent starts. URLs are an operator
-setting and are read when infrastructure is created; do not use mutable URLs
-as a substitute for versioned assets.
-
-The standalone controller image is built with `docker build -t insta-game .`.
-On Linux it needs **host networking**, the Docker socket, and persistent data:
+Put HTTPS in front of the controller for remote access. Its token grants full
+administration. The Docker provider requires a local daemon and reaches agents
+through host loopback. A containerized controller therefore needs Linux host
+networking, the Docker socket, and persistent storage:
 
 ```sh
+docker build -t insta-game .
 docker run --rm --network host \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v insta-game-control:/data \
+  -v /var/run/docker.sock:/var/run/docker.sock -v insta-game-control:/data \
   insta-game serve --listen 127.0.0.1:3000 --data /data --catalog /opt/games
 ```
 
-The Docker provider is local to the controller: it connects to agents through
-host loopback. A remote Docker daemon or bridge-networked controller is not
-supported. Mounting the Docker socket grants control over that Docker host.
-
-## One Go executable, explicit roles
-
-```sh
-bin/insta-game serve                  # API, embedded UI, instance reconciliation
-bin/insta-game agent                  # One game process inside a game image
-bin/insta-game help
-```
-
-The agent uses the existing `GAME_CMD`, `GAME_ARGS`, `GAME_PORT`, `CONFIG_PATH`,
-`DATA_URL`, and `RCON_PASSWORD` environment variables. `TOKEN` is required for
-management; `CONFIG_TEXT` supplies the launch configuration. `/status` reports
-readiness, human player count where available, map, and process failure.
-Authenticated `/logs`, `/config`, `/console`, `/restart`, and `/stop` handle
-local management. Console commands go to process stdin; native remote RCON
-clients are not implemented yet.
-
-The game images retain `/usr/local/bin/sidecar` for existing deployments and
-also include `/usr/local/bin/insta-game`. Both reuse `internal/agent`; only the
-legacy sidecar entrypoint installs an ECS idle-shutdown callback. The portable
-agent never needs cloud credentials.
-
-## API
-
-All `/api/` routes require `Authorization: Bearer <controller-token>`.
-
-| Method | Route | Action |
-| --- | --- | --- |
-| GET | `/api/catalog` | Available game definitions and configuration defaults |
-| GET / POST | `/api/instances` | List / create instances |
-| GET / DELETE | `/api/instances/{id}` | Read / permanently delete an instance |
-| POST | `/api/instances/{id}/start` | Request start |
-| POST | `/api/instances/{id}/stop` | Request stop |
-| GET | `/api/instances/{id}/logs` | Stream plain-text SSE log events |
-| POST | `/api/instances/{id}/console` | Send `{ "command": "status" }` to stdin |
-
-Creation accepts `id` (optional), `game`, `name`, `config` (optional),
-`idleMinutes`, and `maxMinutes`. Mutations return promptly with HTTP 202;
-reconciliation performs infrastructure operations in the background. Explicit
-zero timeout values disable limits. The CLI/UI supply their own defaults.
-Instance credentials are excluded from ordinary API responses.
+Discord uses the same instance API. Set `DISCORD_PUBLIC_KEY` and
+`DISCORD_GUILD_ID` for `serve`, and point the application's interaction endpoint
+at the controller's public HTTPS `/discord` route. Preview command definitions
+with `bin/insta-game discord commands`. Register them with
+`bin/insta-game discord register` using `DISCORD_APP_ID`, `DISCORD_GUILD_ID`, and
+`DISCORD_BOT_TOKEN`. This replaces that guild's application command list with
+`/create`, `/start`, `/stop`, and `/status`; start/stop take instance IDs.
 
 ## Development
 
 ```sh
-make test        # go test -race ./...
-make check       # go vet and generated Compose check
 make build
+make test        # go test -race ./...
+make check       # go vet and Compose freshness check
+make images      # build all prepared game images
 ```
 
-An opt-in integration test exercises two real Xonotic containers, isolated
-configurations/endpoints, database recovery, and independent stop/start/delete:
+`compose.yml` contains image-build targets; the Go controller creates running
+servers. Regenerate it with `python3 generate-compose.py` after metadata changes.
+An opt-in Docker test exercises two real Xonotic instances:
 
 ```sh
 INSTA_GAME_DOCKER_CATALOG=/path/to/catalog go test -v ./internal/control \
   -run TestDockerTwoServersSurviveControllerRestart -count=1 -timeout=4m
 ```
 
-The catalog must contain a `xonotic/game.json` pointing at an installed image
-for the Docker host's architecture, with this branch's agent and game assets.
-The test removes only the containers it creates.
+See [architecture](docs/architecture.md) for API and provider details, and
+[Go migration status](docs/go-unification.md) for validation scope.
 
-See [architecture](docs/architecture.md) for package boundaries and the next
-provider milestone. `compose.yml` is still generated by `generate-compose.py`;
-do not edit it by hand.
-
-### Native Linux engines
-
-Use `serve --native-config /absolute/path/native.json` to enable native game
-processes alongside Docker, then `create --provider local ...`. Each instance
-gets its own copied assets, config, ports, detached agent, and writable data.
-`--default-provider local` selects the default for new instances. See
-[the native engine configuration](docs/architecture.md#native-processes).
-
-The unified AWS provider and removal of the old deployment application remain
-in progress; the [migration completion criteria](docs/go-unification.md) govern
-this draft PR.
+The UI renderer regression tests use Node 18+ (`node --test`); Node is not
+needed to build or run the Go application.

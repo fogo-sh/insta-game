@@ -1,3 +1,51 @@
+function renderLines(lines = [], values) {
+  const safe = (value) =>
+    String(value)
+      .replaceAll("\\", "\\\\")
+      .replaceAll('"', '\\"')
+      .replaceAll("\n", " ")
+      .replaceAll("\r", " ");
+  return lines.map((line) =>
+    line.replace(/\{\{(\w+)\}\}/g, (_, key) => safe(values[key] ?? "")),
+  );
+}
+
+export function renderControl(render, value) {
+  if (render.mode === "toggle")
+    return value ? render.trueLines : render.falseLines;
+  if (render.mode === "choice") return render.choices[value] || [];
+  if (render.mode === "sequence") {
+    if (!value.length) return renderLines(render.emptyLines, { count: 0 });
+    const common = {
+      count: value.length,
+      first: value[0],
+      second: value[1] ?? value[0],
+      secondIndex1: value.length > 1 ? 2 : 1,
+      last: value[value.length - 1],
+    };
+    return [
+      ...renderLines(render.beforeLines, common),
+      ...value.flatMap((item, index) => {
+        const nextIndex = (index + 1) % value.length;
+        return renderLines(render.itemLines, {
+          ...common,
+          value: item,
+          nextValue: value[nextIndex],
+          index,
+          index1: index + 1,
+          nextIndex,
+          nextIndex1: nextIndex + 1,
+        });
+      }),
+      ...renderLines(render.afterLines, common),
+    ];
+  }
+  return renderLines(render.lines, {
+    value,
+    joined: Array.isArray(value) ? value.join(render.separator || " ") : "",
+  });
+}
+
 export function settings(game, container, textarea) {
   container.replaceChildren();
   const editor = game.configEditor;
@@ -6,29 +54,9 @@ export function settings(game, container, textarea) {
     editor.controls.map((c) => [c.id, c.defaultValue]),
   );
   function apply() {
-    const lines = editor.controls.flatMap((c) => {
-      const value = values[c.id],
-        render = c.render;
-      if (render.mode === "toggle")
-        return value ? render.trueLines : render.falseLines;
-      if (render.mode === "choice") return render.choices[value] || [];
-      const safe = (v) =>
-        String(v)
-          .replaceAll("\\", "\\\\")
-          .replaceAll('"', '\\"')
-          .replaceAll("\n", " ")
-          .replaceAll("\r", " ");
-      return render.lines.map((line) =>
-        line
-          .replaceAll("{{value}}", safe(value))
-          .replaceAll(
-            "{{joined}}",
-            (Array.isArray(value) ? value : [])
-              .map(safe)
-              .join(render.separator || " "),
-          ),
-      );
-    });
+    const lines = editor.controls.flatMap((c) =>
+      renderControl(c.render, values[c.id]),
+    );
     const start = textarea.value.indexOf(editor.managedBlockStart);
     const end = textarea.value.indexOf(editor.managedBlockEnd);
     const block =

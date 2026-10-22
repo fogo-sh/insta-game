@@ -1,9 +1,10 @@
-FROM golang:1.26-bookworm AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS go-builder
+ARG TARGETARCH
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY internal/ ./internal/
 COPY cmd/ ./cmd/
-RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
+RUN GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
 
 FROM debian:bookworm-slim AS q2repro-builder
 
@@ -37,11 +38,10 @@ RUN meson setup builddir \
 
 FROM debian:bookworm-slim
 
-COPY --from=q2repro-builder /usr/local/bin/q2proded /opt/q2proded
-# Store .so files separately so the cache volume mount on /opt/baseq2 doesn't shadow them
-COPY --from=q2repro-builder /usr/local/share/baseq2/ /opt/baseq2-libs/
+COPY --from=q2repro-builder /usr/local/bin/q2proded /usr/local/share/insta-game/seed/q2proded
+COPY --from=q2repro-builder /usr/local/share/baseq2/ /usr/local/share/insta-game/seed/baseq2/
 
-WORKDIR /opt
+WORKDIR /usr/local/share/insta-game/seed
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -52,19 +52,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libvorbisfile3 \
     zlib1g \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /opt/baseq2 /opt/data \
+    && mkdir -p /usr/local/share/insta-game/seed/baseq2 /usr/local/share/insta-game/seed/data \
     && useradd -r -s /bin/false game \
-    && chown -R game:game /opt
+    && chown -R game:game /usr/local/share/insta-game/seed
 
-USER game
 
 COPY --from=go-builder /insta-game /usr/local/bin/insta-game
 
-COPY docker-containers/q2repro/game.json /opt/game.json
-COPY docker-containers/q2repro/server.cfg /opt/default-server.cfg
-COPY --chmod=755 docker-containers/q2repro/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker-containers/q2repro/server.cfg /usr/local/share/insta-game/seed/default-server.cfg
 
-EXPOSE 26000/udp
+EXPOSE 27910/udp
 EXPOSE 5001/tcp
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENV DATA_SEED=/usr/local/share/insta-game/seed DATA_ROOT=/opt
+
+RUN mkdir -p /opt && chown game:game /opt
+WORKDIR /opt
+USER game
+ENTRYPOINT ["/usr/local/bin/insta-game", "agent"]

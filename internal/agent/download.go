@@ -111,6 +111,9 @@ func parseDataURL(raw string) []dataEntry {
 // fetchWithRetry downloads url to a temp file and returns its path.
 // The caller is responsible for removing the file when done.
 func fetchWithRetry(url, userAgent string) (string, error) {
+	if strings.HasPrefix(url, "s3://") {
+		return fetchS3(url)
+	}
 	// Force HTTP/1.1 — HTTP/2 can deadlock under QEMU ARM emulation.
 	transport := &http.Transport{
 		ForceAttemptHTTP2:   false,

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -25,13 +26,23 @@ func Run(ctx context.Context, c Config) error {
 		c.GameQuitTimeout = 15 * time.Second
 	}
 	if c.Protocol == "" {
-		c.Protocol = resolveProtocol(c)
+		return fmt.Errorf("PROTOCOL is required")
+	}
+	root := c.DataRoot
+	if root == "" {
+		root = filepath.Dir(c.ConfigPath)
+	}
+	if err := claimData(root, c.DataOwner); err != nil {
+		return err
+	}
+	if err := seedData(ctx, c.SeedPath, root); err != nil {
+		return err
 	}
 	if err := downloadData(c.DataURL, c.DefaultConfig, c.ConfigPath, c.UserAgent); err != nil {
 		return err
 	}
-	if c.ConfigText != "" {
-		if err := os.WriteFile(c.ConfigPath, []byte(c.ConfigText), 0600); err != nil {
+	if c.ConfigText != nil {
+		if err := os.WriteFile(c.ConfigPath, []byte(*c.ConfigText), 0600); err != nil {
 			return err
 		}
 	}

@@ -29,7 +29,7 @@ func TestNativeAgentsRecoverAndKeepSeparateData(t *testing.T) {
 	if err := os.WriteFile(command, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
-	game := Game{ID: "test", Protocol: "unsupported", GamePort: 26000, SidecarPort: 5001, GameQuitCmd: "quit", GameQuitTimeout: 1, Ports: map[string]json.RawMessage{"26000/udp": json.RawMessage(`{}`)}}
+	game := Game{ID: "test", Protocol: "unsupported", GamePort: 26000, AgentPort: 5001, GameQuitCmd: "quit", GameQuitTimeout: 1, Ports: map[string]json.RawMessage{"26000/udp": json.RawMessage(`{}`)}}
 	n := &Native{Root: filepath.Join(root, "instances"), Binary: binary, PublicHost: "localhost", Games: map[string]NativeGame{"test": {Command: command, Assets: assets, ConfigPath: "server.cfg"}}}
 	instances := []Instance{
 		{ID: "first", Game: game, AgentToken: NewToken(), RconPassword: NewToken(), Config: "hostname first"},

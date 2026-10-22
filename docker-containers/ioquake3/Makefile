@@ -1,20 +1,10 @@
-all: download clean build
+.PHONY: build download clean
 
-UV_PROJECT=../../pulumi
-RUFF_TARGETS=../../pulumi
+build:
+	docker compose -f ../../compose.yml --profile images build ioquake3
 
 download:
 	./download.sh
 
 clean:
 	./clean.sh
-
-build:
-	./build.sh
-
-run:
-	./run.sh
-
-ruff:
-	uv run --project $(UV_PROJECT) ruff check $(RUFF_TARGETS) --fix --unsafe-fixes
-	uv run --project $(UV_PROJECT) ruff format $(RUFF_TARGETS)

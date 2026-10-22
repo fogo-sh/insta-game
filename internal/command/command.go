@@ -3,6 +3,7 @@ package command
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,11 +16,14 @@ import (
 	"time"
 
 	"github.com/fogo-sh/insta-game/internal/agent"
+	"github.com/fogo-sh/insta-game/internal/cloud"
 	"github.com/fogo-sh/insta-game/internal/control"
 )
 
 const help = `insta-game — on-demand dedicated servers
 
+  discord  Print or register the Go controller's Discord commands
+  aws      Provision, inspect, publish assets/images, or destroy an AWS environment
   serve    Run the controller and embedded web UI
   agent    Supervise one game (configured through GAME_* environment variables)
   games    List supported games
@@ -42,6 +46,18 @@ func Run(ctx context.Context, args []string, out io.Writer) error {
 		return nil
 	}
 	switch args[0] {
+	case "discord":
+		return discordCommand(ctx, args[1:], out)
+	case "aws":
+		return awsCommand(ctx, args[1:], out)
+	case "clean-data":
+		flags := flag.NewFlagSet("clean-data", flag.ContinueOnError)
+		directory := flags.String("dir", "", "Owned data directory")
+		owner := flags.String("owner", "", "Instance owner")
+		if err := flags.Parse(args[1:]); err != nil {
+			return flagError(err)
+		}
+		return agent.CleanData(*directory, *owner)
 	case "serve":
 		return serve(ctx, args[1:], out)
 	case "agent":
@@ -98,6 +114,9 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	flags.SetOutput(out)
 	listen := flags.String("listen", "127.0.0.1:3000", "HTTP listen address")
 	dataDir := flags.String("data", ".insta-game", "Private controller data directory")
+	discordKey := flags.String("discord-key", os.Getenv("DISCORD_PUBLIC_KEY"), "Discord application public key (hex)")
+	discordGuild := flags.String("discord-guild", os.Getenv("DISCORD_GUILD_ID"), "Allowed Discord guild ID")
+	awsConfig := flags.String("aws-config", "", "AWS environment JSON file")
 	nativeConfig := flags.String("native-config", "", "Native engine definitions (JSON file)")
 	defaultProvider := flags.String("default-provider", "docker", "Default execution provider")
 	catalog := flags.String("catalog", "docker-containers", "Directory containing game folders")
@@ -143,10 +162,29 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 		}
 		controller.Providers["local"] = &control.Native{Root: root, Binary: binary, PublicHost: *publicHost, Games: engines}
 	}
+	if *awsConfig != "" {
+		environment, err := cloud.Load(*awsConfig)
+		if err != nil {
+			return err
+		}
+		provider, err := control.NewAWS(ctx, environment, store)
+		if err != nil {
+			return err
+		}
+		controller.Providers["aws"] = provider
+	}
 	if _, ok := controller.Providers[*defaultProvider]; !ok {
 		return fmt.Errorf("default provider %q is not configured", *defaultProvider)
 	}
 	controller.DefaultProvider = *defaultProvider
+	if *discordKey != "" {
+		key, err := hex.DecodeString(*discordKey)
+		if err != nil || len(key) != 32 || *discordGuild == "" {
+			return fmt.Errorf("Discord requires a 32-byte public key and an allowed guild ID")
+		}
+		controller.DiscordKey = key
+		controller.DiscordGuild = *discordGuild
+	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	done := make(chan struct{})
