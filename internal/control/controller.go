@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/fogo-sh/insta-game/internal/agent"
 	"io"
 	"log"
 	"net/http"
@@ -282,7 +283,16 @@ func (c *Controller) agentRequest(ctx context.Context, i Instance, base, method,
 	}
 	req.Header.Set("Authorization", "Bearer "+i.AgentToken)
 	req.Header.Set("Content-Type", "application/json")
-	res, err := c.HTTP.Do(req)
+	client := c.HTTP
+	if strings.HasPrefix(base, "https://") {
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = agent.ClientTLS(i.AgentToken)
+		defer transport.CloseIdleConnections()
+		secure := *c.HTTP
+		secure.Transport = transport
+		client = &secure
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}

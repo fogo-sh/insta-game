@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"github.com/fogo-sh/insta-game/internal/agent"
 	"io"
 	"io/fs"
 	"net/http"
@@ -162,7 +163,9 @@ func (c *Controller) logs(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Authorization", "Bearer "+i.AgentToken)
 	// The streaming request has no total deadline; cancellation follows the caller.
-	transport := &http.Transport{ResponseHeaderTimeout: 5 * time.Second}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 5 * time.Second
+	transport.TLSClientConfig = agent.ClientTLS(i.AgentToken)
 	defer transport.CloseIdleConnections()
 	res, err := (&http.Client{Transport: transport}).Do(req)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 )
 
 type Config struct {
+	TLS             bool
 	Protocol        string
 	MetadataPath    string
 	ProtocolFile    string
@@ -42,6 +43,7 @@ func FromEnv() Config {
 	port, _ := strconv.Atoi(envOr("PORT", "5001"))
 
 	return Config{
+		TLS:             envOr("AGENT_TLS", "false") == "true",
 		MetadataPath:    envOr("GAME_METADATA_PATH", "/opt/game.json"),
 		ProtocolFile:    envOr("PROTOCOL_FILE", "/opt/protocol.txt"),
 		GameCmd:         envOr("GAME_CMD", ""),

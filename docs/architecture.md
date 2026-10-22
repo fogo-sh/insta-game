@@ -116,3 +116,13 @@ Use `create --provider local ...` or choose `local` in the existing create form.
 provider. The controller exposes only configured providers through
 `GET /api/providers`. The agent configuration and credentials stay in private
 files under the controller's data directory.
+
+## Agent transport
+
+Native and Docker agents use host loopback. Cloud agents can enable
+`AGENT_TLS=true`. The controller pins the TLS public key to the instance's
+private management token, so a changing task IP does not require public DNS or
+a public certificate authority. A different instance's certificate is rejected
+before sending credentials. Plain bearer authentication is still required after
+the encrypted connection is established. Restrict cloud management ports to
+the controller's network address as an additional boundary.

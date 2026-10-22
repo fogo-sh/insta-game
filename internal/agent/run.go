@@ -45,7 +45,16 @@ func Run(ctx context.Context, c Config) error {
 	defer process.Stop(c)
 	server := &http.Server{Addr: fmt.Sprintf("%s:%d", c.Host, c.Port), Handler: handlerWithShutdown(c, &process, cancelRun), ReadHeaderTimeout: 5 * time.Second}
 	done := make(chan error, 1)
-	go func() { done <- server.ListenAndServe() }()
+	if c.TLS {
+		config, err := serverTLS(c.Token)
+		if err != nil {
+			return err
+		}
+		server.TLSConfig = config
+		go func() { done <- server.ListenAndServeTLS("", "") }()
+	} else {
+		go func() { done <- server.ListenAndServe() }()
+	}
 	for {
 		select {
 		case err := <-done:
