@@ -5,7 +5,6 @@ on:
     branches: ["main"]
     paths:
       - "docker-containers/**"
-      - "sidecar/**"
       - "cmd/**"
       - "internal/**"
       - "go.mod"
@@ -54,7 +53,7 @@ jobs:
               return [line for line in result.stdout.splitlines() if line]
 
           if event_name == "workflow_dispatch":
-              changed = ["sidecar/forced-rebuild"]
+              changed = ["internal/forced-rebuild"]
           else:
               if not event_before or event_before == "0000000000000000000000000000000000000000":
                   result = subprocess.run(
@@ -89,7 +88,7 @@ jobs:
 
               images.append(image)
 
-          global_prefixes = ("sidecar/", "internal/", "cmd/", "go.mod", "go.sum")
+          global_prefixes = ("internal/", "cmd/", "go.mod", "go.sum")
           selected = []
           for image in images:
               if any(path.startswith(global_prefixes) for path in changed) or any(

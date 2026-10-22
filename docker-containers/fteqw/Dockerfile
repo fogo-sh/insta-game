@@ -1,11 +1,9 @@
-FROM golang:1.26-bookworm AS sidecar-builder
+FROM golang:1.26-bookworm AS go-builder
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY internal/ ./internal/
 COPY cmd/ ./cmd/
-COPY sidecar/ ./sidecar/
-RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar ./sidecar && \
-    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
+RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
 
 FROM debian:bookworm-slim AS fteqw-builder
 
@@ -48,8 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/id1 /opt/data
 
-COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
-COPY --from=sidecar-builder /insta-game /usr/local/bin/insta-game
+COPY --from=go-builder /insta-game /usr/local/bin/insta-game
 COPY --from=fteqw-builder /usr/local/bin/fteqw.sv /opt/fteqw.sv
 COPY --from=frikbot-downloader /opt/frikbot /opt/frikbot
 
@@ -59,4 +56,4 @@ COPY docker-containers/fteqw/server.cfg /opt/default-server.cfg
 EXPOSE 26000/udp
 EXPOSE 5001/tcp
 
-ENTRYPOINT ["/usr/local/bin/sidecar"]
+ENTRYPOINT ["/usr/local/bin/insta-game", "agent"]

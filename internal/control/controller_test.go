@@ -64,7 +64,7 @@ func setup(t *testing.T) (*Controller, *testProvider, string) {
 	}
 	t.Cleanup(func() { store.Close() })
 	p := &testProvider{resources: map[string]Observation{}}
-	return NewController(store, []Game{{ID: "xonotic", DisplayName: "Xonotic", DefaultConfig: "hostname test", Image: "test"}}, p), p, path
+	return NewController(store, []Game{{ID: "xonotic", DisplayName: "Xonotic", DefaultConfig: "hostname test", Image: "test"}}, map[string]Provider{"docker": p}, "docker"), p, path
 }
 func create(t *testing.T, c *Controller, id string) Instance {
 	t.Helper()
@@ -242,5 +242,38 @@ func TestConcurrentCreateRetriesReturnOneInstance(t *testing.T) {
 	list, err := c.Store.List()
 	if err != nil || len(list) != 1 {
 		t.Fatalf("created duplicate instances: %d, %v", len(list), err)
+	}
+}
+
+func TestProviderSelectionIsDurableAndPartOfCreationIdentity(t *testing.T) {
+	c, docker, _ := setup(t)
+	local := &testProvider{resources: map[string]Observation{}}
+	c.Providers["local"] = local
+	c.DefaultProvider = "local"
+	request := CreateRequest{ID: "selected", Game: "xonotic", Name: "Selected"}
+	instance, err := c.Create(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if instance.Provider != "local" {
+		t.Fatal("default was not saved")
+	}
+	c.DefaultProvider = "docker"
+	request.Provider = "local"
+	if _, err := c.Create(request); err != nil {
+		t.Fatal("explicit retry failed", err)
+	}
+	request.Provider = "docker"
+	if _, err := c.Create(request); !errors.Is(err, ErrConflict) {
+		t.Fatalf("provider change = %v", err)
+	}
+	request.ID = "missing"
+	request.Provider = "aws"
+	if _, err := c.Create(request); err == nil {
+		t.Fatal("accepted an unconfigured provider")
+	}
+	c.Reconcile(context.Background())
+	if len(local.resources) != 1 || len(docker.resources) != 0 {
+		t.Fatal("reconciled through the wrong provider")
 	}
 }

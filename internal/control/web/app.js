@@ -319,6 +319,11 @@ async function refresh(force = false) {
 }
 async function unlock() {
   games = await api("/catalog");
+ const targets = await api("/providers");
+ $("provider").replaceChildren(...targets.providers.map(name => {
+ const option = element("option", name); option.value = name; return option;
+ }));
+ $("provider").value = targets.default;
   $("game").replaceChildren(
     ...games.map((g) => {
       const o = element("option", g.displayName);
@@ -369,7 +374,8 @@ $("create-form").onsubmit = async (event) => {
       method: "POST",
       body: JSON.stringify({
         id,
-        game: $("game").value,
+        provider: $("provider").value,
+ game: $("game").value,
         name: $("name").value,
         config: $("config").value,
         idleMinutes: Number($("idle").value),

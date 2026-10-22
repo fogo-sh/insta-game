@@ -25,6 +25,7 @@ type Game struct {
 }
 
 type CreateRequest struct {
+	Provider    string  `json:"provider,omitempty"`
 	ID          string  `json:"id"`
 	Game        string  `json:"game"`
 	Name        string  `json:"name"`

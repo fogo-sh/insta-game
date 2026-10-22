@@ -36,7 +36,7 @@ func TestDockerTwoServersSurviveControllerRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	provider := NewDocker("/var/run/docker.sock", "localhost", "127.0.0.1")
-	controller := NewController(store, games, provider)
+	controller := NewController(store, games, map[string]Provider{"docker": provider}, "docker")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	prefix := "smoke-" + NewToken()[:10]
@@ -109,7 +109,7 @@ func TestDockerTwoServersSurviveControllerRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	controller = NewController(reopened, games, provider)
+	controller = NewController(reopened, games, map[string]Provider{"docker": provider}, "docker")
 	wait(ids[0], "running")
 	wait(ids[1], "running")
 	if err := controller.SetDesired(ids[0], "stopped"); err != nil {

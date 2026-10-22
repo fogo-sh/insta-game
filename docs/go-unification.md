@@ -1,6 +1,6 @@
 # Finish the Go migration
 
-Status: proposed implementation design. The current PR implements Docker only;
+Status: proposed implementation design. The current PR implements Docker and Linux native processes;
 this document changes the completion criteria. It does not claim AWS or native
 process support exists yet.
 

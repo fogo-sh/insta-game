@@ -27,6 +27,8 @@ func (p *Process) Start(c Config) error {
 		return fmt.Errorf("game is already running")
 	}
 	cmd := exec.Command(c.GameCmd, c.GameArgs...)
+	cmd.Dir = c.GameDir
+	cmd.SysProcAttr = gameProcessAttributes()
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err

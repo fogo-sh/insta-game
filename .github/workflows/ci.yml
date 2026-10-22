@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - "launcher/**"
-      - "sidecar/**"
       - "cmd/**"
       - "internal/**"
       - "go.mod"
@@ -16,7 +15,6 @@ on:
     branches: ["main"]
     paths:
       - "launcher/**"
-      - "sidecar/**"
       - "cmd/**"
       - "internal/**"
       - "go.mod"
@@ -31,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       launcher: ${{ steps.filter.outputs.launcher }}
-      sidecar: ${{ steps.filter.outputs.sidecar }}
+      go: ${{ steps.filter.outputs.go }}
       pulumi: ${{ steps.filter.outputs.pulumi }}
     steps:
       - name: Checkout repository
@@ -46,8 +44,7 @@ jobs:
           filters: |
             launcher:
               - 'launcher/**'
-            sidecar:
-              - 'sidecar/**'
+            go:
               - 'cmd/**'
               - 'internal/**'
               - 'go.mod'
@@ -80,13 +77,13 @@ jobs:
       - name: Build launcher
         run: npm run build
 
-  sidecar:
+  go:
     needs: detect-changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.sidecar == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.go == 'true' }}
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: sidecar
+        working-directory: .
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

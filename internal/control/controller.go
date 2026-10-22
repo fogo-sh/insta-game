@@ -15,14 +15,15 @@ import (
 )
 
 type Controller struct {
-	Store    *Store
-	Games    []Game
-	Provider Provider
-	HTTP     *http.Client
+	Store           *Store
+	Games           []Game
+	Providers       map[string]Provider
+	DefaultProvider string
+	HTTP            *http.Client
 }
 
-func NewController(store *Store, games []Game, provider Provider) *Controller {
-	return &Controller{Store: store, Games: games, Provider: provider, HTTP: &http.Client{Timeout: 5 * time.Second}}
+func NewController(store *Store, games []Game, providers map[string]Provider, defaultProvider string) *Controller {
+	return &Controller{Store: store, Games: games, Providers: providers, DefaultProvider: defaultProvider, HTTP: &http.Client{Timeout: 5 * time.Second}}
 }
 func NewToken() string {
 	var data [24]byte
@@ -56,6 +57,12 @@ func (c *Controller) Create(req CreateRequest) (Instance, error) {
 	if game.ID == "" {
 		return Instance{}, fmt.Errorf("unknown game %q", req.Game)
 	}
+	if req.Provider == "" {
+		req.Provider = c.DefaultProvider
+	}
+	if _, ok := c.Providers[req.Provider]; !ok {
+		return Instance{}, fmt.Errorf("provider %q is not configured", req.Provider)
+	}
 	config := game.DefaultConfig
 	if req.Config != nil {
 		config = *req.Config
@@ -65,7 +72,7 @@ func (c *Controller) Create(req CreateRequest) (Instance, error) {
 	}
 
 	now := time.Now().UTC()
-	instance := Instance{Generation: 1, ID: req.ID, Name: req.Name, Game: game, Provider: "docker", Desired: "running", Phase: "queued", Config: config, IdleMinutes: req.IdleMinutes, MaxMinutes: req.MaxMinutes, CreatedAt: now, StartedAt: now, UpdatedAt: now, AgentToken: NewToken(), RconPassword: NewToken()}
+	instance := Instance{Generation: 1, ID: req.ID, Name: req.Name, Game: game, Provider: req.Provider, Desired: "running", Phase: "queued", Config: config, IdleMinutes: req.IdleMinutes, MaxMinutes: req.MaxMinutes, CreatedAt: now, StartedAt: now, UpdatedAt: now, AgentToken: NewToken(), RconPassword: NewToken()}
 	return c.Store.Create(instance)
 }
 
@@ -161,8 +168,12 @@ func (c *Controller) reconcileInstance(ctx context.Context, instance Instance) {
 }
 
 func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, string, error) {
+	provider, err := c.provider(i)
+	if err != nil {
+		return Observation{}, i.Phase, err
+	}
 	if i.Desired == "deleted" {
-		err := c.Provider.Delete(ctx, i)
+		err := provider.Delete(ctx, i)
 		return Observation{}, "deleted", err
 	}
 	if i.Desired == "running" && i.MaxMinutes > 0 && time.Since(i.StartedAt) >= time.Duration(i.MaxMinutes)*time.Minute {
@@ -175,31 +186,31 @@ func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, st
 		})
 		return Observation{}, "stopping", err
 	}
-	observation, err := c.Provider.Inspect(ctx, i)
+	observation, err := provider.Inspect(ctx, i)
 	if err != nil {
 		return observation, i.Phase, err
 	}
 	if i.Desired == "stopped" {
 		if observation.Running {
-			err = c.Provider.Stop(ctx, i)
+			err = provider.Stop(ctx, i)
 			return observation, "stopping", err
 		}
 		return observation, "stopped", nil
 	}
 
 	if !observation.Exists {
-		observation, err = c.Provider.Ensure(ctx, i)
+		observation, err = provider.Ensure(ctx, i)
 		if err != nil {
 			return observation, "queued", err
 		}
 	}
 	if !observation.Running {
-		// A crashed container needs an explicit stop/start, not an endless restart loop.
+		// A crashed game needs an explicit stop/start, not an endless restart loop.
 		if i.Phase != "queued" && observation.Started {
-			observation.Failure = "Container exited; stop and start to retry"
+			observation.Failure = "Game exited; stop and start to retry"
 			return observation, "failed", nil
 		}
-		if err = c.Provider.Start(ctx, i); err != nil {
+		if err = provider.Start(ctx, i); err != nil {
 			return observation, "starting", err
 		}
 		return observation, "starting", nil
@@ -285,4 +296,12 @@ func (c *Controller) agentRequest(ctx context.Context, i Instance, base, method,
 		return err
 	}
 	return json.NewDecoder(res.Body).Decode(result)
+}
+
+func (c *Controller) provider(i Instance) (Provider, error) {
+	p, ok := c.Providers[i.Provider]
+	if !ok {
+		return nil, fmt.Errorf("provider %q is not configured", i.Provider)
+	}
+	return p, nil
 }

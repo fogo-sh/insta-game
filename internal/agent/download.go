@@ -20,18 +20,18 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 	entries := parseDataURL(dataURL)
 
 	if len(entries) == 0 {
-		log.Printf("SIDECAR: No DATA_URL set, using bundled default config: %s", defaultConfigPath)
+		log.Printf("AGENT: No DATA_URL set, using bundled default config: %s", defaultConfigPath)
 		return copyFile(defaultConfigPath, configPath)
 	}
 
 	for _, e := range entries {
 		sentinel := sentinelPath(sentinelDir, e.url)
 		if _, err := os.Stat(sentinel); err == nil {
-			log.Printf("SIDECAR: Skipping %s (cached)", e.url)
+			log.Printf("AGENT: Skipping %s (cached)", e.url)
 			continue
 		}
 
-		log.Printf("SIDECAR: Downloading data from: %s", e.url)
+		log.Printf("AGENT: Downloading data from: %s", e.url)
 		tmpPath, err := fetchWithRetry(e.url, userAgent)
 		if err != nil {
 			return fmt.Errorf("download %s: %w", e.url, err)
@@ -45,13 +45,13 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 			if dest == "" {
 				dest = "/opt/"
 			}
-			log.Printf("SIDECAR: Extracting zip to %s", dest)
+			log.Printf("AGENT: Extracting zip to %s", dest)
 			if err := extractZip(tmpPath, dest); err != nil {
 				os.Remove(tmpPath)
 				return fmt.Errorf("extract %s: %w", e.url, err)
 			}
 		} else {
-			log.Printf("SIDECAR: Saving file to %s", e.path)
+			log.Printf("AGENT: Saving file to %s", e.path)
 			if err := os.Rename(tmpPath, e.path); err != nil {
 				// Rename can fail across devices; fall back to copy.
 				if err2 := copyFile(tmpPath, e.path); err2 != nil {
@@ -67,7 +67,7 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 		}
 
 		if err := os.WriteFile(sentinel, []byte(e.url), 0644); err != nil {
-			log.Printf("SIDECAR: Warning: failed to write cache sentinel: %v", err)
+			log.Printf("AGENT: Warning: failed to write cache sentinel: %v", err)
 		}
 	}
 
@@ -78,7 +78,7 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 	}
 
 	log.Printf(
-		"SIDECAR: No %s found in downloaded data, using %s",
+		"AGENT: No %s found in downloaded data, using %s",
 		filepath.Base(configPath),
 		defaultConfigPath,
 	)
@@ -127,7 +127,7 @@ func fetchWithRetry(url, userAgent string) (string, error) {
 	var lastErr error
 	for i := 0; i <= len(backoff); i++ {
 		if i > 0 {
-			log.Printf("SIDECAR: retrying %s (attempt %d)", url, i+1)
+			log.Printf("AGENT: retrying %s (attempt %d)", url, i+1)
 			time.Sleep(backoff[i-1])
 		}
 		req, err := http.NewRequest("GET", url, nil)
@@ -174,7 +174,7 @@ func (c *countingReader) Read(p []byte) (int, error) {
 // total is the expected size from Content-Length (-1 if unknown).
 // Returns the path of the temp file; the caller must remove it when done.
 func streamToFile(r io.Reader, total int64, label string) (string, error) {
-	tmp, err := os.CreateTemp("", "sidecar-download-*")
+	tmp, err := os.CreateTemp("", "insta-game-download-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp file: %w", err)
 	}
@@ -193,14 +193,14 @@ func streamToFile(r io.Reader, total int64, label string) (string, error) {
 			case <-ticker.C:
 				n := cr.n.Load()
 				if total > 0 {
-					log.Printf("SIDECAR: downloading %s — %.1f / %.1f MB (%.0f%%)",
+					log.Printf("AGENT: downloading %s — %.1f / %.1f MB (%.0f%%)",
 						label,
 						float64(n)/1024/1024,
 						float64(total)/1024/1024,
 						float64(n)/float64(total)*100,
 					)
 				} else {
-					log.Printf("SIDECAR: downloading %s — %.1f MB received",
+					log.Printf("AGENT: downloading %s — %.1f MB received",
 						label,
 						float64(n)/1024/1024,
 					)
@@ -216,7 +216,7 @@ func streamToFile(r io.Reader, total int64, label string) (string, error) {
 		os.Remove(tmpPath)
 		return "", err
 	}
-	log.Printf("SIDECAR: download complete %s — %.1f MB", label, float64(cr.n.Load())/1024/1024)
+	log.Printf("AGENT: download complete %s — %.1f MB", label, float64(cr.n.Load())/1024/1024)
 	return tmpPath, nil
 }
 

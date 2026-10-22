@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +14,7 @@ type Config struct {
 	Protocol        string
 	MetadataPath    string
 	ProtocolFile    string
+	GameDir         string
 	GameCmd         string
 	GameArgs        []string
 	GameQuitCmd     string
@@ -27,8 +27,6 @@ type Config struct {
 	UserAgent       string
 	Token           string
 	LogToken        string
-	IdleTimeout     time.Duration
-	OnIdle          func(context.Context) error
 	ConfigText      string
 	Host            string
 	Port            int
@@ -41,7 +39,6 @@ func FromEnv() Config {
 	}
 	quitTimeout, _ := strconv.Atoi(envOr("GAME_QUIT_TIMEOUT", "15"))
 	gamePort, _ := strconv.Atoi(envOr("GAME_PORT", "26000"))
-	idleTimeout, _ := strconv.Atoi(envOr("IDLE_TIMEOUT_SECONDS", "600"))
 	port, _ := strconv.Atoi(envOr("PORT", "5001"))
 
 	return Config{
@@ -60,7 +57,6 @@ func FromEnv() Config {
 		Token:           envOr("TOKEN", ""),
 		LogToken:        envOr("LOG_TOKEN", ""),
 		ConfigText:      envOr("CONFIG_TEXT", ""),
-		IdleTimeout:     time.Duration(idleTimeout) * time.Second,
 		Host:            envOr("HOST", "0.0.0.0"),
 		Port:            port,
 	}

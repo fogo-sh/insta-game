@@ -1,6 +1,6 @@
 package agent
 
-import "github.com/fogo-sh/insta-game/sidecar/protocol"
+import "github.com/fogo-sh/insta-game/internal/protocol"
 
 func queryServer(c Config) *protocol.ServerInfo {
 	var info *protocol.ServerInfo
@@ -16,8 +16,10 @@ func queryServer(c Config) *protocol.ServerInfo {
 		info, err = protocol.QueryQuake3(c.GamePort)
 	case "ut99":
 		info, err = protocol.QueryUT99(c.GamePort)
-	default:
+	case "xonotic":
 		info, err = protocol.QueryXonotic(c.GamePort)
+	default:
+		return nil
 	}
 	if err != nil {
 		return nil

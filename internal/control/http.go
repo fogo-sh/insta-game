@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -17,6 +18,14 @@ var web embed.FS
 
 func (c *Controller) Handler(token string) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/providers", func(w http.ResponseWriter, r *http.Request) {
+		names := []string{}
+		for name := range c.Providers {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		writeJSON(w, 200, map[string]any{"providers": names, "default": c.DefaultProvider})
+	})
 	mux.HandleFunc("GET /api/catalog", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, c.Games) })
 	mux.HandleFunc("GET /api/instances", func(w http.ResponseWriter, r *http.Request) {
 		list, err := c.Store.List()
@@ -91,7 +100,12 @@ func (c *Controller) Handler(token string) http.Handler {
 			writeJSON(w, 400, map[string]string{"error": err.Error()})
 			return
 		}
-		observation, err := c.Provider.Inspect(r.Context(), i)
+		provider, err := c.provider(i)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		observation, err := provider.Inspect(r.Context(), i)
 		if err != nil {
 			writeError(w, err)
 			return
@@ -127,7 +141,12 @@ func (c *Controller) logs(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	observation, err := c.Provider.Inspect(r.Context(), i)
+	provider, err := c.provider(i)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	observation, err := provider.Inspect(r.Context(), i)
 	if err != nil {
 		writeError(w, err)
 		return

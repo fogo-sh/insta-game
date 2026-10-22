@@ -1,15 +1,13 @@
 #
 # syntax=docker/dockerfile:1.7
 
-FROM golang:1.26-bookworm AS sidecar-builder
+FROM golang:1.26-bookworm AS go-builder
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY internal/ ./internal/
 COPY cmd/ ./cmd/
-COPY sidecar/ ./sidecar/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /sidecar ./sidecar && \
     GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
 
 FROM debian:bookworm-slim AS builder
@@ -38,8 +36,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get -y install --no-install-recommends \
     ca-certificates libcurl4 libgmp10 libjpeg62-turbo libpng16-16 zlib1g
 
-COPY --from=sidecar-builder /sidecar /usr/local/bin/sidecar
-COPY --from=sidecar-builder /insta-game /usr/local/bin/insta-game
+COPY --from=go-builder /insta-game /usr/local/bin/insta-game
 
 WORKDIR /opt
 
@@ -56,4 +53,4 @@ COPY docker-containers/xonotic/server.cfg /opt/default-server.cfg
 EXPOSE 26000/udp
 EXPOSE 5001/tcp
 
-ENTRYPOINT ["/usr/local/bin/sidecar"]
+ENTRYPOINT ["/usr/local/bin/insta-game", "agent"]

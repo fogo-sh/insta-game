@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -14,6 +13,8 @@ import (
 var gameLogs = NewRingLog(200)
 
 func Run(ctx context.Context, c Config) error {
+	ctx, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
 	if c.GameCmd == "" {
 		return fmt.Errorf("GAME_CMD is required")
 	}
@@ -42,12 +43,9 @@ func Run(ctx context.Context, c Config) error {
 		return err
 	}
 	defer process.Stop(c)
-	server := &http.Server{Addr: fmt.Sprintf("%s:%d", c.Host, c.Port), Handler: handler(c, &process), ReadHeaderTimeout: 5 * time.Second}
+	server := &http.Server{Addr: fmt.Sprintf("%s:%d", c.Host, c.Port), Handler: handlerWithShutdown(c, &process, cancelRun), ReadHeaderTimeout: 5 * time.Second}
 	done := make(chan error, 1)
 	go func() { done <- server.ListenAndServe() }()
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-	lastActive := time.Now()
 	for {
 		select {
 		case err := <-done:
@@ -59,30 +57,22 @@ func Run(ctx context.Context, c Config) error {
 			shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			return server.Shutdown(shutdown)
-		case <-ticker.C:
-			// Only the legacy AWS entrypoint installs OnIdle. Portable agents report observations.
-			if c.OnIdle == nil || c.IdleTimeout <= 0 {
-				continue
-			}
-			info := queryServer(c)
-			if info == nil || info.Players > 0 {
-				lastActive = time.Now()
-				continue
-			}
-			if time.Since(lastActive) >= c.IdleTimeout {
-				if err := c.OnIdle(ctx); err != nil {
-					log.Printf("idle shutdown: %v", err)
-				} else {
-					c.OnIdle = nil
-				}
-			}
+
 		}
 	}
 }
 
 func handler(c Config, p *Process) http.Handler {
+	return handlerWithShutdown(c, p, func() {})
+}
+
+func handlerWithShutdown(c Config, p *Process, shutdown func()) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /status", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /shutdown", authorize(c.Token, func(w http.ResponseWriter, r *http.Request) {
+		jsonResponse(w, map[string]string{"status": "shutting down"})
+		shutdown()
+	}))
+	mux.HandleFunc("GET /status", authorize(c.Token, func(w http.ResponseWriter, r *http.Request) {
 		running, failure := p.State()
 		response := map[string]any{"running": running, "ready": false, "players": 0, "hostname": "", "map": "", "error": failure}
 		if running {
@@ -94,7 +84,7 @@ func handler(c Config, p *Process) http.Handler {
 			}
 		}
 		jsonResponse(w, response)
-	})
+	}))
 	mux.HandleFunc("POST /restart", authorize(c.Token, func(w http.ResponseWriter, r *http.Request) {
 		var req restartRequest
 		if r.ContentLength != 0 {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -44,6 +45,9 @@ func Run(ctx context.Context, args []string, out io.Writer) error {
 	case "serve":
 		return serve(ctx, args[1:], out)
 	case "agent":
+		if len(args) == 3 && args[1] == "--config" {
+			return agent.RunFile(ctx, args[2])
+		}
 		if len(args) == 2 && (args[1] == "-h" || args[1] == "--help") {
 			fmt.Fprintln(out, "agent: set GAME_CMD, GAME_ARGS, GAME_PORT, CONFIG_PATH, CONFIG_TEXT and TOKEN; DATA_URL and RCON_PASSWORD are optional.")
 			return nil
@@ -94,6 +98,8 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	flags.SetOutput(out)
 	listen := flags.String("listen", "127.0.0.1:3000", "HTTP listen address")
 	dataDir := flags.String("data", ".insta-game", "Private controller data directory")
+	nativeConfig := flags.String("native-config", "", "Native engine definitions (JSON file)")
+	defaultProvider := flags.String("default-provider", "docker", "Default execution provider")
 	catalog := flags.String("catalog", "docker-containers", "Directory containing game folders")
 	socket := flags.String("docker-socket", "/var/run/docker.sock", "Local Docker socket")
 	publicHost := flags.String("public-host", "localhost", "Hostname/IP advertised to game clients")
@@ -114,7 +120,33 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	controller := control.NewController(store, games, control.NewDocker(*socket, *publicHost, *bindIP))
+	controller := control.NewController(store, games, map[string]control.Provider{"docker": control.NewDocker(*socket, *publicHost, *bindIP)}, *defaultProvider)
+	if *nativeConfig != "" {
+		if runtime.GOOS != "linux" {
+			return fmt.Errorf("native process supervision currently requires Linux")
+		}
+		data, err := os.ReadFile(*nativeConfig)
+		if err != nil {
+			return err
+		}
+		var engines map[string]control.NativeGame
+		if err := json.Unmarshal(data, &engines); err != nil {
+			return err
+		}
+		root, err := filepath.Abs(filepath.Join(*dataDir, "native"))
+		if err != nil {
+			return err
+		}
+		binary, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		controller.Providers["local"] = &control.Native{Root: root, Binary: binary, PublicHost: *publicHost, Games: engines}
+	}
+	if _, ok := controller.Providers[*defaultProvider]; !ok {
+		return fmt.Errorf("default provider %q is not configured", *defaultProvider)
+	}
+	controller.DefaultProvider = *defaultProvider
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	done := make(chan struct{})
@@ -154,6 +186,7 @@ func client(ctx context.Context, command string, args []string, out io.Writer) e
 	var configPath string
 	if command == "create" {
 		flags.StringVar(&req.ID, "id", "", "Stable request ID for idempotent creation (optional)")
+		flags.StringVar(&req.Provider, "provider", "", "Execution provider (controller default if omitted)")
 		flags.StringVar(&req.Game, "game", "", "Game ID")
 		flags.StringVar(&req.Name, "name", "", "Server name")
 		flags.StringVar(&configPath, "config", "", "Configuration file (otherwise game defaults)")

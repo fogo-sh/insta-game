@@ -80,7 +80,7 @@ func (s *Store) Create(candidate Instance) (Instance, error) {
 			if err != nil {
 				return err
 			}
-			if existing.Game.ID != candidate.Game.ID || existing.Name != candidate.Name || existing.Config != candidate.Config || existing.IdleMinutes != candidate.IdleMinutes || existing.MaxMinutes != candidate.MaxMinutes {
+			if existing.Provider != candidate.Provider || existing.Game.ID != candidate.Game.ID || existing.Name != candidate.Name || existing.Config != candidate.Config || existing.IdleMinutes != candidate.IdleMinutes || existing.MaxMinutes != candidate.MaxMinutes {
 				return ErrConflict
 			}
 			stored = existing

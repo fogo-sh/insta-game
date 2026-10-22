@@ -4,7 +4,6 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
-COPY sidecar/protocol/ ./sidecar/protocol/
 RUN CGO_ENABLED=0 go build -trimpath -o /insta-game ./cmd/insta-game
 COPY docker-containers/ /game-sources/
 RUN mkdir /catalog && for game in /game-sources/*; do \
