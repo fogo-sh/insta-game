@@ -87,7 +87,7 @@ func Apply(ctx context.Context, sdk aws.Config, name, changeSet string) error {
 	stack := &described.Stacks[0]
 	// CREATE change sets have no resources or stack tags until execution.
 	if stack.StackStatus != cf.StackStatusReviewInProgress {
-		if _, err := DescribeStack(ctx, client, name, "environment", ""); err != nil {
+		if err := requireStackOwnership(stack, "environment", ""); err != nil {
 			return err
 		}
 	}
@@ -190,7 +190,10 @@ func describeEnvironment(ctx context.Context, client *cloudformation.Client, nam
 	}
 	stack := &result.Stacks[0]
 	if stack.StackStatus != cf.StackStatusReviewInProgress {
-		return DescribeStack(ctx, client, name, "environment", "")
+		if err := requireStackOwnership(stack, "environment", ""); err != nil {
+			return nil, err
+		}
+		return stack, nil
 	}
 	// Unexecuted CREATE plans carry ownership tags on the change set only.
 	pages := cloudformation.NewListChangeSetsPaginator(client, &cloudformation.ListChangeSetsInput{StackName: stack.StackId})

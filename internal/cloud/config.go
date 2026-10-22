@@ -66,6 +66,13 @@ func DescribeStack(ctx context.Context, client StackDescriber, name, kind, owner
 		return nil, fmt.Errorf("expected one stack for %s", name)
 	}
 	stack := &result.Stacks[0]
+	if err := requireStackOwnership(stack, kind, owner); err != nil {
+		return nil, err
+	}
+	return stack, nil
+}
+
+func requireStackOwnership(stack *cf.Stack, kind, owner string) error {
 	foundKind, foundOwner := false, owner == ""
 	for _, tag := range stack.Tags {
 		if aws.ToString(tag.Key) == "insta-game:kind" && aws.ToString(tag.Value) == kind {
@@ -76,9 +83,9 @@ func DescribeStack(ctx context.Context, client StackDescriber, name, kind, owner
 		}
 	}
 	if !foundKind || !foundOwner {
-		return nil, fmt.Errorf("refusing unmanaged CloudFormation stack %s", name)
+		return fmt.Errorf("refusing unmanaged CloudFormation stack %s", aws.ToString(stack.StackName))
 	}
-	return stack, nil
+	return nil
 }
 
 func Outputs(stack *cf.Stack) map[string]string {

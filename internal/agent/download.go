@@ -31,39 +31,8 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 			continue
 		}
 
-		log.Printf("AGENT: Downloading data from: %s", e.url)
-		tmpPath, err := fetchWithRetry(e.url, userAgent)
-		if err != nil {
-			return fmt.Errorf("download %s: %w", e.url, err)
-		}
-
-		if zip, err := isZip(tmpPath); err != nil {
-			os.Remove(tmpPath)
-			return fmt.Errorf("check zip %s: %w", e.url, err)
-		} else if zip {
-			dest := e.path
-			if dest == "" {
-				dest = "/opt/"
-			}
-			log.Printf("AGENT: Extracting zip to %s", dest)
-			if err := extractZip(tmpPath, dest); err != nil {
-				os.Remove(tmpPath)
-				return fmt.Errorf("extract %s: %w", e.url, err)
-			}
-		} else {
-			log.Printf("AGENT: Saving file to %s", e.path)
-			if err := os.Rename(tmpPath, e.path); err != nil {
-				// Rename can fail across devices; fall back to copy.
-				if err2 := copyFile(tmpPath, e.path); err2 != nil {
-					os.Remove(tmpPath)
-					return fmt.Errorf("write %s: %w", e.path, err2)
-				}
-			}
-			tmpPath = "" // renamed or copied — no removal needed
-		}
-
-		if tmpPath != "" {
-			os.Remove(tmpPath)
+		if err := downloadEntry(e, userAgent); err != nil {
+			return err
 		}
 
 		if err := os.WriteFile(sentinel, []byte(e.url), 0644); err != nil {
@@ -83,6 +52,38 @@ func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) erro
 		defaultConfigPath,
 	)
 	return copyFile(defaultConfigPath, configPath)
+}
+
+func downloadEntry(entry dataEntry, userAgent string) error {
+	log.Printf("AGENT: Downloading data from: %s", entry.url)
+	temporary, err := fetchWithRetry(entry.url, userAgent)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", entry.url, err)
+	}
+	defer os.Remove(temporary)
+	archive, err := isZip(temporary)
+	if err != nil {
+		return fmt.Errorf("check zip %s: %w", entry.url, err)
+	}
+	if archive {
+		destination := entry.path
+		if destination == "" {
+			destination = "/opt/"
+		}
+		log.Printf("AGENT: Extracting zip to %s", destination)
+		if err := extractZip(temporary, destination); err != nil {
+			return fmt.Errorf("extract %s: %w", entry.url, err)
+		}
+		return nil
+	}
+	log.Printf("AGENT: Saving file to %s", entry.path)
+	if err := os.Rename(temporary, entry.path); err != nil {
+		// Rename cannot cross filesystems, including a mounted game data volume.
+		if err := copyFile(temporary, entry.path); err != nil {
+			return fmt.Errorf("write %s: %w", entry.path, err)
+		}
+	}
+	return nil
 }
 
 func sentinelPath(sentinelDir, url string) string {
@@ -108,8 +109,7 @@ func parseDataURL(raw string) []dataEntry {
 	return out
 }
 
-// fetchWithRetry downloads url to a temp file and returns its path.
-// The caller is responsible for removing the file when done.
+// The caller owns the returned temporary file.
 func fetchWithRetry(url, userAgent string) (string, error) {
 	if strings.HasPrefix(url, "s3://") {
 		return fetchS3(url)
@@ -122,9 +122,8 @@ func fetchWithRetry(url, userAgent string) (string, error) {
 	client := &http.Client{Transport: transport}
 	backoff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second}
 
-	ua := userAgent
-	if ua == "" {
-		ua = "fogo-sh/insta-game"
+	if userAgent == "" {
+		userAgent = "fogo-sh/insta-game"
 	}
 
 	var lastErr error
@@ -137,7 +136,7 @@ func fetchWithRetry(url, userAgent string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		req.Header.Set("User-Agent", ua)
+		req.Header.Set("User-Agent", userAgent)
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
@@ -173,9 +172,7 @@ func (c *countingReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// streamToFile streams r to a temp file, logging progress every 5 seconds.
-// total is the expected size from Content-Length (-1 if unknown).
-// Returns the path of the temp file; the caller must remove it when done.
+// The caller owns the returned temporary file. A negative total means unknown size.
 func streamToFile(r io.Reader, total int64, label string) (string, error) {
 	tmp, err := os.CreateTemp("", "insta-game-download-*")
 	if err != nil {

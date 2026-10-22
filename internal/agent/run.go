@@ -54,7 +54,7 @@ func Run(ctx context.Context, c Config) error {
 		return err
 	}
 	defer process.Stop(c)
-	server := &http.Server{Addr: fmt.Sprintf("%s:%d", c.Host, c.Port), Handler: handlerWithShutdown(c, &process, cancelRun), ReadHeaderTimeout: 5 * time.Second}
+	server := &http.Server{Addr: fmt.Sprintf("%s:%d", c.Host, c.Port), Handler: handler(c, &process, cancelRun), ReadHeaderTimeout: 5 * time.Second}
 	done := make(chan error, 1)
 	if c.TLS {
 		config, err := serverTLS(c.Token)
@@ -66,27 +66,20 @@ func Run(ctx context.Context, c Config) error {
 	} else {
 		go func() { done <- server.ListenAndServe() }()
 	}
-	for {
-		select {
-		case err := <-done:
-			if errors.Is(err, http.ErrServerClosed) {
-				return nil
-			}
-			return err
-		case <-ctx.Done():
-			shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			return server.Shutdown(shutdown)
-
+	select {
+	case err := <-done:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
 		}
+		return err
+	case <-ctx.Done():
+		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return server.Shutdown(shutdown)
 	}
 }
 
-func handler(c Config, p *Process) http.Handler {
-	return handlerWithShutdown(c, p, func() {})
-}
-
-func handlerWithShutdown(c Config, p *Process, shutdown func()) http.Handler {
+func handler(c Config, p *Process, shutdown func()) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /shutdown", authorize(c.Token, func(w http.ResponseWriter, r *http.Request) {
 		jsonResponse(w, map[string]string{"status": "shutting down"})

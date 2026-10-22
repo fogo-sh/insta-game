@@ -24,7 +24,7 @@ import (
 )
 
 // NativeGame describes an operator-installed engine and its asset layout.
-// Assets are copied into each instance; engines cannot write into another game.
+// Assets are copied into each instance's working directory.
 type NativeGame struct {
 	Command    string   `json:"command"`
 	Args       []string `json:"args"`
@@ -354,7 +354,7 @@ func (n *Native) Stop(ctx context.Context, i Instance) error {
 }
 
 func (n *Native) Delete(ctx context.Context, i Instance) error {
-	_, err := n.state(i)
+	state, err := n.state(i)
 	if errors.Is(err, os.ErrNotExist) {
 		owner, readErr := os.ReadFile(filepath.Join(n.directory(i), "owner"))
 		if errors.Is(readErr, os.ErrNotExist) {
@@ -369,7 +369,6 @@ func (n *Native) Delete(ctx context.Context, i Instance) error {
 	} else if err != nil {
 		return err
 	} else {
-		state, _ := n.state(i)
 		alive, err := nativeAlive(n.directory(i))
 		if err != nil {
 			return err

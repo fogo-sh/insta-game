@@ -28,9 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates wget unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# FrikBot X++ — includes waypoints for DM1-6 and QC source.
-# Uses standard QCC field names (no anonymous fields), so its prebuilt
-# progs.dat is compatible with FTE without recompilation.
+# FrikBot X++ uses standard QCC fields; its prebuilt progs.dat works with FTE.
 RUN wget -O /tmp/fbxpp.zip \
     "https://s3.amazonaws.com/neogeographica-downloads/mods/fbxpp/fbx%2B%2B.zip" \
     && mkdir -p /opt/frikbot \

@@ -11,12 +11,7 @@ import (
 
 func authorize(token string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		if auth == "" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-		provided := strings.TrimPrefix(auth, "Bearer ")
+		provided := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if token == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(token)) != 1 {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -35,18 +30,18 @@ type restartRequest struct {
 }
 
 func applyRestartConfig(c Config, req restartRequest) error {
-	if req.ConfigText != nil {
-		content := strings.ReplaceAll(*req.ConfigText, "\r\n", "\n")
-		if !strings.HasSuffix(content, "\n") {
-			content += "\n"
-		}
-		if err := os.WriteFile(c.ConfigPath, []byte(content), 0600); err != nil {
-			return fmt.Errorf("write config: %w", err)
-		}
-		if err := configureRcon(c.Protocol, c.ConfigPath, c.RconPassword); err != nil {
-			return fmt.Errorf("configure rcon: %w", err)
-		}
+	if req.ConfigText == nil {
+		return nil
 	}
-
+	content := strings.ReplaceAll(*req.ConfigText, "\r\n", "\n")
+	if !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	if err := os.WriteFile(c.ConfigPath, []byte(content), 0600); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	if err := configureRcon(c.Protocol, c.ConfigPath, c.RconPassword); err != nil {
+		return fmt.Errorf("configure rcon: %w", err)
+	}
 	return nil
 }

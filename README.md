@@ -223,8 +223,9 @@ with `bin/insta-game discord commands`. Register them with
 
 ```sh
 make build
-make test        # go test -race ./...
-make check       # go vet and Compose freshness check
+make test        # Go race tests and UI renderer tests
+make check       # Template lint, go vet, and Compose freshness check
+make lint-templates  # Embedded environment and every generated game template
 make images      # build all prepared game images
 ```
 
@@ -239,6 +240,9 @@ INSTA_GAME_DOCKER_CATALOG=/path/to/catalog go test -v ./internal/control \
 
 See [architecture](docs/architecture.md) for API and provider details, and
 [Go migration status](docs/go-unification.md) for validation scope.
+
+`make check` uses `uv` to run pinned cfn-lint in an isolated Python environment.
+Template linting needs no AWS credentials and adds no application runtime dependency.
 
 The UI renderer regression tests use Node 18+ (`node --test`); Node is not
 needed to build or run the Go application.

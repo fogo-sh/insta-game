@@ -155,19 +155,18 @@ func (a *AWS) resolveTask(ctx context.Context, i Instance, cleanup bool) (*ecst.
 		if err != nil {
 			return nil, err
 		}
-		if task == nil {
-			if time.Since(attempt.SubmittedAt) < time.Hour {
-				if attempt.ARN != "" {
-					return nil, ErrPending
-				}
-				task, err = a.submit(ctx, i, attempt, cleanup)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				result := &TaskResult{Expired: true, Reason: "Task history expired; no live attempt remains"}
-				return nil, a.saveAttempt(i, attempt, cleanup, nil, result)
-			}
+	}
+	if task == nil {
+		if time.Since(attempt.SubmittedAt) >= time.Hour {
+			result := &TaskResult{Expired: true, Reason: "Task history expired; no live attempt remains"}
+			return nil, a.saveAttempt(i, attempt, cleanup, nil, result)
+		}
+		if attempt.ARN != "" {
+			return nil, ErrPending
+		}
+		task, err = a.submit(ctx, i, attempt, cleanup)
+		if err != nil {
+			return nil, err
 		}
 	}
 	var result *TaskResult

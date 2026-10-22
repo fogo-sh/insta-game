@@ -10,22 +10,19 @@ import (
 type RingLog struct {
 	mu   sync.Mutex
 	buf  []string
-	cap  int
 	head int // index of the oldest entry (wraps)
-	size int // number of valid entries (<= cap)
+	size int
 
 	partial   string // incomplete line fragment waiting for a newline
 	pendingCR bool   // previous write ended with \r, so skip a leading \n next write
 
-	subs map[int]chan string
-	next int
+	subs map[chan string]struct{}
 }
 
 func NewRingLog(capacity int) *RingLog {
 	return &RingLog{
 		buf:  make([]string, capacity),
-		cap:  capacity,
-		subs: make(map[int]chan string),
+		subs: make(map[chan string]struct{}),
 	}
 }
 
@@ -67,18 +64,17 @@ func (r *RingLog) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// appendLocked inserts a line into the ring and notifies subscribers.
 // Caller must hold r.mu.
 func (r *RingLog) appendLocked(line string) {
-	if r.size < r.cap {
-		r.buf[(r.head+r.size)%r.cap] = line
+	if r.size < len(r.buf) {
+		r.buf[(r.head+r.size)%len(r.buf)] = line
 		r.size++
 	} else {
 		r.buf[r.head] = line
-		r.head = (r.head + 1) % r.cap
+		r.head = (r.head + 1) % len(r.buf)
 	}
 
-	for _, ch := range r.subs {
+	for ch := range r.subs {
 		select {
 		case ch <- line:
 		default:
@@ -94,18 +90,16 @@ func (r *RingLog) Subscribe() ([]string, <-chan string, func()) {
 	r.mu.Lock()
 	history := make([]string, r.size)
 	for i := range history {
-		history[i] = r.buf[(r.head+i)%r.cap]
+		history[i] = r.buf[(r.head+i)%len(r.buf)]
 	}
-	id := r.next
-	r.next++
-	r.subs[id] = ch
+	r.subs[ch] = struct{}{}
 	r.mu.Unlock()
 
 	var once sync.Once
 	cancel := func() {
 		once.Do(func() {
 			r.mu.Lock()
-			delete(r.subs, id)
+			delete(r.subs, ch)
 			r.mu.Unlock()
 			close(ch)
 		})
