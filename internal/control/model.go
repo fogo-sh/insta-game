@@ -3,14 +3,10 @@ package control
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
 )
 
 type Game struct {
-	CPU             int                        `json:"cpu,omitempty"`
-	Memory          int                        `json:"memory,omitempty"`
-	Architecture    string                     `json:"architecture,omitempty"`
 	ID              string                     `json:"id"`
 	DisplayName     string                     `json:"displayName"`
 	Protocol        string                     `json:"protocol"`
@@ -65,7 +61,6 @@ type Instance struct {
 	Error        string     `json:"error,omitempty"`
 	StopReason   string     `json:"stopReason,omitempty"`
 	UpdatedAt    time.Time  `json:"updatedAt"`
-	AWS          AWSState   `json:"-"`
 	AgentToken   string     `json:"-"`
 	RconPassword string     `json:"-"`
 }
@@ -75,7 +70,6 @@ type record struct {
 	Instance
 	AgentToken   string
 	RconPassword string
-	AWS          AWSState
 }
 
 func (i Instance) Connect() string {
@@ -87,29 +81,7 @@ func (i Instance) Connect() string {
 	return ""
 }
 
-type AWSState struct {
-	DataURL     string
-	Environment string
-	Game        TaskAttempt
-	Cleanup     TaskAttempt
-}
-
-type TaskAttempt struct {
-	Number      int64
-	Generation  int64
-	ARN         string
-	SubmittedAt time.Time
-	Result      *TaskResult
-}
-
-type TaskResult struct {
-	Expired  bool
-	ExitCode *int32
-	Reason   string
-}
-
 type Observation struct {
-	Pending   bool
 	Started   bool
 	Exists    bool
 	Running   bool
@@ -126,5 +98,3 @@ type Provider interface {
 	Stop(context.Context, Instance) error
 	Delete(context.Context, Instance) error
 }
-
-var ErrPending = errors.New("provider operation is still in progress")

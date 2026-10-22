@@ -27,8 +27,5 @@ internally. Docker allocates a host port; use the controller's current address.
 Agent TCP 5001 is managed by the provider.
 
 The full `/opt` root is seeded per instance and retained across stop/start.
-AWS uses a separate EFS access point for that root; upload assets with
-`insta-game aws upload` and set `Q2REPRO_DATA_URL` to its returned S3 URL before
-starting the controller. See the [root README](../../README.md) for image
-publishing, provider setup, and deletion. Test your chosen client and game DLL
-combination before inviting players.
+See the [root README](../../README.md) for shared-host setup and deletion.
+Test your chosen client and game DLL combination before inviting players.

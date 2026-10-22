@@ -3,8 +3,6 @@
   "displayName": "q2repro (Quake 2)",
   "protocol": "quake2",
   "agentPort": 5001,
-  "cpu": 1024,
-  "memory": 2048,
   "gamePort": 27910,
   "ports": {
     "27910/udp": {

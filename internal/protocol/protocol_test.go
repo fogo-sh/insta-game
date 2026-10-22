@@ -37,7 +37,7 @@ func TestQueryQuake1(t *testing.T) {
 		}
 
 		response := append(
-			[]byte{0x80, 0x00, 0x00, 0x14, 0x83},
+			[]byte{0x80, 0x00, 0x00, 0x1a, 0x83},
 			[]byte("1\x00Test Server\x00dm6\x00\x05\x10\x00")...,
 		)
 		if _, err := conn.WriteToUDP(response, addr); err != nil {

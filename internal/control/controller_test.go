@@ -277,3 +277,40 @@ func TestProviderSelectionIsDurableAndPartOfCreationIdentity(t *testing.T) {
 		t.Fatal("reconciled through the wrong provider")
 	}
 }
+
+func TestIdleShutdownAndStartCannotBothCommit(t *testing.T) {
+	for attempt := 0; attempt < 20; attempt++ {
+		c, _, _ := setup(t)
+		i := create(t, c, "race")
+		if err := c.SetDesired(i.ID, "stopped"); err != nil {
+			t.Fatal(err)
+		}
+		c.Reconcile(context.Background())
+		ready := make(chan struct{})
+		started := make(chan error, 1)
+		go func() {
+			<-ready
+			started <- c.SetDesired(i.ID, "running")
+		}()
+		close(ready)
+		shutdown, err := c.BeginIdleShutdown()
+		if err != nil {
+			t.Fatal(err)
+		}
+		startErr := <-started
+		current, err := c.Store.Get(i.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if shutdown {
+			if !errors.Is(startErr, ErrShuttingDown) || current.Desired != "stopped" {
+				t.Fatalf("accepted work during shutdown: instance=%+v error=%v", current, startErr)
+			}
+			if _, err := c.Create(CreateRequest{ID: "late", Game: "xonotic", Name: "late"}); !errors.Is(err, ErrShuttingDown) {
+				t.Fatalf("create during shutdown: %v", err)
+			}
+		} else if startErr != nil || current.Desired != "running" {
+			t.Fatalf("lost accepted start: instance=%+v error=%v", current, startErr)
+		}
+	}
+}

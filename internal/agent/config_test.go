@@ -28,7 +28,7 @@ func TestStartupDistinguishesEmptyConfigFromAbsentConfig(t *testing.T) {
 			c := FromEnv()
 			c.GameCmd, c.GameArgs, c.Token, c.Protocol = "/bin/true", nil, "test-token", "quake1"
 			c.DefaultConfig, c.ConfigPath, c.DataRoot = defaults, path, directory
-			c.DataURL, c.SeedPath, c.DataOwner, c.RconPassword = "", "", "", ""
+			c.DataURL, c.SeedPath, c.RconPassword = "", "", ""
 			c.Host, c.Port, c.TLS = "127.0.0.1", 0, false
 			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 			defer cancel()

@@ -1,33 +1,63 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Owned insta-game environment: Fargate, persistent game storage, private assets and image registry",
+  "Description": "One stoppable shared game host; persistent gp3 only while asleep",
   "Parameters": {
-    "ControllerCIDR": {
+    "OperatorCIDR": {
       "Type": "String",
-      "Description": "Public IPv4 CIDR allowed to reach authenticated TLS agent management"
+      "Description": "Operator public IPv4 CIDR for SSH and controller HTTPS"
+    },
+    "PublicKey": {
+      "Type": "String",
+      "Description": "Existing SSH public key (private key stays on operator machine)"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Default": "t3a.micro",
+      "AllowedPattern": "t3a?\\.(micro|small|medium|large|xlarge|2xlarge)"
+    },
+    "DiskGiB": {
+      "Type": "Number",
+      "Default": 8,
+      "MinValue": 8,
+      "MaxValue": 256
+    },
+    "UDPFrom": {
+      "Type": "Number",
+      "Default": 32768,
+      "MinValue": 1,
+      "MaxValue": 65535
+    },
+    "UDPTo": {
+      "Type": "Number",
+      "Default": 60999,
+      "MinValue": 1,
+      "MaxValue": 65535
+    },
+    "UbuntuImage": {
+      "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+      "Default": "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
     }
   },
   "Resources": {
     "Network": {
       "Type": "AWS::EC2::VPC",
       "Properties": {
-        "CidrBlock": "10.92.0.0/16",
+        "CidrBlock": "10.73.0.0/24",
         "EnableDnsSupport": true,
         "EnableDnsHostnames": true
       }
     },
-    "Gateway": {
-      "Type": "AWS::EC2::InternetGateway",
-      "Properties": {}
+    "Internet": {
+      "Type": "AWS::EC2::InternetGateway"
     },
-    "GatewayAttachment": {
+    "InternetAttachment": {
       "Type": "AWS::EC2::VPCGatewayAttachment",
       "Properties": {
         "VpcId": {
           "Ref": "Network"
         },
         "InternetGatewayId": {
-          "Ref": "Gateway"
+          "Ref": "Internet"
         }
       }
     },
@@ -37,16 +67,7 @@
         "VpcId": {
           "Ref": "Network"
         },
-        "CidrBlock": "10.92.1.0/24",
-        "AvailabilityZone": {
-          "Fn::Select": [
-            0,
-            {
-              "Fn::GetAZs": ""
-            }
-          ]
-        },
-        "MapPublicIpOnLaunch": true
+        "CidrBlock": "10.73.0.0/24"
       }
     },
     "Routes": {
@@ -59,16 +80,16 @@
     },
     "InternetRoute": {
       "Type": "AWS::EC2::Route",
+      "DependsOn": "InternetAttachment",
       "Properties": {
         "RouteTableId": {
           "Ref": "Routes"
         },
         "DestinationCidrBlock": "0.0.0.0/0",
         "GatewayId": {
-          "Ref": "Gateway"
+          "Ref": "Internet"
         }
-      },
-      "DependsOn": "GatewayAttachment"
+      }
     },
     "SubnetRoutes": {
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
@@ -81,201 +102,137 @@
         }
       }
     },
-    "GamesSecurityGroup": {
+    "SecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "GroupDescription": "insta-game tasks; per-game public ports and controller-only TLS management",
+        "GroupDescription": "Game host SSH and HTTPS from operator; game UDP",
         "VpcId": {
           "Ref": "Network"
         },
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
-            "FromPort": 5001,
-            "ToPort": 5001,
+            "FromPort": 22,
+            "ToPort": 22,
             "CidrIp": {
-              "Ref": "ControllerCIDR"
+              "Ref": "OperatorCIDR"
             }
-          }
-        ]
-      }
-    },
-    "StorageSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "GroupDescription": "EFS from game tasks only",
-        "VpcId": {
-          "Ref": "Network"
-        },
-        "SecurityGroupIngress": [
+          },
           {
             "IpProtocol": "tcp",
-            "FromPort": 2049,
-            "ToPort": 2049,
-            "SourceSecurityGroupId": {
-              "Ref": "GamesSecurityGroup"
+            "FromPort": 3000,
+            "ToPort": 3000,
+            "CidrIp": {
+              "Ref": "OperatorCIDR"
             }
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": {
+              "Ref": "UDPFrom"
+            },
+            "ToPort": {
+              "Ref": "UDPTo"
+            },
+            "CidrIp": "0.0.0.0/0"
           }
         ]
       }
     },
-    "Storage": {
-      "Type": "AWS::EFS::FileSystem",
+    "SSHKey": {
+      "Type": "AWS::EC2::KeyPair",
       "Properties": {
-        "Encrypted": true,
-        "FileSystemPolicy": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Effect": "Deny",
-              "Principal": "*",
-              "Action": "elasticfilesystem:*",
-              "Resource": "*",
-              "Condition": {
-                "Bool": {
-                  "aws:SecureTransport": "false"
-                }
-              }
-            }
-          ]
+        "KeyName": {
+          "Fn::Sub": "${AWS::StackName}-operator"
+        },
+        "PublicKeyMaterial": {
+          "Ref": "PublicKey"
         }
       }
     },
-    "StorageMount": {
-      "Type": "AWS::EFS::MountTarget",
+    "Host": {
+      "Type": "AWS::EC2::Instance",
+      "DependsOn": [
+        "InternetRoute",
+        "SubnetRoutes"
+      ],
       "Properties": {
-        "FileSystemId": {
-          "Ref": "Storage"
+        "ImageId": {
+          "Ref": "UbuntuImage"
         },
-        "SubnetId": {
-          "Ref": "Subnet"
+        "InstanceType": {
+          "Ref": "InstanceType"
         },
-        "SecurityGroups": [
+        "KeyName": {
+          "Ref": "SSHKey"
+        },
+        "CreditSpecification": {
+          "CPUCredits": "standard"
+        },
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "MetadataOptions": {
+          "HttpTokens": "required",
+          "HttpEndpoint": "enabled",
+          "HttpPutResponseHopLimit": 1
+        },
+        "NetworkInterfaces": [
           {
-            "Ref": "StorageSecurityGroup"
+            "DeviceIndex": "0",
+            "AssociatePublicIpAddress": true,
+            "SubnetId": {
+              "Ref": "Subnet"
+            },
+            "GroupSet": [
+              {
+                "Ref": "SecurityGroup"
+              }
+            ],
+            "DeleteOnTermination": true
           }
-        ]
-      }
-    },
-    "Cluster": {
-      "Type": "AWS::ECS::Cluster",
-      "Properties": {}
-    },
-    "Logs": {
-      "Type": "AWS::Logs::LogGroup",
-      "Properties": {
-        "RetentionInDays": 7
-      }
-    },
-    "ExecutionRole": {
-      "Type": "AWS::IAM::Role",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "ecs-tasks.amazonaws.com"
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "VolumeType": "gp3",
+              "VolumeSize": {
+                "Ref": "DiskGiB"
               },
-              "Action": "sts:AssumeRole"
+              "Encrypted": true,
+              "DeleteOnTermination": true
             }
-          ]
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
           }
-        ]
-      }
-    },
-    "Assets": {
-      "Type": "AWS::S3::Bucket",
-      "Properties": {
-        "PublicAccessBlockConfiguration": {
-          "BlockPublicAcls": true,
-          "BlockPublicPolicy": true,
-          "IgnorePublicAcls": true,
-          "RestrictPublicBuckets": true
-        },
-        "BucketEncryption": {
-          "ServerSideEncryptionConfiguration": [
-            {
-              "ServerSideEncryptionByDefault": {
-                "SSEAlgorithm": "AES256"
-              }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "AWS::StackName"
             }
-          ]
-        },
-        "OwnershipControls": {
-          "Rules": [
-            {
-              "ObjectOwnership": "BucketOwnerEnforced"
-            }
-          ]
-        }
-      }
-    },
-    "Registry": {
-      "Type": "AWS::ECR::Repository",
-      "Properties": {
-        "EmptyOnDelete": true,
-        "ImageScanningConfiguration": {
-          "ScanOnPush": true
+          },
+          {
+            "Key": "insta-game:kind",
+            "Value": "shared-host"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": "#!/bin/bash\nset -eu\nssh-keygen -A\ncat > /usr/local/sbin/insta-game-ssh-key <<'KEYSCRIPT'\n#!/bin/sh\nprintf 'INSTA_GAME_SSH_HOST_KEY=%s\\n' \"$(cat /etc/ssh/ssh_host_ed25519_key.pub)\" > /dev/console\nKEYSCRIPT\nchmod 0755 /usr/local/sbin/insta-game-ssh-key\ncat > /etc/systemd/system/insta-game-ssh-key.service <<'KEYSERVICE'\n[Unit]\nDescription=Publish the SSH host identity to the authenticated EC2 console\nAfter=ssh.service\n[Service]\nType=oneshot\nExecStart=/usr/local/sbin/insta-game-ssh-key\n[Install]\nWantedBy=multi-user.target\nKEYSERVICE\nsystemctl daemon-reload\nsystemctl enable --now insta-game-ssh-key.service\ncat > /etc/systemd/system/insta-game-deadline.service <<'EOF'\n[Unit]\nDescription=Stop the game host after its maximum boot lifetime\n[Service]\nType=oneshot\nExecStart=/usr/bin/systemctl poweroff\nEOF\ncat > /etc/systemd/system/insta-game-deadline.timer <<'EOF'\n[Unit]\nDescription=Six hour game host cost limit\n[Timer]\nOnBootSec=6h\nAccuracySec=1min\nUnit=insta-game-deadline.service\n[Install]\nWantedBy=timers.target\nEOF\nsystemctl daemon-reload\nsystemctl enable --now insta-game-deadline.timer\n"
         }
       }
     }
   },
   "Outputs": {
-    "Cluster": {
+    "InstanceID": {
       "Value": {
-        "Ref": "Cluster"
+        "Ref": "Host"
       }
     },
-    "Subnet": {
-      "Value": {
-        "Ref": "Subnet"
-      }
-    },
-    "SecurityGroup": {
-      "Value": {
-        "Ref": "GamesSecurityGroup"
-      }
-    },
-    "FileSystem": {
-      "Value": {
-        "Ref": "Storage"
-      }
-    },
-    "ExecutionRole": {
+    "PublicIP": {
       "Value": {
         "Fn::GetAtt": [
-          "ExecutionRole",
-          "Arn"
+          "Host",
+          "PublicIp"
         ]
-      }
-    },
-    "LogGroup": {
-      "Value": {
-        "Ref": "Logs"
-      }
-    },
-    "AssetsBucket": {
-      "Value": {
-        "Ref": "Assets"
-      }
-    },
-    "Repository": {
-      "Value": {
-        "Fn::GetAtt": [
-          "Registry",
-          "RepositoryUri"
-        ]
-      }
-    },
-    "Network": {
-      "Value": {
-        "Ref": "Network"
       }
     }
   }

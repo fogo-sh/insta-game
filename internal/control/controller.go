@@ -8,16 +8,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fogo-sh/insta-game/internal/agent"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fogo-sh/insta-game/internal/securehttp"
 )
 
+var ErrShuttingDown = errors.New("host is shutting down; retry shortly")
+
 type Controller struct {
+	intentMu        sync.Mutex
+	shuttingDown    bool
 	DiscordKey      ed25519.PublicKey
 	DiscordGuild    string
 	Store           *Store
@@ -39,6 +44,11 @@ func NewToken() string {
 }
 
 func (c *Controller) Create(req CreateRequest) (Instance, error) {
+	c.intentMu.Lock()
+	defer c.intentMu.Unlock()
+	if c.shuttingDown {
+		return Instance{}, ErrShuttingDown
+	}
 	if req.ID == "" {
 		req.ID = NewToken()[:20]
 	}
@@ -82,6 +92,11 @@ func (c *Controller) Create(req CreateRequest) (Instance, error) {
 }
 
 func (c *Controller) SetDesired(id, desired string) error {
+	c.intentMu.Lock()
+	defer c.intentMu.Unlock()
+	if c.shuttingDown {
+		return ErrShuttingDown
+	}
 	if desired != "running" && desired != "stopped" && desired != "deleted" {
 		return fmt.Errorf("invalid desired state")
 	}
@@ -111,6 +126,30 @@ func (c *Controller) SetDesired(id, desired string) error {
 		return nil
 	})
 }
+func InstancesIdle(instances []Instance) bool {
+	for _, instance := range instances {
+		stopped := instance.Desired == "stopped" && instance.Phase == "stopped"
+		deleted := instance.Desired == "deleted" && instance.Phase == "deleted"
+		if (!stopped && !deleted) || instance.Error != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// BeginIdleShutdown closes admission atomically with the final idle check.
+// Once committed, the caller must shut down this controller even if poweroff fails.
+func (c *Controller) BeginIdleShutdown() (bool, error) {
+	c.intentMu.Lock()
+	defer c.intentMu.Unlock()
+	instances, err := c.Store.List()
+	if err != nil || !InstancesIdle(instances) {
+		return false, err
+	}
+	c.shuttingDown = true
+	return true, nil
+}
+
 func (c *Controller) Run(ctx context.Context) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -149,9 +188,6 @@ func (c *Controller) Reconcile(ctx context.Context) {
 func (c *Controller) reconcileInstance(ctx context.Context, instance Instance) {
 	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	observation, phase, opErr := c.reconcile(opCtx, instance)
-	if errors.Is(opErr, ErrPending) {
-		opErr = nil
-	}
 	cancel()
 	now := time.Now().UTC()
 	if saveErr := c.Store.Update(instance.ID, func(current *Instance) error {
@@ -189,9 +225,6 @@ func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, st
 	}
 	if i.Desired == "deleted" {
 		err := provider.Delete(ctx, i)
-		if errors.Is(err, ErrPending) {
-			return Observation{}, "deleting", nil
-		}
 		return Observation{}, "deleted", err
 	}
 	if i.Desired == "running" && i.MaxMinutes > 0 && time.Since(i.StartedAt) >= time.Duration(i.MaxMinutes)*time.Minute {
@@ -221,9 +254,6 @@ func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, st
 		if err != nil {
 			return observation, "queued", err
 		}
-	}
-	if observation.Pending {
-		return observation, "starting", nil
 	}
 	if !observation.Running {
 		// A crashed game needs an explicit stop/start, not an endless restart loop.
@@ -306,7 +336,7 @@ func (c *Controller) agentRequest(ctx context.Context, i Instance, base, method,
 	client := c.HTTP
 	if strings.HasPrefix(base, "https://") {
 		transport := http.DefaultTransport.(*http.Transport).Clone()
-		transport.TLSClientConfig = agent.ClientTLS(i.AgentToken)
+		transport.TLSClientConfig = securehttp.ClientTLS(i.AgentToken)
 		defer transport.CloseIdleConnections()
 		secure := *c.HTTP
 		secure.Transport = transport

@@ -10,7 +10,6 @@ import (
 type Config struct {
 	SeedPath        string
 	DataRoot        string
-	DataOwner       string
 	TLS             bool
 	Protocol        string
 	GameDir         string
@@ -48,7 +47,6 @@ func FromEnv() Config {
 		Protocol:        envOr("PROTOCOL", ""),
 		SeedPath:        envOr("DATA_SEED", ""),
 		DataRoot:        envOr("DATA_ROOT", "/opt"),
-		DataOwner:       envOr("INSTANCE_OWNER", ""),
 		TLS:             envOr("AGENT_TLS", "false") == "true",
 		GameCmd:         envOr("GAME_CMD", ""),
 		GameArgs:        gameArgs,

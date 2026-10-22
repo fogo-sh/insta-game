@@ -16,4 +16,4 @@ images:
 	docker compose --profile images build
 
 lint-templates:
-	uv run --no-project --with cfn-lint==1.58.0 env INSTA_GAME_LINT_TEMPLATES=1 go test ./internal/control -run '^TestCloudFormationTemplates$$' -count=1
+	uv run --no-project --with cfn-lint==1.58.0 env INSTA_GAME_LINT_TEMPLATES=1 go test ./internal/cloud -run '^TestCloudFormationTemplates$$' -count=1

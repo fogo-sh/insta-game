@@ -6,15 +6,11 @@ import (
 	"fmt"
 	"net"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	cf "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 //go:embed environment.json
@@ -22,16 +18,28 @@ var EnvironmentTemplate string
 
 var stackName = regexp.MustCompile(`^insta-game-[a-zA-Z0-9-]{1,60}$`)
 
-func Plan(ctx context.Context, sdk aws.Config, name, controllerCIDR string) (string, error) {
+type PlanOptions struct {
+	OperatorCIDR string
+	PublicKey    string
+	InstanceType string
+	DiskGiB      int
+	UDPFrom      int
+	UDPTo        int
+}
+
+func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions) (string, error) {
 	if !stackName.MatchString(name) {
 		return "", fmt.Errorf("stack name must start with insta-game- and contain letters, numbers or hyphens")
 	}
-	ip, network, err := net.ParseCIDR(controllerCIDR)
+	ip, network, err := net.ParseCIDR(options.OperatorCIDR)
 	if err != nil || ip.To4() == nil {
-		return "", fmt.Errorf("controller-cidr must be an IPv4 CIDR")
+		return "", fmt.Errorf("operator-cidr must be an IPv4 CIDR")
 	}
 	if ones, _ := network.Mask.Size(); ones < 24 {
-		return "", fmt.Errorf("controller-cidr must be /24 or narrower")
+		return "", fmt.Errorf("operator-cidr must be /24 or narrower")
+	}
+	if options.PublicKey == "" || options.InstanceType == "" || options.DiskGiB < 8 || options.UDPFrom < 1 || options.UDPTo < options.UDPFrom || options.UDPTo > 65535 {
+		return "", fmt.Errorf("public key, instance type, disk >= 8 GiB, and valid UDP range are required")
 	}
 	client := cloudformation.NewFromConfig(sdk)
 	kind := cf.ChangeSetTypeCreate
@@ -44,9 +52,16 @@ func Plan(ctx context.Context, sdk aws.Config, name, controllerCIDR string) (str
 	}
 	result, err := client.CreateChangeSet(ctx, &cloudformation.CreateChangeSetInput{
 		StackName: aws.String(name), ChangeSetName: aws.String(fmt.Sprintf("insta-game-%d", time.Now().UnixNano())),
-		ChangeSetType: kind, TemplateBody: aws.String(EnvironmentTemplate), Capabilities: []cf.Capability{cf.CapabilityCapabilityIam},
-		Parameters: []cf.Parameter{{ParameterKey: aws.String("ControllerCIDR"), ParameterValue: aws.String(controllerCIDR)}},
-		Tags:       []cf.Tag{{Key: aws.String("insta-game:kind"), Value: aws.String("environment")}},
+		ChangeSetType: kind, TemplateBody: aws.String(EnvironmentTemplate),
+		Parameters: []cf.Parameter{
+			{ParameterKey: aws.String("OperatorCIDR"), ParameterValue: aws.String(options.OperatorCIDR)},
+			{ParameterKey: aws.String("PublicKey"), ParameterValue: aws.String(options.PublicKey)},
+			{ParameterKey: aws.String("InstanceType"), ParameterValue: aws.String(options.InstanceType)},
+			{ParameterKey: aws.String("DiskGiB"), ParameterValue: aws.String(fmt.Sprint(options.DiskGiB))},
+			{ParameterKey: aws.String("UDPFrom"), ParameterValue: aws.String(fmt.Sprint(options.UDPFrom))},
+			{ParameterKey: aws.String("UDPTo"), ParameterValue: aws.String(fmt.Sprint(options.UDPTo))},
+		},
+		Tags: []cf.Tag{{Key: aws.String("insta-game:kind"), Value: aws.String("shared-host")}},
 	})
 	if err != nil {
 		return "", err
@@ -70,7 +85,7 @@ func Apply(ctx context.Context, sdk aws.Config, name, changeSet string) error {
 	}
 	managed := false
 	for _, tag := range changes.Tags {
-		if aws.ToString(tag.Key) == "insta-game:kind" && aws.ToString(tag.Value) == "environment" {
+		if aws.ToString(tag.Key) == "insta-game:kind" && aws.ToString(tag.Value) == "shared-host" {
 			managed = true
 		}
 	}
@@ -87,7 +102,7 @@ func Apply(ctx context.Context, sdk aws.Config, name, changeSet string) error {
 	stack := &described.Stacks[0]
 	// CREATE change sets have no resources or stack tags until execution.
 	if stack.StackStatus != cf.StackStatusReviewInProgress {
-		if err := requireStackOwnership(stack, "environment", ""); err != nil {
+		if err := requireStackOwnership(stack); err != nil {
 			return err
 		}
 	}
@@ -105,7 +120,7 @@ func Apply(ctx context.Context, sdk aws.Config, name, changeSet string) error {
 }
 
 func ReadConfig(ctx context.Context, sdk aws.Config, name string) (Config, error) {
-	stack, err := DescribeStack(ctx, cloudformation.NewFromConfig(sdk), name, "environment", "")
+	stack, err := DescribeStack(ctx, cloudformation.NewFromConfig(sdk), name)
 	if err != nil {
 		return Config{}, err
 	}
@@ -113,71 +128,22 @@ func ReadConfig(ctx context.Context, sdk aws.Config, name string) (Config, error
 		return Config{}, fmt.Errorf("environment is %s", stack.StackStatus)
 	}
 	o := Outputs(stack)
-	return Config{Region: sdk.Region, Stack: aws.ToString(stack.StackId), Network: o["Network"], Cluster: o["Cluster"], Subnet: o["Subnet"], SecurityGroup: o["SecurityGroup"], FileSystem: o["FileSystem"], ExecutionRole: o["ExecutionRole"], LogGroup: o["LogGroup"], AssetsBucket: o["AssetsBucket"], Repository: o["Repository"]}, nil
+	return Config{Region: sdk.Region, Stack: aws.ToString(stack.StackId), InstanceID: o["InstanceID"]}, nil
 }
 
-func Destroy(ctx context.Context, sdk aws.Config, name string, deleteAssets bool) error {
-	cfClient := cloudformation.NewFromConfig(sdk)
-	stack, err := describeEnvironment(ctx, cfClient, name)
+func Destroy(ctx context.Context, sdk aws.Config, name string) error {
+	client := cloudformation.NewFromConfig(sdk)
+	stack, err := describeEnvironment(ctx, client, name)
 	if MissingStack(err) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	o := Outputs(stack)
-	if o["Cluster"] != "" {
-		tasks, err := ecs.NewFromConfig(sdk).ListTasks(ctx, &ecs.ListTasksInput{Cluster: aws.String(o["Cluster"])})
-		if err != nil {
-			return err
-		}
-		if len(tasks.TaskArns) > 0 {
-			return fmt.Errorf("delete game instances before destroying their environment")
-		}
-	}
-	pages := cloudformation.NewListStacksPaginator(cfClient, &cloudformation.ListStacksInput{})
-	for pages.HasMorePages() {
-		result, err := pages.NextPage(ctx)
-		if err != nil {
-			return err
-		}
-		for _, summary := range result.StackSummaries {
-			if summary.StackStatus == cf.StackStatusDeleteComplete || !strings.HasPrefix(aws.ToString(summary.StackName), aws.ToString(stack.StackName)+"-game-") {
-				continue
-			}
-			return fmt.Errorf("game stack %s still exists; delete its instance first", aws.ToString(summary.StackName))
-		}
-	}
-	if o["AssetsBucket"] != "" {
-		s3client := s3.NewFromConfig(sdk)
-		pages := s3.NewListObjectsV2Paginator(s3client, &s3.ListObjectsV2Input{Bucket: aws.String(o["AssetsBucket"])})
-		for pages.HasMorePages() {
-			result, err := pages.NextPage(ctx)
-			if err != nil {
-				return err
-			}
-			if len(result.Contents) > 0 && !deleteAssets {
-				return fmt.Errorf("asset bucket is not empty; pass --delete-assets to delete its contents")
-			}
-			objects := []s3types.ObjectIdentifier{}
-			for _, object := range result.Contents {
-				objects = append(objects, s3types.ObjectIdentifier{Key: object.Key})
-			}
-			if len(objects) > 0 {
-				deleted, err := s3client.DeleteObjects(ctx, &s3.DeleteObjectsInput{Bucket: aws.String(o["AssetsBucket"]), Delete: &s3types.Delete{Objects: objects}})
-				if err != nil {
-					return err
-				}
-				if len(deleted.Errors) > 0 {
-					return fmt.Errorf("asset deletion failed: %s", aws.ToString(deleted.Errors[0].Message))
-				}
-			}
-		}
-	}
-	if _, err := cfClient.DeleteStack(ctx, &cloudformation.DeleteStackInput{StackName: stack.StackId}); err != nil {
+	if _, err := client.DeleteStack(ctx, &cloudformation.DeleteStackInput{StackName: stack.StackId}); err != nil {
 		return err
 	}
-	return cloudformation.NewStackDeleteCompleteWaiter(cfClient).Wait(ctx, &cloudformation.DescribeStacksInput{StackName: stack.StackId}, 20*time.Minute)
+	return cloudformation.NewStackDeleteCompleteWaiter(client).Wait(ctx, &cloudformation.DescribeStacksInput{StackName: stack.StackId}, 15*time.Minute)
 }
 
 func describeEnvironment(ctx context.Context, client *cloudformation.Client, name string) (*cf.Stack, error) {
@@ -190,7 +156,7 @@ func describeEnvironment(ctx context.Context, client *cloudformation.Client, nam
 	}
 	stack := &result.Stacks[0]
 	if stack.StackStatus != cf.StackStatusReviewInProgress {
-		if err := requireStackOwnership(stack, "environment", ""); err != nil {
+		if err := requireStackOwnership(stack); err != nil {
 			return nil, err
 		}
 		return stack, nil
@@ -211,7 +177,7 @@ func describeEnvironment(ctx context.Context, client *cloudformation.Client, nam
 				continue
 			}
 			for _, tag := range change.Tags {
-				if aws.ToString(tag.Key) == "insta-game:kind" && aws.ToString(tag.Value) == "environment" {
+				if aws.ToString(tag.Key) == "insta-game:kind" && aws.ToString(tag.Value) == "shared-host" {
 					return stack, nil
 				}
 			}

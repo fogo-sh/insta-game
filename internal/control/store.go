@@ -34,7 +34,7 @@ func OpenStore(path string) (*Store, error) {
 }
 func (s *Store) Close() error { return s.db.Close() }
 func encode(i Instance) ([]byte, error) {
-	return json.Marshal(record{Instance: i, AgentToken: i.AgentToken, RconPassword: i.RconPassword, AWS: i.AWS})
+	return json.Marshal(record{Instance: i, AgentToken: i.AgentToken, RconPassword: i.RconPassword})
 }
 func decode(data []byte) (Instance, error) {
 	if data == nil {
@@ -44,7 +44,6 @@ func decode(data []byte) (Instance, error) {
 	if err := json.Unmarshal(data, &r); err != nil {
 		return Instance{}, err
 	}
-	r.Instance.AWS = r.AWS
 	r.Instance.AgentToken = r.AgentToken
 	r.Instance.RconPassword = r.RconPassword
 	return r.Instance, nil

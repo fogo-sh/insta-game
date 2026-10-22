@@ -1,14 +1,13 @@
 package protocol
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"time"
 )
 
-// QueryQuake1 sends a NetQuake CCREQ_SERVER_INFO control packet to
-// 127.0.0.1:port and returns server info. Returns nil if the server does not
-// respond or the response is malformed.
 func QueryQuake1(port int) (*ServerInfo, error) {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	conn, err := net.DialTimeout("udp", addr, 2*time.Second)
@@ -18,8 +17,7 @@ func QueryQuake1(port int) (*ServerInfo, error) {
 	defer conn.Close()
 
 	conn.SetDeadline(time.Now().Add(2 * time.Second))
-	_, err = conn.Write([]byte("\x80\x00\x00\x0c\x02QUAKE\x00\x03"))
-	if err != nil {
+	if _, err := conn.Write([]byte("\x80\x00\x00\x0c\x02QUAKE\x00\x03")); err != nil {
 		return nil, err
 	}
 
@@ -28,40 +26,20 @@ func QueryQuake1(port int) (*ServerInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if n < 7 || buf[0] != 0x80 || buf[1] != 0x00 || buf[4] != 0x83 {
-		return nil, fmt.Errorf("unexpected response header")
+	if n < 5 || binary.BigEndian.Uint32(buf[:4]) != 0x80000000|uint32(n) || buf[4] != 0x83 {
+		return nil, fmt.Errorf("unexpected Quake server info header")
 	}
-
 	payload := buf[5:n]
-	parts := splitNull(payload)
-	if len(parts) < 3 {
-		return nil, fmt.Errorf("response too short")
-	}
-
-	hostname := string(parts[1])
-	mapName := string(parts[2])
-	players := 0
-	if len(payload) >= 3 {
-		players = int(payload[len(payload)-3])
-	}
-
-	return &ServerInfo{
-		Players:  players,
-		Hostname: hostname,
-		Map:      mapName,
-	}, nil
-}
-
-func splitNull(b []byte) [][]byte {
-	var parts [][]byte
-	start := 0
-	for i, c := range b {
-		if c == 0x00 {
-			parts = append(parts, b[start:i])
-			start = i + 1
+	var fields [3][]byte
+	for i := range fields {
+		var found bool
+		fields[i], payload, found = bytes.Cut(payload, []byte{0})
+		if !found {
+			return nil, fmt.Errorf("incomplete Quake server info")
 		}
 	}
-	parts = append(parts, b[start:])
-	return parts
+	if len(payload) != 3 {
+		return nil, fmt.Errorf("invalid Quake server counts")
+	}
+	return &ServerInfo{Players: int(payload[0]), Hostname: string(fields[1]), Map: string(fields[2])}, nil
 }

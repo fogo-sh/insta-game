@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/fogo-sh/insta-game/internal/securehttp"
 )
 
 var gameLogs = NewRingLog(200)
@@ -32,9 +34,6 @@ func Run(ctx context.Context, c Config) error {
 	if root == "" {
 		root = filepath.Dir(c.ConfigPath)
 	}
-	if err := claimData(root, c.DataOwner); err != nil {
-		return err
-	}
 	if err := seedData(ctx, c.SeedPath, root); err != nil {
 		return err
 	}
@@ -57,7 +56,7 @@ func Run(ctx context.Context, c Config) error {
 	server := &http.Server{Addr: fmt.Sprintf("%s:%d", c.Host, c.Port), Handler: handler(c, &process, cancelRun), ReadHeaderTimeout: 5 * time.Second}
 	done := make(chan error, 1)
 	if c.TLS {
-		config, err := serverTLS(c.Token)
+		config, err := securehttp.ServerTLS(c.Token)
 		if err != nil {
 			return err
 		}

@@ -5,25 +5,29 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fogo-sh/insta-game/internal/agent"
-	"github.com/fogo-sh/insta-game/internal/cloud"
 	"github.com/fogo-sh/insta-game/internal/control"
+	"github.com/fogo-sh/insta-game/internal/securehttp"
 )
 
 const help = `insta-game — on-demand dedicated servers
 
   discord  Print or register the Go controller's Discord commands
-  aws      Provision, inspect, publish assets/images, or destroy an AWS environment
+	aws      Manage an AWS game host
+  wake     Answer Quake connection attempts and wake an AWS host
   serve    Run the controller and embedded web UI
   agent    Supervise one game (configured through GAME_* environment variables)
   games    List supported games
@@ -50,14 +54,8 @@ func Run(ctx context.Context, args []string, out io.Writer) error {
 		return discordCommand(ctx, args[1:], out)
 	case "aws":
 		return awsCommand(ctx, args[1:], out)
-	case "clean-data":
-		flags := flag.NewFlagSet("clean-data", flag.ContinueOnError)
-		directory := flags.String("dir", "", "Owned data directory")
-		owner := flags.String("owner", "", "Instance owner")
-		if err := flags.Parse(args[1:]); err != nil {
-			return flagError(err)
-		}
-		return agent.CleanData(*directory, *owner)
+	case "wake":
+		return wakeCommand(ctx, args[1:], out)
 	case "serve":
 		return serve(ctx, args[1:], out)
 	case "agent":
@@ -113,10 +111,11 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(out)
 	listen := flags.String("listen", "127.0.0.1:3000", "HTTP listen address")
+	tlsEnabled := flags.Bool("tls", false, "Serve HTTPS using the controller token as its pinned identity")
+	poweroffIdle := flags.Duration("poweroff-idle", 0, "Power off the host after all instances are stopped for this duration (0 disables)")
 	dataDir := flags.String("data", ".insta-game", "Private controller data directory")
 	discordKey := flags.String("discord-key", os.Getenv("DISCORD_PUBLIC_KEY"), "Discord application public key (hex)")
 	discordGuild := flags.String("discord-guild", os.Getenv("DISCORD_GUILD_ID"), "Allowed Discord guild ID")
-	awsConfig := flags.String("aws-config", "", "AWS environment JSON file")
 	nativeConfig := flags.String("native-config", "", "Native engine definitions (JSON file)")
 	defaultProvider := flags.String("default-provider", "docker", "Default execution provider")
 	catalog := flags.String("catalog", "docker-containers", "Directory containing game folders")
@@ -125,6 +124,9 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	bindIP := flags.String("game-bind", "127.0.0.1", "Host IP for game ports; use 0.0.0.0 for LAN/public access")
 	if err := flags.Parse(args); err != nil {
 		return flagError(err)
+	}
+	if *poweroffIdle < 0 {
+		return fmt.Errorf("poweroff-idle must not be negative")
 	}
 	games, err := control.LoadCatalog(*catalog)
 	if err != nil {
@@ -162,17 +164,6 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 		}
 		controller.Providers["local"] = &control.Native{Root: root, Binary: binary, PublicHost: *publicHost, Games: engines}
 	}
-	if *awsConfig != "" {
-		environment, err := cloud.Load(*awsConfig)
-		if err != nil {
-			return err
-		}
-		provider, err := control.NewAWS(ctx, environment, store)
-		if err != nil {
-			return err
-		}
-		controller.Providers["aws"] = provider
-	}
 	if _, ok := controller.Providers[*defaultProvider]; !ok {
 		return fmt.Errorf("default provider %q is not configured", *defaultProvider)
 	}
@@ -187,21 +178,50 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	done := make(chan struct{})
-	go func() { defer close(done); controller.Run(runCtx) }()
-	defer func() { cancel(); <-done }()
-	fmt.Fprintf(out, "insta-game listening on http://%s\nController token: %s (or INSTA_GAME_TOKEN)\n", *listen, filepath.Join(*dataDir, "token"))
+	var workers sync.WaitGroup
+	workers.Go(func() { controller.Run(runCtx) })
+	defer func() { cancel(); workers.Wait() }()
 	server := &http.Server{Addr: *listen, Handler: controller.Handler(token), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}
+	scheme := "http"
+	if *tlsEnabled {
+		server.TLSConfig, err = securehttp.ServerTLS(token)
+		if err != nil {
+			return err
+		}
+		scheme = "https"
+	}
+	fmt.Fprintf(out, "insta-game listening on %s://%s\nController token: %s (or INSTA_GAME_TOKEN)\n", scheme, *listen, filepath.Join(*dataDir, "token"))
 	serverDone := make(chan error, 1)
-	go func() { serverDone <- server.ListenAndServe() }()
+	go func() {
+		if *tlsEnabled {
+			serverDone <- server.ListenAndServeTLS("", "")
+		} else {
+			serverDone <- server.ListenAndServe()
+		}
+	}()
+	var idleDone chan error
+	if *poweroffIdle > 0 {
+		idleDone = make(chan error, 1)
+		workers.Go(func() {
+			idleDone <- poweroffWhenIdle(runCtx, *poweroffIdle, store.List, func(ctx context.Context) (bool, error) {
+				committed, err := controller.BeginIdleShutdown()
+				if err != nil || !committed {
+					return false, err
+				}
+				return true, exec.CommandContext(ctx, "systemctl", "poweroff").Run()
+			})
+		})
+	}
+	var stopErr error
 	select {
 	case err := <-serverDone:
 		return err
+	case stopErr = <-idleDone:
 	case <-ctx.Done():
-		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		return server.Shutdown(shutdown)
 	}
+	shutdown, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelShutdown()
+	return errors.Join(stopErr, server.Shutdown(shutdown))
 }
 func flagError(err error) error {
 	if err == flag.ErrHelp {
@@ -288,7 +308,7 @@ func client(ctx context.Context, command string, args []string, out io.Writer) e
 	}
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("Content-Type", "application/json")
-	transport := &http.Transport{ResponseHeaderTimeout: 10 * time.Second}
+	transport := &http.Transport{ResponseHeaderTimeout: 10 * time.Second, TLSClientConfig: securehttp.ClientTLS(token)}
 	defer transport.CloseIdleConnections()
 	res, err := (&http.Client{Transport: transport}).Do(request)
 	if err != nil {

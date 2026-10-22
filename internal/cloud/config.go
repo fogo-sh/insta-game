@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -16,17 +17,11 @@ import (
 )
 
 type Config struct {
-	Network       string
-	Region        string
-	Stack         string
-	Cluster       string
-	Subnet        string
-	SecurityGroup string
-	FileSystem    string
-	ExecutionRole string
-	LogGroup      string
-	AssetsBucket  string
-	Repository    string
+	Region     string
+	Stack      string
+	InstanceID string
+	KeyPath    string
+	TokenPath  string
 }
 
 func LoadSDK(ctx context.Context, region string) (aws.Config, error) {
@@ -42,8 +37,13 @@ func Load(path string) (Config, error) {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return c, err
 	}
-	if c.Network == "" || c.Region == "" || c.Stack == "" || c.Cluster == "" || c.Subnet == "" || c.SecurityGroup == "" || c.FileSystem == "" || c.ExecutionRole == "" || c.LogGroup == "" || c.AssetsBucket == "" {
-		return c, fmt.Errorf("incomplete AWS environment config")
+	if c.Region == "" || c.Stack == "" || c.InstanceID == "" {
+		return c, fmt.Errorf("incomplete shared EC2 host config")
+	}
+	for _, p := range []*string{&c.KeyPath, &c.TokenPath} {
+		if *p != "" && !filepath.IsAbs(*p) {
+			*p = filepath.Join(filepath.Dir(path), *p)
+		}
 	}
 	return c, nil
 }
@@ -57,7 +57,7 @@ type StackDescriber interface {
 	DescribeStacks(context.Context, *cloudformation.DescribeStacksInput, ...func(*cloudformation.Options)) (*cloudformation.DescribeStacksOutput, error)
 }
 
-func DescribeStack(ctx context.Context, client StackDescriber, name, kind, owner string) (*cf.Stack, error) {
+func DescribeStack(ctx context.Context, client StackDescriber, name string) (*cf.Stack, error) {
 	result, err := client.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{StackName: aws.String(name)})
 	if err != nil {
 		return nil, err
@@ -66,23 +66,20 @@ func DescribeStack(ctx context.Context, client StackDescriber, name, kind, owner
 		return nil, fmt.Errorf("expected one stack for %s", name)
 	}
 	stack := &result.Stacks[0]
-	if err := requireStackOwnership(stack, kind, owner); err != nil {
+	if err := requireStackOwnership(stack); err != nil {
 		return nil, err
 	}
 	return stack, nil
 }
 
-func requireStackOwnership(stack *cf.Stack, kind, owner string) error {
-	foundKind, foundOwner := false, owner == ""
+func requireStackOwnership(stack *cf.Stack) error {
+	foundKind := false
 	for _, tag := range stack.Tags {
-		if aws.ToString(tag.Key) == "insta-game:kind" && aws.ToString(tag.Value) == kind {
+		if aws.ToString(tag.Key) == "insta-game:kind" && aws.ToString(tag.Value) == "shared-host" {
 			foundKind = true
 		}
-		if aws.ToString(tag.Key) == "insta-game:owner" && aws.ToString(tag.Value) == owner {
-			foundOwner = true
-		}
 	}
-	if !foundKind || !foundOwner {
+	if !foundKind {
 		return fmt.Errorf("refusing unmanaged CloudFormation stack %s", aws.ToString(stack.StackName))
 	}
 	return nil

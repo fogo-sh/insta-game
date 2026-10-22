@@ -1,4 +1,4 @@
-package agent
+package securehttp
 
 import (
 	"net/http"
@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestAgentTLSPinsEachInstance(t *testing.T) {
+func TestTLSPinsToken(t *testing.T) {
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) }))
-	config, err := serverTLS("first-instance-token")
+	config, err := ServerTLS("first-instance-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,5 +34,11 @@ func TestAgentTLSPinsEachInstance(t *testing.T) {
 				t.Fatal("trusted a different instance identity")
 			}
 		}
+	}
+}
+
+func TestServerTLSRequiresToken(t *testing.T) {
+	if _, err := ServerTLS(""); err == nil {
+		t.Fatal("accepted an empty TLS token")
 	}
 }

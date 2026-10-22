@@ -14,13 +14,14 @@ can use the same game without sharing runtime identity or writable data.
 | `internal/control` | Instance store, reconciliation, providers, authenticated API, Discord interactions, embedded UI |
 | `internal/agent` | One game process, startup assets/config, readiness, console, logs, authenticated management |
 | `internal/protocol` | Engine status queries and player counts |
-| `internal/cloud` | AWS environment configuration and embedded CloudFormation bootstrap |
+| `internal/cloud` | Shared EC2 host provisioning, SSH installation, wake/stop/destroy |
+| `internal/wake` | Quake connection rejection and deduplicated cold-start callbacks |
+| `internal/securehttp` | Token-pinned TLS for controller and agent clients |
 
 The controller owns lifecycle policy. Providers implement `Ensure`, `Inspect`,
-`Start`, `Stop`, and `Delete`; asynchronous work returns a pending observation
-or `ErrPending`. The agent supervises its child and reports game state. Its AWS
-credentials are limited to instance storage and asset reads; it does not create
-infrastructure or decide when to stop an instance.
+`Start`, `Stop`, and `Delete`. The agent supervises its child and reports game state.
+AWS infrastructure operations run on the operator machine; the shared host
+needs no AWS credentials.
 
 ## State and recovery
 
@@ -34,7 +35,7 @@ Unknown/unready activity resets the idle interval. Maximum runtime is a separate
 bound. Timeout decisions run only while the controller is online. Unexpected
 exits require explicit stop/start.
 
-The database contains private credentials and provider attempt records. Keep it
+The database contains private credentials and saved instance settings. Keep it
 with its provider configuration and run one controller per database. Deletion
 retains a tombstone while removing owned runtime resources and data. Ownership
 verification is required before destructive operations.
@@ -56,46 +57,46 @@ ports for TCP/UDP pairs. Agents are published on host loopback. Stop retains the
 container; delete removes it. The controller must share the Docker host's
 network view; a remote daemon is unsupported.
 
-**AWS:** A shared CloudFormation environment provides networking, ECS, EFS,
-registry, assets, and logs. Each instance has its own CloudFormation stack with
-an EFS access point, task role, task definition, and game security group. ECS
-runs standalone Fargate tasks. Stop terminates the task but retains the instance
-stack and data. Start creates a new task attempt and may change its public IP.
+## Shared AWS host
 
-Before submitting a task, the provider persists its attempt identity. Retries
-reuse an ECS client token, task ARN, and `startedBy` identity; terminal results
-are saved before ECS task history expires. An unresolved request is reconciled
-even if user intent changes to stop or delete. Missing history requires a search
-for live attempts before the attempt can be closed.
+One CloudFormation stack provisions a public subnet and one EBS-backed EC2 VM.
+Several native games share its CPU and memory while retaining independent
+working directories, ports, and lifecycle state. The VM runs the same controller
+and local provider as a workstation. There is one authoritative game database,
+on its persistent disk.
 
-AWS deletion stops the game, runs an owned cleanup task against only that
-instance's access point, verifies a successful exit, then deletes the instance
-stack. Removing an access point alone would leave its files. Failed cleanup
-keeps the instance visible and can be retried. Environment destruction is a
-separate operator command and refuses remaining game stacks/tasks.
+Normal EC2 stop retains the disk. Start refreshes the auto-assigned public IP;
+native endpoint observations use the current host address with saved ports.
+Destroy removes the VM and its disk, so export anything needed first.
+
+The controller's optional `--poweroff-idle` flag powers off only after every
+saved game is fully stopped or deleted for the complete grace period. Failed,
+unknown, running, or pending states prevent idle shutdown. Game idle policy
+still counts human players where the protocol supports it. An independent
+six-hour systemd boot timer bounds the experiment if the controller crashes.
+
+A separate process on an existing operator host listens for valid NetQuake
+connect requests. It deduplicates concurrent wake attempts, starts EC2, waits
+for authenticated controller readiness, starts the selected saved game, and
+returns its direct address through a Quake rejection message. Queries cannot
+wake the VM. Gameplay goes directly to EC2; this is not a transparent UDP relay.
+A short ready-address cache expires before later attempts revalidate the host.
 
 ## Persistent game roots
 
-Images place a complete seed of their `/opt` game root at
-`/usr/local/share/insta-game/seed`, outside the runtime data mount. The agent claims
-the root, copies missing seed files, records completed seeding, downloads any
-configured assets, applies launch configuration, then starts the engine.
-
-On AWS, the instance's EFS access point mounts at `dataRoot` (default `/opt`).
-Persisting the full root keeps downloaded mods and other engine files alongside
-configuration, rather than losing everything outside a narrow config directory
-on task replacement. The owner marker scopes cleanup; seeding does not overwrite
-existing files. Image changes therefore need a deliberate game-data upgrade or
-a new instance. Docker retains this root in its writable layer. Native instances
-copy their operator-supplied asset directory instead.
+Native instances copy operator-supplied assets into private directories on the
+host disk. Docker images seed their `/opt` game root from
+`/usr/local/share/insta-game/seed`; their writable layer survives container stop.
+Seeding preserves existing files. Engine upgrades need an explicit data upgrade
+or a fresh instance.
 
 ## Transport and API
 
-Local and Docker agents use loopback HTTP with bearer authentication. AWS agents
-use TLS with a public key pinned to their private instance token, plus bearer
-authentication. Cloud management TCP port 5001 is restricted to the controller's
-configured public IPv4 CIDR; game ports are public. Bootstrap provisions game
-hosting resources, not the controller host or an HTTPS frontend for its UI.
+Local and Docker agents use loopback HTTP with bearer authentication. The
+shared host controller uses TLS with a token-pinned public key plus bearer
+authentication. SSH and controller TCP port 3000 accept only the operator CIDR;
+game UDP ports are public. The installer verifies SSH against the host key
+reported through the authenticated EC2 console API.
 
 All `/api/` routes require `Authorization: Bearer <controller-token>`:
 
@@ -113,8 +114,7 @@ All `/api/` routes require `Authorization: Bearer <controller-token>`:
 Creation accepts `id`, `provider`, `game`, `name`, `config`, `idleMinutes`, and
 `maxMinutes`. ID, provider, and config can be omitted. Zero timeouts disable
 limits; clients choose their defaults. Mutations return HTTP 202 before provider
-work completes. Ordinary responses omit instance credentials and private AWS
-attempt state.
+work completes. Ordinary responses omit instance credentials.
 
 The embedded UI and CLI use these routes. Discord `/discord` verifies signed
 interactions and an allowed guild, then calls the same instance operations.

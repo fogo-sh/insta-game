@@ -5,6 +5,7 @@ package control
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,9 +75,13 @@ func TestNativeAgentsRecoverAndKeepSeparateData(t *testing.T) {
 		t.Fatal("shared game endpoint")
 	}
 	// Reconstructing the provider must discover agents without spawning replacements.
-	n = &Native{Root: n.Root, Binary: binary, PublicHost: n.PublicHost, Games: n.Games}
+	n = &Native{Root: n.Root, Binary: binary, PublicHost: "203.0.113.9", Games: n.Games}
 	for _, i := range instances {
-		wait(i, true)
+		observed := wait(i, true)
+		host, _, err := net.SplitHostPort(observed.Endpoints[0].Address)
+		if err != nil || host != n.PublicHost {
+			t.Fatalf("stale endpoint after host IP change: %+v", observed.Endpoints)
+		}
 	}
 	state, err := n.state(instances[0])
 	if err != nil {
@@ -113,4 +118,29 @@ func TestNativeAgentsRecoverAndKeepSeparateData(t *testing.T) {
 		t.Fatalf("delete left data: %v", err)
 	}
 	wait(instances[1], true)
+}
+
+func TestNativeRecoveryDistinguishesRebootFromGameExit(t *testing.T) {
+	boot := nativeBootID()
+	if boot == "" {
+		t.Skip("boot identity requires Linux")
+	}
+	n := &Native{Root: t.TempDir(), PublicHost: "203.0.113.9"}
+	i := Instance{ID: "reboot", AgentToken: NewToken()}
+	if err := os.MkdirAll(n.directory(i), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, previousBoot := range []string{boot, "previous-boot"} {
+		state := nativeState{Token: i.AgentToken, Started: true, BootID: previousBoot}
+		if err := writePrivateJSON(filepath.Join(n.directory(i), "state.json"), state); err != nil {
+			t.Fatal(err)
+		}
+		observed, err := n.Inspect(context.Background(), i)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if observed.Started != (previousBoot == boot) {
+			t.Fatalf("boot %q: %+v", previousBoot, observed)
+		}
+	}
 }

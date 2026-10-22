@@ -38,6 +38,7 @@ type Native struct {
 }
 
 type nativeState struct {
+	BootID    string
 	Token     string
 	Port      int
 	Endpoints []Endpoint
@@ -119,9 +120,21 @@ func (n *Native) Inspect(ctx context.Context, i Instance) (Observation, error) {
 	if err != nil {
 		return Observation{}, err
 	}
-	observation := Observation{Exists: true, Started: state.Started, Endpoints: state.Endpoints}
+	endpoints := append([]Endpoint(nil), state.Endpoints...)
+	for index := range endpoints {
+		_, port, err := net.SplitHostPort(endpoints[index].Address)
+		if err != nil {
+			return Observation{}, err
+		}
+		endpoints[index].Address = net.JoinHostPort(n.PublicHost, port)
+	}
+	observation := Observation{Exists: true, Started: state.Started, Endpoints: endpoints}
 	alive, err := nativeAlive(n.directory(i))
 	if err != nil || !alive {
+		bootID := nativeBootID()
+		if err == nil && bootID != "" && state.BootID != "" && state.BootID != bootID {
+			observation.Started = false
+		}
 		return observation, err
 	}
 	var status AgentStatus
@@ -304,6 +317,7 @@ func (n *Native) Start(ctx context.Context, i Instance) error {
 		return n.request(ctx, i, state, "POST", "/restart", bytes.NewReader(body), nil)
 	}
 	state.Started = true
+	state.BootID = nativeBootID()
 	if err := writePrivateJSON(filepath.Join(n.directory(i), "state.json"), state); err != nil {
 		return err
 	}
@@ -393,4 +407,9 @@ func (n *Native) Delete(ctx context.Context, i Instance) error {
 		}
 	}
 	return os.RemoveAll(n.directory(i))
+}
+
+func nativeBootID() string {
+	data, _ := os.ReadFile("/proc/sys/kernel/random/boot_id")
+	return strings.TrimSpace(string(data))
 }

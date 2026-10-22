@@ -4,7 +4,8 @@ The application is one Go module. `cmd/insta-game` is the entrypoint;
 `internal/command` contains CLI dispatch; `internal/control` owns instances,
 providers, the API, Discord interactions, and the embedded web UI.
 `internal/agent` supervises one game and `internal/protocol` queries engines.
-`internal/cloud` contains AWS environment provisioning and its embedded
+`internal/wake` handles Quake cold-start requests; `internal/securehttp` contains
+token-pinned TLS. `internal/cloud` provisions a shared EC2 host with its embedded
 CloudFormation template. `docker-containers/*` contains engine image builds,
 game metadata, and default configurations.
 

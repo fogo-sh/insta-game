@@ -5,13 +5,14 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
-	"github.com/fogo-sh/insta-game/internal/agent"
 	"io"
 	"io/fs"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/fogo-sh/insta-game/internal/securehttp"
 )
 
 //go:embed web/*
@@ -56,6 +57,9 @@ func (c *Controller) Handler(token string) http.Handler {
 			status := 400
 			if errors.Is(err, ErrConflict) {
 				status = 409
+			}
+			if errors.Is(err, ErrShuttingDown) {
+				status = 503
 			}
 			writeJSON(w, status, map[string]string{"error": err.Error()})
 			return
@@ -168,7 +172,7 @@ func (c *Controller) logs(w http.ResponseWriter, r *http.Request) {
 	// The streaming request has no total deadline; cancellation follows the caller.
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.ResponseHeaderTimeout = 5 * time.Second
-	transport.TLSClientConfig = agent.ClientTLS(i.AgentToken)
+	transport.TLSClientConfig = securehttp.ClientTLS(i.AgentToken)
 	defer transport.CloseIdleConnections()
 	res, err := (&http.Client{Transport: transport}).Do(req)
 	if err != nil {
@@ -214,6 +218,9 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 func writeError(w http.ResponseWriter, err error) {
 	status := 500
+	if errors.Is(err, ErrShuttingDown) {
+		status = 503
+	}
 	if errors.Is(err, ErrNotFound) {
 		status = 404
 	}
