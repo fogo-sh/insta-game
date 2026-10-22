@@ -26,6 +26,7 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	flags.SetOutput(out)
 	region := flags.String("region", "ca-central-1", "AWS region")
 	name := flags.String("stack", "insta-game-host", "Owned shared-host stack")
+	gameCIDR := flags.String("game-cidr", "0.0.0.0/0", "Allowed player or gateway public IPv4 CIDR")
 	cidr := flags.String("operator-cidr", "", "Operator public IPv4 CIDR for SSH and HTTPS")
 	publicKey := flags.String("public-key", "", "SSH public key file")
 	instanceType := flags.String("instance-type", "t3a.micro", "AMD64 burstable EC2 instance type")
@@ -86,7 +87,7 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 		if parsed.Type() != ssh.KeyAlgoED25519 && parsed.Type() != ssh.KeyAlgoRSA {
 			return fmt.Errorf("EC2 requires an ED25519 or RSA SSH key")
 		}
-		id, err := cloud.Plan(ctx, sdk, stackShortName(*name), cloud.PlanOptions{OperatorCIDR: *cidr, PublicKey: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(parsed))), InstanceType: *instanceType, DiskGiB: *disk, UDPFrom: *udpFrom, UDPTo: *udpTo})
+		id, err := cloud.Plan(ctx, sdk, stackShortName(*name), cloud.PlanOptions{GameCIDR: *gameCIDR, OperatorCIDR: *cidr, PublicKey: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(parsed))), InstanceType: *instanceType, DiskGiB: *disk, UDPFrom: *udpFrom, UDPTo: *udpTo})
 		if err != nil {
 			return err
 		}

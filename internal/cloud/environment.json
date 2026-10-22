@@ -6,6 +6,11 @@
       "Type": "String",
       "Description": "Operator public IPv4 CIDR for SSH and controller HTTPS"
     },
+    "GameCIDR": {
+      "Type": "String",
+      "Default": "0.0.0.0/0",
+      "Description": "Allowed player or gateway public IPv4 CIDR for game UDP"
+    },
     "PublicKey": {
       "Type": "String",
       "Description": "Existing SSH public key (private key stays on operator machine)"
@@ -134,7 +139,9 @@
             "ToPort": {
               "Ref": "UDPTo"
             },
-            "CidrIp": "0.0.0.0/0"
+            "CidrIp": {
+              "Ref": "GameCIDR"
+            }
           }
         ]
       }

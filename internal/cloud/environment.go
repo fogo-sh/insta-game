@@ -20,6 +20,7 @@ var stackName = regexp.MustCompile(`^insta-game-[a-zA-Z0-9-]{1,60}$`)
 
 type PlanOptions struct {
 	OperatorCIDR string
+	GameCIDR     string
 	PublicKey    string
 	InstanceType string
 	DiskGiB      int
@@ -38,6 +39,9 @@ func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions)
 	if ones, _ := network.Mask.Size(); ones < 24 {
 		return "", fmt.Errorf("operator-cidr must be /24 or narrower")
 	}
+	if ip, _, err := net.ParseCIDR(options.GameCIDR); err != nil || ip.To4() == nil {
+		return "", fmt.Errorf("game-cidr must be an IPv4 CIDR")
+	}
 	if options.PublicKey == "" || options.InstanceType == "" || options.DiskGiB < 8 || options.UDPFrom < 1 || options.UDPTo < options.UDPFrom || options.UDPTo > 65535 {
 		return "", fmt.Errorf("public key, instance type, disk >= 8 GiB, and valid UDP range are required")
 	}
@@ -54,6 +58,7 @@ func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions)
 		StackName: aws.String(name), ChangeSetName: aws.String(fmt.Sprintf("insta-game-%d", time.Now().UnixNano())),
 		ChangeSetType: kind, TemplateBody: aws.String(EnvironmentTemplate),
 		Parameters: []cf.Parameter{
+			{ParameterKey: aws.String("GameCIDR"), ParameterValue: aws.String(options.GameCIDR)},
 			{ParameterKey: aws.String("OperatorCIDR"), ParameterValue: aws.String(options.OperatorCIDR)},
 			{ParameterKey: aws.String("PublicKey"), ParameterValue: aws.String(options.PublicKey)},
 			{ParameterKey: aws.String("InstanceType"), ParameterValue: aws.String(options.InstanceType)},

@@ -15,7 +15,7 @@ can use the same game without sharing runtime identity or writable data.
 | `internal/agent` | One game process, startup assets/config, readiness, console, logs, authenticated management |
 | `internal/protocol` | Engine status queries and player counts |
 | `internal/cloud` | Shared EC2 host provisioning, SSH installation, wake/stop/destroy |
-| `internal/wake` | Quake connection rejection and deduplicated cold-start callbacks |
+| `internal/wake` | NetQuake loading connections, UDP relay, and deduplicated cold starts |
 | `internal/securehttp` | Token-pinned TLS for controller and agent clients |
 
 The controller owns lifecycle policy. Providers implement `Ensure`, `Inspect`,
@@ -75,12 +75,36 @@ unknown, running, or pending states prevent idle shutdown. Game idle policy
 still counts human players where the protocol supports it. An independent
 six-hour systemd boot timer bounds the experiment if the controller crashes.
 
-A separate process on an existing operator host listens for valid NetQuake
-connect requests. It deduplicates concurrent wake attempts, starts EC2, waits
-for authenticated controller readiness, starts the selected saved game, and
-returns its direct address through a Quake rejection message. Queries cannot
-wake the VM. Gameplay goes directly to EC2; this is not a transparent UDP relay.
-A short ready-address cache expires before later attempts revalidate the host.
+A gateway on an existing operator host owns the stable player-facing UDP
+address. It accepts a NetQuake connection immediately and sends reliable loading
+messages before game sign-on. The shared wake callback starts EC2, waits for
+fresh authenticated controller readiness, and starts the selected saved game.
+Status queries are answered locally without waking anything.
+
+Each player gets a separate backend UDP socket and negotiation. The gateway
+waits for the last loading message to be acknowledged, connects to the backend,
+and forwards the client's initial unacknowledged reliable packet. Backend
+reliable DATA sequence numbers gain the acknowledged loading-message count;
+client ACK/NAK numbers lose it. Client reliable DATA and backend ACKs are
+unchanged. Unreliable packets and payloads are never renumbered: extended game
+protocols refer to their sequence numbers in snapshot acknowledgments.
+
+The client therefore receives the backend's first sign-on over its existing
+connection. No waiting map, client modification, automatic reconnect command,
+or patched game engine is needed. FTE uses `sv_listen_nq 1`; basic handshakes on
+both legs keep ProQuake angle negotiation consistent. Backend rejections and
+unsupported transport fail visibly instead of looping.
+
+The listener bounds active clients, packet queues, boot attempts, and idle
+sessions. Wake work is shared by game ID; one disconnect cannot cancel another
+client's startup. Canceling the gateway closes its listeners, backend sockets,
+and workers. Backend game ports use `--game-cidr`, set to the gateway public
+IP in this deployment. SSH and the controller API use `--operator-cidr`.
+
+This uses the intermediary/session pattern from notscared's Elixir master_server.
+Its custom Quake II transfer packets and engine hooks are not part of this
+implementation; holding the client before its initial sign-on avoids needing
+that engine-specific transfer mechanism.
 
 ## Persistent game roots
 
@@ -95,8 +119,9 @@ or a fresh instance.
 Local and Docker agents use loopback HTTP with bearer authentication. The
 shared host controller uses TLS with a token-pinned public key plus bearer
 authentication. SSH and controller TCP port 3000 accept only the operator CIDR;
-game UDP ports are public. The installer verifies SSH against the host key
-reported through the authenticated EC2 console API.
+game UDP uses the separate player/gateway `--game-cidr` restriction. The
+installer verifies SSH against the host key reported through the authenticated
+EC2 console API.
 
 All `/api/` routes require `Authorization: Bearer <controller-token>`:
 

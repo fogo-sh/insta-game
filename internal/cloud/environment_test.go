@@ -87,8 +87,12 @@ func TestSharedHostCostAndAccessBoundaries(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, rule := range rules {
-				if rule.IpProtocol == "tcp" && !strings.Contains(string(rule.CidrIp), "OperatorCIDR") {
-					t.Errorf("management port %s is not restricted to operator", rule.FromPort)
+				expected := "OperatorCIDR"
+				if rule.IpProtocol == "udp" {
+					expected = "GameCIDR"
+				}
+				if !strings.Contains(string(rule.CidrIp), expected) {
+					t.Errorf("host port %s does not use %s", rule.FromPort, expected)
 				}
 			}
 		}

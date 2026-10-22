@@ -120,7 +120,7 @@ func wakeCommand(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	for _, mapping := range mappings {
-		fmt.Fprintf(out, "Quake wake gateway %s -> %s (retry for direct connection address)\n", mapping.Listen, mapping.GameID)
+		fmt.Fprintf(out, "Quake wake gateway %s -> %s (holds clients while starting the game)\n", mapping.Listen, mapping.GameID)
 	}
 	return gateway.Serve(ctx)
 }

@@ -1,7 +1,7 @@
 # Go implementation and validation
 
 One `insta-game` executable contains the controller, CLI, web UI, Discord
-integration, game agent, AWS host installer, and Quake wake listener. The
+integration, game agent, AWS host installer, and NetQuake wake gateway. The
 TypeScript launcher, separate sidecar executable, Python deployment app, and
 per-game Fargate/EFS implementation have been removed. Fly is not implemented.
 
@@ -13,9 +13,10 @@ per-game Fargate/EFS implementation have been removed. Fly is not implemented.
 - AWS: one shared EC2 host runs the same controller and providers. Encrypted
   gp3 retains the database and game data while EC2 is stopped. The operator's
   Go binary provisions, installs, starts, stops, and destroys the host.
-- Optional Quake wake listener on an existing host. Connection requests trigger
-  a bounded wake; queries do not. Rejection messages report startup or a direct
-  game address. It does not proxy gameplay.
+- Optional NetQuake wake gateway on an existing host. Connection requests trigger
+  a bounded wake; queries do not. Clients stay connected with loading messages
+  before sign-on, then enter the game automatically through the same UDP endpoint.
+  Each client gets an independent backend socket.
 
 The shared controller owns game idle limits. Its host idle option powers off
 only after all games are stopped/deleted for a complete grace period. A separate
@@ -45,11 +46,16 @@ EC2 stop/start, and fresh public connection addresses after restart. Review
 fixes cover admission races during idle shutdown, boot identity recovery, and
 systemd startup ordering. The empty-game timeout stopped a real bot-only game;
 the host then powered off after its two-minute grace period and EC2 reached
-`stopped`, releasing its public IPv4. A later valid tailnet connection attempt
-returned the ready direct address in 22 seconds without manual intervention;
-status queries left the stopped host asleep. Only the requested saved game
-started; the other two remained stopped. Its saved file survived both cold
-starts. The temporary idle-test instance was deleted independently.
+`stopped`, releasing its public IPv4. A real QSS-M client subsequently cold-started EC2 and entered dm1 in about
+20 seconds through one tailnet connection, with loading messages and no address
+change. Movement and firing worked with two FrikBots. Local tests held QSS-M
+for 45 seconds before sign-on, beyond its normal timeout; vkQuake also joined
+and played. Two simultaneous QSS-M clients survived a backend map change through
+the relay. Reliable sequence translation preserves the loading prefix; gameplay
+unreliable sequences remain unchanged for replacement-delta acknowledgments.
+The notscared master server informed the per-client session design; its custom
+Quake II engine protocol is not used here.
+
 Automated checks are `make test` and `make check`; provider networking and
 playability require real runtime checks beyond unit tests. Discord checks use
 signed local requests; live registration has not been performed.

@@ -90,7 +90,8 @@ files are accepted, while symlinks are rejected.
     "configPath": "id1/server.cfg",
     "args": ["-dedicated", "8", "-nohome", "-basedir", "{data}",
              "-game", "id1", "-port", "{port}",
-             "+set", "pr_ssqc_memsize", "67108864", "+exec", "server.cfg"]
+             "+set", "pr_ssqc_memsize", "67108864",
+             "+set", "sv_listen_nq", "1", "+exec", "server.cfg"]
   }
 }
 ```
@@ -120,7 +121,8 @@ that disk; destroying the stack deletes it.
 ```sh
 ssh-keygen -t ed25519 -N '' -f ./game-host-key
 bin/insta-game aws plan --stack insta-game-dev \
-  --operator-cidr YOUR_PUBLIC_IP/32 --public-key ./game-host-key.pub
+  --operator-cidr YOUR_PUBLIC_IP/32 --game-cidr YOUR_GATEWAY_PUBLIC_IP/32 \
+  --public-key ./game-host-key.pub
 # Review the printed changes, then apply their exact ARN:
 bin/insta-game aws apply --stack insta-game-dev --change-set REVIEWED_ARN \
   --key ./game-host-key --token-file ./game-host-token --out ./aws.json
@@ -154,8 +156,10 @@ credit charges. Size the host for the games and player count you actually run.
 
 The Go binary provisions the host through a reviewed CloudFormation change set
 and installs the controller and your native engine/assets over verified SSH.
-SSH and the controller API accept traffic only from your operator CIDR. Game
-UDP ports are public. The VM needs no AWS credentials.
+SSH and the controller API accept only `--operator-cidr`. Game UDP uses
+`--game-cidr`: restrict it to the gateway public IP for this relay setup. Its
+default is `0.0.0.0/0` for direct hosting of games without a gateway. Players
+join through the gateway. The VM needs no AWS credentials.
 
 The controller stops each empty game according to its idle policy, then powers
 off the host after all games have stopped for two minutes. A separate six-hour
@@ -163,13 +167,25 @@ boot timer bounds a failed experiment even if the controller fails. Starting
 EC2 assigns a fresh public address; connection information is refreshed from
 the controller.
 
-A wake listener can run on an existing machine, such as your tailnet host.
-It accepts Quake connection attempts, starts EC2 and the selected saved game,
-and replies with a rejection message while the server boots. Retry to obtain
-`connect IP:PORT`, then connect directly. It does not relay gameplay. Status
-queries do not wake the server. Keep the listener private to avoid unwanted
-starts. Lambda function URLs accept HTTPS, so they cannot answer Quake UDP
-connection attempts.
+The wake gateway runs on an existing machine, such as your tailnet host.
+Players connect once to its stable address. It accepts the Quake connection and
+shows loading updates while EC2 starts, then relays gameplay to the saved game
+without changing the client's address or requiring another connect command.
+Each player has an independent backend socket. The gateway carries all game
+traffic, so its network location affects latency and its bandwidth must cover
+the players using it.
+
+Loading holds the connection before the first map sign-on; it does not need a
+waiting-room map or another game engine. The relay reserves a reliable-message
+prefix for loading updates and translates that prefix after the backend joins.
+Unreliable packet numbers stay unchanged, including their game-level frame
+acknowledgments. The FTE backend must use `sv_listen_nq 1` for basic NetQuake
+transport; both the supplied default config and native example set it.
+
+Server-browser queries receive local status and never wake EC2. Startup attempts,
+client count, queues, and abandoned sessions are bounded. Keep the listener on a
+private/tailnet address. Lambda function URLs accept HTTPS and cannot receive
+Quake's UDP traffic. This gateway supports NetQuake, not QuakeWorld or Quake II.
 
 At Canada Central prices checked on 2026-10-22, the default EC2 host costs
 US$0.0104/hour plus US$0.005/hour for its public IPv4 while running. Its 8 GiB
