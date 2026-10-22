@@ -13,9 +13,8 @@ application, compatibility entrypoints, and deployment instructions for the old
 runtime when their responsibilities have been replaced. Fly is outside this
 migration.
 
-Treat native processes as the proposed meaning of `local`; confirm that with
-the project owner before implementing that provider. Docker on a local machine
-already works and is a distinct target.
+The project owner confirmed that `local` means native game processes without
+Docker. Docker on a local machine already works and is a distinct target.
 
 ## Responsibilities
 
@@ -123,7 +122,7 @@ cutover and retirement explicitly.
 ## Implementation sequence
 
 1. Inventory existing deployed resources and supported user-facing behavior.
-   Confirm native local scope and AWS controller access/deployment. Keep the PR
+   Resolve AWS controller access/deployment. Keep the PR
    draft; its current Docker-only state does not meet this design.
 2. Introduce explicit provider selection and durable resource/attempt identity.
    Preserve existing Docker behavior and ownership guarantees.
