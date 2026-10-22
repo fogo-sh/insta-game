@@ -1,5 +1,9 @@
 # Architecture
 
+This describes the current implementation. The [Go unification design](go-unification.md)
+sets the completion criteria: local, Docker, and AWS in one executable, with
+the superseded runtime and deployment code removed before merge.
+
 The game catalog describes what can be launched. An instance describes one
 particular server: immutable game/config snapshot, provider, allocated endpoints,
 per-instance credentials, desired state, observed phase, and activity policy.
