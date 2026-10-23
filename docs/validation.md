@@ -8,22 +8,20 @@ are built for ARM64; an AWS host and controller must match that architecture.
 
 `make test` runs Go race tests and the UI settings tests. `make check` runs pinned
 CloudFormation lint, vet, and Compose freshness. CI also validates Compose and
-cross-compiles Linux ARM64 and macOS ARM64.
+packages Linux AMD64, Linux ARM64, and macOS ARM64 binaries.
 
-Gateway network tests cover every catalog protocol. They exercise real UDP and
-TCP sockets, startup buffering, independent players, source filtering, capacity,
-cancellation, failure cooldown, and shutdown. NetQuake tests additionally cover
+Gateway network tests cover every catalog protocol. They use real UDP and
+TCP sockets to check startup buffering, independent players, source filtering, capacity,
+cancellation, failure cooldown, and shutdown. NetQuake tests also cover
 lost loading ACKs, fragmented reliable messages, sequence translation, and
 unchanged unreliable traffic. BZFlag coverage exercises its TCP greeting and UDP
-link on one stable front port. These protocol tests use fake backends; real engine and gameplay coverage is
-listed below.
+link on one stable front port. These tests use fake backends. Engine checks are listed below.
 
-A controller-to-gateway integration test runs the real CLI route parser, authenticated
-HTTP API, database, reconciliation loop, and UDP relay together. It verifies that a
-connection starts only the requested saved game and carries gameplay traffic over
-the same address. Infrastructure and game status are test doubles; this runs in CI
-without Docker or AWS. Wake regressions also cover rejected credentials and clock
-skew between the gateway and controller.
+The controller/gateway integration test runs the CLI route parser, authenticated
+API, database, reconciliation loop, and UDP relay. A connection starts only its
+saved game and carries traffic through the same address. Infrastructure and game
+status are simulated, so CI needs neither Docker nor AWS. Wake tests also check
+rejected credentials and clock skew.
 
 Provider regressions cover resource ownership, retained instance data, native
 port offsets, and recovery across host boots while preserving same-boot crash
@@ -54,8 +52,8 @@ failures. CloudFormation checks enforce shared-host cost and access boundaries.
 
 Quake 2, Quake 3, UT99, BZFlag, and OpenArena still need human gameplay acceptance
 on the intended engine/client versions. Xonotic needs human gateway acceptance;
-its native/Docker lifecycle has been exercised. The ARM64 AWS Docker deployment was checked with BZFlag; the remaining catalog
-images need runtime acceptance on their intended hosts. Commercial game assets
+its native/Docker lifecycle has been exercised. AWS Docker was checked with BZFlag on ARM64. Other catalog images still need
+runtime checks on their intended hosts. Commercial game assets
 are operator-provided and are not included in the repository or release bundle.
 
 The gateway preserves the address for every catalog protocol. Seamless loading
@@ -65,6 +63,12 @@ can wake a host because queries and joins share their initial handshake. UT99's
 additional browser/query services are not proxied. QuakeWorld is not supported
 by the NetQuake loading path.
 
-Discord uses signed local interaction validation; live registration has not
-been performed. Fly is not implemented. Resource measurements from small bot-only
+Discord signatures are tested locally; live command registration is untested. Fly is not implemented. Resource measurements from small bot-only
 Quake servers do not establish capacity for other games or full human matches.
+
+Run the Docker lifecycle check with a catalog containing a built Xonotic image:
+
+```sh
+INSTA_GAME_DOCKER_CATALOG=/path/to/catalog go test -v ./internal/control \
+  -run TestDockerTwoServersSurviveControllerRestart -count=1 -timeout=4m
+```

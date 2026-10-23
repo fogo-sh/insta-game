@@ -29,11 +29,11 @@ The startup wrapper expects `/opt/SystemARM64/ucc-bin-arm64`. The controller
 supplies the default `UnrealTournament.ini` at `/opt/data/UnrealTournament.ini`;
 use `create --config /path/to/UnrealTournament.ini` for a custom configuration.
 
-The catalog publishes UDP 7777–7781, including game port 7777 and query port
+The catalog publishes UDP 7777 to 7781, including game port 7777 and query port
 7778. Docker allocates external ports. Check the returned endpoints and validate
 client connectivity for the selected provider. Agent TCP 5001 is managed by
 the provider.
 
 The full `/opt` root, including downloaded binaries/assets, is retained across
 stop/start in the container's writable layer. See the
-[root README](../../README.md) for shared-host setup and deletion.
+[running servers](../../docs/running.md) for hosting and deletion.

@@ -48,7 +48,7 @@ operator-supplied assets into a private working directory and allocates ports.
 Stop leaves the agent and files available; start restarts the child; delete
 shuts down the agent before removing its directory. A killed Linux agent also
 kills its direct child. Native commands and argument placeholders are described
-in the [README](../README.md#native-linux-games).
+in [running servers](running.md#native-linux-games).
 
 **Docker:** Each instance owns a container and its writable layer. Labels bind
 ownership to the instance credentials; mutations target the verified immutable
@@ -57,13 +57,12 @@ ports for TCP/UDP pairs. Agents are published on host loopback. Stop retains the
 container; delete removes it. The controller must share the Docker host's
 network view; a remote daemon is unsupported.
 
-## Shared AWS host
+## AWS and wake routing
 
 One CloudFormation stack provisions a public subnet and one EBS-backed EC2 VM.
 Native games and Docker containers share its CPU and memory while retaining independent
 working directories, ports, and lifecycle state. The VM runs the same controller
-and providers as a workstation. There is one authoritative game database,
-on its persistent disk.
+and providers as a workstation. The persistent disk holds the game database.
 
 Normal EC2 stop retains the disk. Start refreshes the auto-assigned public IP;
 native endpoint observations use the current host address with saved ports.
@@ -72,8 +71,7 @@ Destroy removes the VM and its disk, so export anything needed first.
 The controller's optional `--poweroff-idle` flag powers off only after every
 saved game is fully stopped or deleted for the complete grace period. Failed,
 unknown, running, or pending states prevent idle shutdown. Game idle policy
-still counts human players where the protocol supports it. An independent
-systemd boot timer bounds host lifetime independently of the controller. The
+still counts human players where the protocol supports it. A systemd boot timer caps host lifetime even if the controller stops. The
 installer defaults it to six hours; `--host-max-runtime` changes or disables it.
 
 A gateway on an existing operator host owns stable player-facing addresses.
@@ -90,9 +88,9 @@ and UDP over the same front port. UDP link setup is admitted only while a TCP
 connection from that client address exists. Queries share the TCP greeting and
 can therefore wake the host. Connections, startup, and idle work are bounded.
 
-For NetQuake, the gateway provides a loading connection before sign-on. It accepts a NetQuake connection immediately and sends reliable loading
-messages before game sign-on. The shared wake callback starts EC2, waits for
-fresh authenticated controller readiness, and starts the selected saved game.
+NetQuake clients connect immediately and receive reliable loading messages.
+The gateway wakes EC2 when configured, starts the saved game, and waits for a
+fresh, authenticated readiness report.
 NetQuake status queries are answered locally without waking anything.
 
 Each player gets a separate backend UDP socket and negotiation. The gateway
@@ -103,9 +101,8 @@ client ACK/NAK numbers lose it. Client reliable DATA and backend ACKs are
 unchanged. Unreliable packets and payloads are never renumbered: extended game
 protocols refer to their sequence numbers in snapshot acknowledgments.
 
-The client therefore receives the backend's first sign-on over its existing
-connection. No waiting map, client modification, automatic reconnect command,
-or patched game engine is needed. FTE uses `sv_listen_nq 1`; basic handshakes on
+The client receives the backend's first sign-on on its existing connection,
+without a waiting map, client changes, reconnect commands, or engine patches. FTE uses `sv_listen_nq 1`; basic handshakes on
 both legs keep ProQuake angle negotiation consistent. Backend rejections and
 unsupported transport fail visibly instead of looping.
 
@@ -115,10 +112,8 @@ client's startup. Canceling the gateway closes its listeners, backend sockets,
 and workers. Backend game ports use `--game-cidr`, set to the gateway public
 IP when proxying. SSH and the controller API use `--operator-cidr`.
 
-This uses the intermediary/session pattern from notscared's Elixir master_server.
-Its custom Quake II transfer packets and engine hooks are not part of this
-implementation; holding the client before its initial sign-on avoids needing
-that engine-specific transfer mechanism.
+The session pattern comes from notscared's Elixir master_server. Holding clients
+before sign-on avoids its custom Quake II transfer packets and engine hooks.
 
 ## Persistent game roots
 
@@ -133,7 +128,7 @@ or a fresh instance.
 Local and Docker agents use loopback HTTP with bearer authentication. The
 shared host controller uses TLS with a token-pinned public key plus bearer
 authentication. SSH and controller TCP port 3000 accept only the operator CIDR;
-game UDP uses the separate player/gateway `--game-cidr` restriction. The
+game TCP and UDP use the player/gateway `--game-cidr` restriction. The
 installer verifies SSH against the host key reported through the authenticated
 EC2 console API.
 
@@ -157,5 +152,5 @@ work completes. Ordinary responses omit instance credentials.
 
 The embedded UI and CLI use these routes. Discord `/discord` verifies signed
 interactions and an allowed guild, then calls the same instance operations.
-There is no separate launcher or deployment application. Fly and automatic
-adoption of earlier deployed resources are outside the implementation.
+The same binary runs the launcher and deployment commands. Fly and automatic
+resource adoption are unsupported.

@@ -1,7 +1,6 @@
 # Q2REPRO server image
 
-This Linux ARM64 image runs Q2REPRO through `insta-game agent`. From the
-repository root:
+This Linux ARM64 image runs Q2REPRO through `insta-game agent`. From the repository root:
 
 ```sh
 make build
@@ -27,5 +26,5 @@ internally. Docker allocates a host port; use the controller's current address.
 Agent TCP 5001 is managed by the provider.
 
 The full `/opt` root is seeded per instance and retained across stop/start.
-See the [root README](../../README.md) for shared-host setup and deletion.
+See [running servers](../../docs/running.md) for hosting and deletion.
 Test your chosen client and game DLL combination before inviting players.
