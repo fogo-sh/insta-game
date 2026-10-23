@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     build-essential \
     git \
-    meson \
+    python3-venv \
     ninja-build \
     pkg-config \
     libsdl2-dev \
@@ -25,6 +25,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libvorbis-dev \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/meson \
+    && /opt/meson/bin/pip install --no-cache-dir meson==1.10.0
+ENV PATH="/opt/meson/bin:${PATH}"
 
 RUN git clone --recurse-submodules https://github.com/Paril/q2repro.git /src/q2repro
 
