@@ -284,7 +284,7 @@ func backendAddress(ctx context.Context, address string) (string, error) {
 		if len(addresses) > 0 {
 			ip = addresses[0]
 			for _, candidate := range addresses {
-				if candidate.Is4() {
+				if candidate.Unmap().Is4() {
 					ip = candidate
 					break
 				}
