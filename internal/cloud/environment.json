@@ -1,0 +1,258 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "One stoppable shared game host; persistent gp3 only while asleep",
+  "Parameters": {
+    "OperatorCIDR": {
+      "Type": "String",
+      "Description": "Operator public IPv4 CIDR for SSH and controller HTTPS"
+    },
+    "GameCIDR": {
+      "Type": "String",
+      "Default": "0.0.0.0/0",
+      "Description": "Allowed player or gateway public IPv4 CIDR for game TCP and UDP"
+    },
+    "PublicKey": {
+      "Type": "String",
+      "Description": "Existing SSH public key (private key stays on operator machine)"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Default": "t3a.micro",
+      "AllowedPattern": "t(3a?|4g)\\.(micro|small|medium|large|xlarge|2xlarge)"
+    },
+    "DiskGiB": {
+      "Type": "Number",
+      "Default": 8,
+      "MinValue": 8,
+      "MaxValue": 256
+    },
+    "UDPFrom": {
+      "Type": "Number",
+      "Default": 32768,
+      "MinValue": 1,
+      "MaxValue": 65535
+    },
+    "UDPTo": {
+      "Type": "Number",
+      "Default": 60999,
+      "MinValue": 1,
+      "MaxValue": 65535
+    },
+    "UbuntuImage": {
+      "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+      "Default": "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
+    }
+  },
+  "Resources": {
+    "Network": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.73.0.0/24",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true
+      }
+    },
+    "Internet": {
+      "Type": "AWS::EC2::InternetGateway"
+    },
+    "InternetAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Network"
+        },
+        "InternetGatewayId": {
+          "Ref": "Internet"
+        }
+      }
+    },
+    "Subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Network"
+        },
+        "CidrBlock": "10.73.0.0/24"
+      }
+    },
+    "Routes": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Network"
+        }
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": "InternetAttachment",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "Routes"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "Internet"
+        }
+      }
+    },
+    "SubnetRoutes": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "Subnet"
+        },
+        "RouteTableId": {
+          "Ref": "Routes"
+        }
+      }
+    },
+    "SecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Game host SSH and HTTPS from operator; game UDP",
+        "VpcId": {
+          "Ref": "Network"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "CidrIp": {
+              "Ref": "OperatorCIDR"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3000,
+            "ToPort": 3000,
+            "CidrIp": {
+              "Ref": "OperatorCIDR"
+            }
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": {
+              "Ref": "UDPFrom"
+            },
+            "ToPort": {
+              "Ref": "UDPTo"
+            },
+            "CidrIp": {
+              "Ref": "GameCIDR"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": {
+              "Ref": "UDPFrom"
+            },
+            "ToPort": {
+              "Ref": "UDPTo"
+            },
+            "CidrIp": {
+              "Ref": "GameCIDR"
+            }
+          }
+        ]
+      }
+    },
+    "SSHKey": {
+      "Type": "AWS::EC2::KeyPair",
+      "Properties": {
+        "KeyName": {
+          "Fn::Sub": "${AWS::StackName}-operator"
+        },
+        "PublicKeyMaterial": {
+          "Ref": "PublicKey"
+        }
+      }
+    },
+    "Host": {
+      "Type": "AWS::EC2::Instance",
+      "DependsOn": [
+        "InternetRoute",
+        "SubnetRoutes"
+      ],
+      "Properties": {
+        "ImageId": {
+          "Ref": "UbuntuImage"
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "KeyName": {
+          "Ref": "SSHKey"
+        },
+        "CreditSpecification": {
+          "CPUCredits": "standard"
+        },
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "MetadataOptions": {
+          "HttpTokens": "required",
+          "HttpEndpoint": "enabled",
+          "HttpPutResponseHopLimit": 1
+        },
+        "NetworkInterfaces": [
+          {
+            "DeviceIndex": "0",
+            "AssociatePublicIpAddress": true,
+            "SubnetId": {
+              "Ref": "Subnet"
+            },
+            "GroupSet": [
+              {
+                "Ref": "SecurityGroup"
+              }
+            ],
+            "DeleteOnTermination": true
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "VolumeType": "gp3",
+              "VolumeSize": {
+                "Ref": "DiskGiB"
+              },
+              "Encrypted": true,
+              "DeleteOnTermination": true
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          },
+          {
+            "Key": "insta-game:kind",
+            "Value": "shared-host"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": "#!/bin/bash\nset -eu\nssh-keygen -A\ncat > /usr/local/sbin/insta-game-ssh-key <<'KEYSCRIPT'\n#!/bin/sh\nprintf 'INSTA_GAME_SSH_HOST_KEY=%s\\n' \"$(cat /etc/ssh/ssh_host_ed25519_key.pub)\" > /dev/console\nKEYSCRIPT\nchmod 0755 /usr/local/sbin/insta-game-ssh-key\ncat > /etc/systemd/system/insta-game-ssh-key.service <<'KEYSERVICE'\n[Unit]\nDescription=Publish the SSH host identity to the authenticated EC2 console\nAfter=ssh.service\n[Service]\nType=oneshot\nExecStart=/usr/local/sbin/insta-game-ssh-key\n[Install]\nWantedBy=multi-user.target\nKEYSERVICE\nsystemctl daemon-reload\nsystemctl enable --now insta-game-ssh-key.service\ncat > /etc/systemd/system/insta-game-deadline.service <<'EOF'\n[Unit]\nDescription=Stop the game host after its maximum boot lifetime\n[Service]\nType=oneshot\nExecStart=/usr/bin/systemctl poweroff\nEOF\ncat > /etc/systemd/system/insta-game-deadline.timer <<'EOF'\n[Unit]\nDescription=Six hour game host cost limit\n[Timer]\nOnBootSec=6h\nAccuracySec=1min\nUnit=insta-game-deadline.service\n[Install]\nWantedBy=timers.target\nEOF\nsystemctl daemon-reload\nsystemctl enable --now insta-game-deadline.timer\n"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceID": {
+      "Value": {
+        "Ref": "Host"
+      }
+    },
+    "PublicIP": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Host",
+          "PublicIp"
+        ]
+      }
+    }
+  }
+}

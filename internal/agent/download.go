@@ -1,0 +1,291 @@
+package agent
+
+import (
+	"archive/zip"
+	"crypto/sha256"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
+	"time"
+)
+
+func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) error {
+	// Keep download sentinels beside the config so restarts reuse cached assets.
+	sentinelDir := filepath.Dir(configPath)
+	entries := parseDataURL(dataURL)
+
+	if len(entries) == 0 {
+		log.Printf("AGENT: No DATA_URL set, using bundled default config: %s", defaultConfigPath)
+		return copyFile(defaultConfigPath, configPath)
+	}
+
+	for _, e := range entries {
+		sentinel := sentinelPath(sentinelDir, e.url)
+		if _, err := os.Stat(sentinel); err == nil {
+			log.Printf("AGENT: Skipping %s (cached)", e.url)
+			continue
+		}
+
+		if err := downloadEntry(e, userAgent); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(sentinel, []byte(e.url), 0644); err != nil {
+			log.Printf("AGENT: Warning: failed to write cache sentinel: %v", err)
+		}
+	}
+
+	if _, err := os.Stat(configPath); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	log.Printf(
+		"AGENT: No %s found in downloaded data, using %s",
+		filepath.Base(configPath),
+		defaultConfigPath,
+	)
+	return copyFile(defaultConfigPath, configPath)
+}
+
+func downloadEntry(entry dataEntry, userAgent string) error {
+	log.Printf("AGENT: Downloading data from: %s", entry.url)
+	temporary, err := fetchWithRetry(entry.url, userAgent)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", entry.url, err)
+	}
+	defer os.Remove(temporary)
+	archive, err := isZip(temporary)
+	if err != nil {
+		return fmt.Errorf("check zip %s: %w", entry.url, err)
+	}
+	if archive {
+		destination := entry.path
+		if destination == "" {
+			destination = "/opt/"
+		}
+		log.Printf("AGENT: Extracting zip to %s", destination)
+		if err := extractZip(temporary, destination); err != nil {
+			return fmt.Errorf("extract %s: %w", entry.url, err)
+		}
+		return nil
+	}
+	log.Printf("AGENT: Saving file to %s", entry.path)
+	if err := os.Rename(temporary, entry.path); err != nil {
+		// Rename cannot cross filesystems, including a mounted game data volume.
+		if err := copyFile(temporary, entry.path); err != nil {
+			return fmt.Errorf("write %s: %w", entry.path, err)
+		}
+	}
+	return nil
+}
+
+func sentinelPath(sentinelDir, url string) string {
+	sum := sha256.Sum256([]byte(url))
+	return filepath.Join(sentinelDir, fmt.Sprintf(".cache-%x", sum[:8]))
+}
+
+type dataEntry struct {
+	url  string
+	path string
+}
+
+func parseDataURL(raw string) []dataEntry {
+	var out []dataEntry
+	for _, part := range strings.Split(raw, ";") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		url, path, _ := strings.Cut(part, "=")
+		out = append(out, dataEntry{url: strings.TrimSpace(url), path: strings.TrimSpace(path)})
+	}
+	return out
+}
+
+// The caller owns the returned temporary file.
+func fetchWithRetry(url, userAgent string) (string, error) {
+	// Force HTTP/1.1 — HTTP/2 can deadlock under QEMU ARM emulation.
+	transport := &http.Transport{
+		ForceAttemptHTTP2:   false,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	client := &http.Client{Transport: transport}
+	backoff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second}
+
+	if userAgent == "" {
+		userAgent = "fogo-sh/insta-game"
+	}
+
+	var lastErr error
+	for i := 0; i <= len(backoff); i++ {
+		if i > 0 {
+			log.Printf("AGENT: retrying %s (attempt %d)", url, i+1)
+			time.Sleep(backoff[i-1])
+		}
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("User-Agent", userAgent)
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			resp.Body.Close()
+			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+			continue
+		}
+		if resp.StatusCode != 200 {
+			resp.Body.Close()
+			return "", fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
+		path, err := streamToFile(resp.Body, resp.ContentLength, url)
+		resp.Body.Close()
+		if err != nil {
+			return "", err
+		}
+		return path, nil
+	}
+	return "", lastErr
+}
+
+type countingReader struct {
+	r io.Reader
+	n atomic.Int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n.Add(int64(n))
+	return n, err
+}
+
+// The caller owns the returned temporary file. A negative total means unknown size.
+func streamToFile(r io.Reader, total int64, label string) (string, error) {
+	tmp, err := os.CreateTemp("", "insta-game-download-*")
+	if err != nil {
+		return "", fmt.Errorf("create temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+
+	cr := &countingReader{r: r}
+	done := make(chan struct{})
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				n := cr.n.Load()
+				if total > 0 {
+					log.Printf("AGENT: downloading %s — %.1f / %.1f MB (%.0f%%)",
+						label,
+						float64(n)/1024/1024,
+						float64(total)/1024/1024,
+						float64(n)/float64(total)*100,
+					)
+				} else {
+					log.Printf("AGENT: downloading %s — %.1f MB received",
+						label,
+						float64(n)/1024/1024,
+					)
+				}
+			}
+		}
+	}()
+
+	_, err = io.Copy(tmp, cr)
+	close(done)
+	tmp.Close()
+	if err != nil {
+		os.Remove(tmpPath)
+		return "", err
+	}
+	log.Printf("AGENT: download complete %s — %.1f MB", label, float64(cr.n.Load())/1024/1024)
+	return tmpPath, nil
+}
+
+func isZip(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	var magic [4]byte
+	n, err := f.Read(magic[:])
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+	if n < 4 {
+		return false, nil
+	}
+	return magic[0] == 'P' && magic[1] == 'K' && magic[2] == 0x03 && magic[3] == 0x04, nil
+}
+
+func extractZip(zipPath, dest string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		target := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(target, 0755)
+			continue
+		}
+		os.MkdirAll(filepath.Dir(target), 0755)
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		out, err := os.Create(target)
+		if err != nil {
+			rc.Close()
+			return err
+		}
+		_, err = io.Copy(out, rc)
+		rc.Close()
+		mode := f.Mode()
+		if mode == 0 {
+			mode = 0644
+		}
+		if chmodErr := out.Chmod(mode); chmodErr != nil {
+			out.Close()
+			return chmodErr
+		}
+		out.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}

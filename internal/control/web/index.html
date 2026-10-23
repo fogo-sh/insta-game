@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#111111" />
+    <title>insta-game</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header class="title-bar">
+      <h1><a href="/">insta-game</a></h1>
+      <section id="login" hidden>
+        <form id="login-form" class="inline">
+          <label for="token">token</label>
+          <input
+            id="token"
+            type="password"
+            required
+            autocomplete="current-password"
+          />
+          <button>unlock</button>
+        </form>
+        <p id="login-error" class="error" role="alert" hidden></p>
+      </section>
+      <button id="signout" hidden>lock</button>
+    </header>
+    <main>
+      <p id="error" class="error" role="alert" hidden></p>
+      <section id="dashboard" hidden>
+        <div class="toolbar">
+          <button id="create">create server</button>
+          <span id="summary" class="muted">loading...</span>
+        </div>
+        <div id="servers" aria-live="polite"></div>
+        <p id="refresh-status" class="muted" aria-live="polite"></p>
+      </section>
+      <section id="detail" hidden></section>
+    </main>
+    <dialog id="create-dialog" aria-labelledby="create-title">
+      <form id="create-form">
+        <div class="dialog-heading">
+          <h2 id="create-title">create server</h2>
+          <button type="button" id="close-create">cancel</button>
+        </div>
+        <label for="provider">run on</label>
+ <select id="provider" required></select>
+ <label for="game">game</label>
+        <select id="game" required></select>
+        <label for="name">instance name</label>
+        <input id="name" required maxlength="80" autocomplete="off" />
+        <div class="two-columns">
+          <div>
+            <label for="idle">stop when empty (minutes)</label>
+            <input
+              id="idle"
+              type="number"
+              min="0"
+              max="10080"
+              value="10"
+              required
+            />
+          </div>
+          <div>
+            <label for="max">maximum runtime (minutes)</label>
+            <input
+              id="max"
+              type="number"
+              min="0"
+              max="10080"
+              value="120"
+              required
+            />
+          </div>
+        </div>
+        <p class="muted">0 disables a timeout.</p>
+        <details>
+          <summary>game settings</summary>
+          <div id="settings"></div>
+        </details>
+        <details>
+          <summary>config</summary>
+          <label for="config">server config</label>
+          <textarea id="config" rows="14" spellcheck="false"></textarea>
+        </details>
+        <p id="create-error" class="error" role="alert" hidden></p>
+        <button type="submit" id="launch">create server</button>
+      </form>
+    </dialog>
+    <template id="server-template">
+      <article class="server">
+        <div class="server-main">
+          <a class="server-name"></a>
+          <span class="server-meta muted"></span>
+        </div>
+        <span class="phase"></span>
+        <div class="server-connect">
+          <code></code><span class="players muted"></span>
+        </div>
+      </article>
+    </template>
+  </body>
+</html>

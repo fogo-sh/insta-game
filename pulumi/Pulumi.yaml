@@ -1,9 +1,0 @@
-name: insta-game
-runtime:
-  name: python
-  options:
-    toolchain: uv
-description: insta-game AWS infrastructure
-config:
-  aws:region:
-    value: ap-northeast-3

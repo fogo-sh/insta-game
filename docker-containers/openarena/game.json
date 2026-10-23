@@ -2,7 +2,7 @@
   "id": "openarena",
   "displayName": "OpenArena",
   "protocol": "quake3",
-  "sidecarPort": 5001,
+  "agentPort": 5001,
   "gamePort": 27960,
   "ports": {
     "27960/udp": {

@@ -1,24 +1,20 @@
-# BZFlag ARM64 Server Container
+# BZFlag server image
 
-This folder builds an ARM64-only BZFlag server container controlled by the
-same sidecar lifecycle API as the other game containers.
-
-## Build and run
+This Linux ARM64 image runs BZFlag through `insta-game agent`. From the repository root:
 
 ```sh
 make build
-make run
+docker compose --profile images build bzflag
+bin/insta-game serve
+# In another terminal:
+bin/insta-game create --provider docker --game bzflag --name "BZFlag night"
 ```
 
-The local game server listens on TCP/UDP `5154` and the sidecar listens on TCP
-`5001`.
+The engine uses TCP/UDP 5154 internally. Docker publishes both on the same
+allocated host port; use the address returned by the controller. Agent TCP 5001
+is managed by the provider.
 
-## Server config
-
-A private random-map config is bundled at `/opt/default-server.cfg`. To supply
-a custom config at runtime, set `DATA_URL` to a raw config file URL targeting
-`/opt/data/server.cfg`, for example:
-
-```sh
-DATA_URL="https://example.com/server.cfg=/opt/data/server.cfg"
-```
+The bundled `server.cfg` runs a private random-map game. Use `create --config
+/path/to/server.cfg` for a custom launch configuration. The full `/opt` root is
+seeded per instance and retained across stop/start; deletion removes instance
+data. See [running servers](../../docs/running.md) for native setup, AWS, storage, and deletion.

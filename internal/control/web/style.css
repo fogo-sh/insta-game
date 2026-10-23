@@ -1,0 +1,284 @@
+* {
+  box-sizing: border-box;
+}
+:root {
+  color-scheme: dark;
+}
+body {
+  margin: 0;
+  padding: 2rem;
+  background: #111;
+  color: #eee;
+  font: 13px/1.5 monospace;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: 1.4rem;
+}
+h2 {
+  font-size: 1.1rem;
+}
+a {
+  color: #aac4ff;
+}
+h1 a {
+  color: inherit;
+  text-decoration: none;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button {
+  padding: 0.35rem 0.7rem;
+  background: #333;
+  color: #eee;
+  border: 1px solid #555;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover {
+  background: #444;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+input,
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  background: #222;
+  color: #eee;
+  border: 1px solid #555;
+}
+input[type="checkbox"] {
+  width: auto;
+  margin: 0 0.5rem 0 0;
+}
+textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+label {
+  display: block;
+  margin: 0.8rem 0 0.3rem;
+}
+summary {
+  cursor: pointer;
+  color: #bbb;
+}
+details {
+  margin-top: 1rem;
+}
+:focus-visible {
+  outline: 2px solid #aac4ff;
+  outline-offset: 2px;
+}
+.title-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.inline,
+.toolbar,
+.actions,
+.dialog-heading,
+.detail-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.inline label {
+  margin: 0;
+}
+#login-form input {
+  width: 12rem;
+}
+#signout {
+  font-size: 0.8rem;
+}
+.toolbar {
+  margin-bottom: 0.75rem;
+  gap: 1rem;
+}
+.muted,
+.notice {
+  color: #aaa;
+  font-size: 0.8rem;
+}
+.error {
+  color: #ffaaa3;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+}
+.server {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 90px minmax(220px, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #333;
+  background: #1a1a1a;
+}
+.server-name {
+  display: block;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+.server-meta {
+  display: block;
+  margin-top: 0.15rem;
+}
+.phase {
+  color: #aaa;
+}
+.phase[data-phase="running"] {
+  color: #9edb9e;
+}
+.phase[data-phase="starting"],
+.phase[data-phase="queued"] {
+  color: #edc078;
+}
+.phase[data-phase="failed"],
+.danger {
+  color: #ffaaa3;
+}
+.server-connect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1rem;
+}
+.server-connect code {
+  overflow-wrap: anywhere;
+}
+.empty {
+  padding: 0.75rem 0;
+  color: #aaa;
+}
+#refresh-status {
+  margin-top: 0.75rem;
+}
+.back {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+.detail-head {
+  gap: 1rem;
+}
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2rem;
+  margin: 1rem 0;
+}
+.facts dt {
+  color: #aaa;
+  font-size: 0.8rem;
+}
+.facts dd {
+  margin: 0.2rem 0 0;
+  overflow-wrap: anywhere;
+}
+.notice {
+  margin-top: 0.75rem;
+}
+.panel {
+  margin-top: 1.25rem;
+}
+.panel h2 {
+  margin-bottom: 0.5rem;
+}
+.log {
+  max-height: 300px;
+  min-height: 100px;
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  background: #0e0e0e;
+  border: 1px solid #333;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.panel .inline {
+  flex-wrap: nowrap;
+}
+.config-view {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  color: #bbb;
+}
+dialog {
+  width: min(650px, calc(100% - 1.5rem));
+  max-height: 90dvh;
+  padding: 1rem;
+  background: #1a1a1a;
+  color: #eee;
+  border: 1px solid #555;
+}
+dialog::backdrop {
+  background: #0009;
+}
+.dialog-heading {
+  justify-content: space-between;
+}
+.two-columns,
+#settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1rem;
+}
+.check {
+  display: flex;
+  align-items: center;
+}
+#create-form > .muted {
+  margin-top: 0.5rem;
+}
+#launch {
+  margin-top: 1rem;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 600px) {
+  body {
+    padding: 0.75rem;
+  }
+  .title-bar {
+    gap: 0.75rem;
+  }
+  .server {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+  .server-connect {
+    grid-column: 1 / -1;
+  }
+  .two-columns,
+  #settings {
+    grid-template-columns: 1fr;
+  }
+  .facts {
+    gap: 0.75rem 1rem;
+  }
+  #login-form input {
+    width: min(12rem, 45vw);
+  }
+}

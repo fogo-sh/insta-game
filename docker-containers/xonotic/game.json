@@ -2,7 +2,7 @@
   "id": "xonotic",
   "displayName": "Xonotic",
   "protocol": "xonotic",
-  "sidecarPort": 5001,
+  "agentPort": 5001,
   "gamePort": 26000,
   "ports": {
     "26000/udp": {

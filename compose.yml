@@ -1,190 +1,127 @@
-services:
-  bzflag:
-    image: ghcr.io/fogo-sh/insta-game:bzflag
-    build:
-      context: .
-      dockerfile: docker-containers/bzflag/Dockerfile
-      platforms:
-        - linux/arm64
-    ports:
-      - "127.0.0.1:5154:5154/tcp"
-      - "127.0.0.1:5154:5154/udp"
-      - "127.0.0.1:5004:5001/tcp"
-    environment:
-      GAME_CMD: "/usr/games/bzfs"
-      GAME_ARGS: "-conf /opt/data/server.cfg -p 5154"
-      GAME_QUIT_CMD: "quit"
-      GAME_QUIT_TIMEOUT: "15"
-      GAME_PORT: "5154"
-      CONFIG_PATH: "/opt/data/server.cfg"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      TOKEN: "abc123"
-    volumes:
-      - ./.cache/bzflag:/opt/data
-
-  fteqw:
-    image: ghcr.io/fogo-sh/insta-game:fteqw
-    build:
-      context: .
-      dockerfile: docker-containers/fteqw/Dockerfile
-      platforms:
-        - linux/arm64
-    ports:
-      - "127.0.0.1:26000:26000/udp"
-      - "127.0.0.1:5001:5001/tcp"
-    environment:
-      GAME_CMD: "./fteqw.sv"
-      GAME_ARGS: "-dedicated 12 -nohome -basedir /opt -game id1 -game frikbot -port 26000 +exec server.cfg"
-      GAME_QUIT_CMD: "quit"
-      GAME_QUIT_TIMEOUT: "15"
-      GAME_PORT: "26000"
-      CONFIG_PATH: "/opt/id1/server.cfg"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      TOKEN: "abc123"
-      DATA_URL: "${FTEQW_DATA_URL:-}"
-    volumes:
-      - ./.cache/fteqw:/opt/id1
-
-  ioquake3:
-    image: ghcr.io/fogo-sh/insta-game:ioquake3
-    build:
-      context: .
-      dockerfile: docker-containers/ioquake3/Dockerfile
-      platforms:
-        - linux/arm64
-    ports:
-      - "127.0.0.1:27960:27960/udp"
-      - "127.0.0.1:5006:5001/tcp"
-    environment:
-      GAME_CMD: "./ioq3ded"
-      GAME_ARGS: "+set dedicated 2 +set fs_basepath /opt +set fs_homepath /opt +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 8 +set com_hunkMegs 64 +exec server.cfg"
-      GAME_QUIT_CMD: "quit"
-      GAME_QUIT_TIMEOUT: "15"
-      GAME_PORT: "27960"
-      CONFIG_PATH: "/opt/baseq3/server.cfg"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      TOKEN: "abc123"
-      DATA_URL: "${IOQUAKE3_DATA_URL:-}"
-    volumes:
-      - ./.cache/ioquake3:/opt/baseq3
-
-  openarena:
-    image: ghcr.io/fogo-sh/insta-game:openarena
-    build:
-      context: .
-      dockerfile: docker-containers/openarena/Dockerfile
-      platforms:
-        - linux/arm64
-    ports:
-      - "127.0.0.1:27961:27960/udp"
-      - "127.0.0.1:5007:5001/tcp"
-    environment:
-      GAME_CMD: "/opt/openarena-ded"
-      GAME_ARGS: "+set fs_basepath /usr/lib/openarena-server +set fs_homepath /opt +set com_basegame baseoa +set com_homepath .openarena +set vm_game 0 +set dedicated 2 +set net_ip 0.0.0.0 +set net_port 27960 +set sv_maxclients 12 +set com_hunkMegs 64 +exec server.cfg"
-      GAME_QUIT_CMD: "quit"
-      GAME_QUIT_TIMEOUT: "15"
-      GAME_PORT: "27960"
-      CONFIG_PATH: "/opt/baseoa/server.cfg"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      TOKEN: "abc123"
-    volumes:
-      - ./.cache/openarena:/opt/baseoa
-
-  q2repro:
-    image: ghcr.io/fogo-sh/insta-game:q2repro
-    build:
-      context: .
-      dockerfile: docker-containers/q2repro/Dockerfile
-      platforms:
-        - linux/arm64
-    ports:
-      - "127.0.0.1:27910:27910/udp"
-      - "127.0.0.1:5003:5001/tcp"
-    environment:
-      GAME_CMD: "./q2proded"
-      GAME_ARGS: "+set dedicated 1 +set basedir /opt +set game baseq2 +set net_ip 0.0.0.0 +set net_port 27910 +set maxclients 4 +exec server.cfg"
-      GAME_QUIT_CMD: "quit"
-      GAME_QUIT_TIMEOUT: "15"
-      GAME_PORT: "27910"
-      CONFIG_PATH: "/opt/baseq2/server.cfg"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      TOKEN: "abc123"
-      DATA_URL: "${Q2REPRO_DATA_URL:-}"
-    volumes:
-      - ./.cache/q2repro:/opt/baseq2
-
-  ut99:
-    image: ghcr.io/fogo-sh/insta-game:ut99
-    build:
-      context: .
-      dockerfile: docker-containers/ut99/Dockerfile
-      platforms:
-        - linux/arm64
-    ports:
-      - "127.0.0.1:7777:7777/udp"
-      - "127.0.0.1:7778:7778/udp"
-      - "127.0.0.1:7779:7779/udp"
-      - "127.0.0.1:7780:7780/udp"
-      - "127.0.0.1:7781:7781/udp"
-      - "127.0.0.1:5005:5001/tcp"
-    environment:
-      GAME_CMD: "/usr/local/bin/start-ut99.sh"
-      GAME_ARGS: "/opt/SystemARM64/ucc-bin-arm64 server DM-Deck16][?game=Botpack.DeathMatchPlus ini=/opt/data/UnrealTournament.ini -nohomedir"
-      GAME_QUIT_CMD: "exit"
-      GAME_QUIT_TIMEOUT: "15"
-      GAME_PORT: "7777"
-      CONFIG_PATH: "/opt/data/UnrealTournament.ini"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      TOKEN: "abc123"
-      DATA_URL: "${UT99_DATA_URL:-}"
-    volumes:
-      - ./.cache/ut99:/opt
-
-  xonotic:
-    image: ghcr.io/fogo-sh/insta-game:xonotic
-    build:
-      context: .
-      dockerfile: docker-containers/xonotic/Dockerfile
-      platforms:
-        - linux/arm64
-    ports:
-      - "127.0.0.1:26000:26000/udp"
-      - "127.0.0.1:5001:5001/tcp"
-    environment:
-      GAME_CMD: "./xonotic-linux-arm64-dedicated"
-      GAME_ARGS: ""
-      GAME_QUIT_CMD: "exit"
-      GAME_QUIT_TIMEOUT: "30"
-      GAME_PORT: "26000"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      TOKEN: "abc123"
-      DATA_URL: "${XONOTIC_DATA_URL:-}"
-
-  launcher:
-    build:
-      context: ./launcher
-      dockerfile: Dockerfile
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./docker-containers:/app/docker-containers:ro
-      - ./.cache:/app/.cache
-    ports:
-      - "127.0.0.1:3000:3000/tcp"
-    environment:
-      BACKEND: "docker"
-      DATA_DIR: "/app"
-      HOST_DATA_DIR: "${PWD}"
-      PORT: "3000"
-      SIDECAR_HOST: "host.docker.internal"
-      WEB_UI_PASSPHRASE: "${WEB_UI_PASSPHRASE:-gaming}"
-      API_TOKEN: "${API_TOKEN:-gaming}"
-      SIDECAR_TOKEN: "${SIDECAR_TOKEN:-abc123}"
-      RCON_PASSWORD: "${RCON_PASSWORD:-abc123}"
-      PUBLIC_HOST: "${PUBLIC_HOST:-localhost}"
-      FTEQW_DATA_URL: "${FTEQW_DATA_URL:-}"
-      IOQUAKE3_DATA_URL: "${IOQUAKE3_DATA_URL:-}"
-      Q2REPRO_DATA_URL: "${Q2REPRO_DATA_URL:-}"
-      UT99_DATA_URL: "${UT99_DATA_URL:-}"
-      XONOTIC_DATA_URL: "${XONOTIC_DATA_URL:-}"
+# Generated by generate-compose.py; game services are image-build targets.
+{
+  "services": {
+    "controller": {
+      "build": {
+        "context": ".",
+        "dockerfile": "Dockerfile"
+      },
+      "network_mode": "host",
+      "command": [
+        "serve",
+        "--listen",
+        "127.0.0.1:3000",
+        "--data",
+        "/data",
+        "--catalog",
+        "/opt/games",
+        "--public-host",
+        "${PUBLIC_HOST:-localhost}",
+        "--game-bind",
+        "${GAME_BIND:-127.0.0.1}"
+      ],
+      "volumes": [
+        "/var/run/docker.sock:/var/run/docker.sock",
+        "./.insta-game:/data"
+      ],
+      "environment": {
+        "FTEQW_DATA_URL": "${FTEQW_DATA_URL:-}",
+        "IOQUAKE3_DATA_URL": "${IOQUAKE3_DATA_URL:-}",
+        "Q2REPRO_DATA_URL": "${Q2REPRO_DATA_URL:-}",
+        "UT99_DATA_URL": "${UT99_DATA_URL:-}",
+        "XONOTIC_DATA_URL": "${XONOTIC_DATA_URL:-}"
+      }
+    },
+    "bzflag": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:bzflag",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/bzflag/Dockerfile",
+        "platforms": [
+          "${GAME_PLATFORM:-linux/arm64}"
+        ]
+      }
+    },
+    "fteqw": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:fteqw",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/fteqw/Dockerfile",
+        "platforms": [
+          "${GAME_PLATFORM:-linux/arm64}"
+        ]
+      }
+    },
+    "ioquake3": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:ioquake3",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/ioquake3/Dockerfile",
+        "platforms": [
+          "${GAME_PLATFORM:-linux/arm64}"
+        ]
+      }
+    },
+    "openarena": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:openarena",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/openarena/Dockerfile",
+        "platforms": [
+          "${GAME_PLATFORM:-linux/arm64}"
+        ]
+      }
+    },
+    "q2repro": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:q2repro",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/q2repro/Dockerfile",
+        "platforms": [
+          "${GAME_PLATFORM:-linux/arm64}"
+        ]
+      }
+    },
+    "ut99": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:ut99",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/ut99/Dockerfile",
+        "platforms": [
+          "${GAME_PLATFORM:-linux/arm64}"
+        ]
+      }
+    },
+    "xonotic": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:xonotic",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/xonotic/Dockerfile",
+        "platforms": [
+          "${GAME_PLATFORM:-linux/arm64}"
+        ]
+      }
+    }
+  }
+}
