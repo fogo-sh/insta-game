@@ -1,4 +1,4 @@
-.PHONY: build test check lint-templates
+.PHONY: build test check lint-templates dist
 
 build:
 	go build -o bin/insta-game ./cmd/insta-game
@@ -17,3 +17,6 @@ images:
 
 lint-templates:
 	uv run --no-project --with cfn-lint==1.58.0 env INSTA_GAME_LINT_TEMPLATES=1 go test ./internal/cloud -run '^TestCloudFormationTemplates$$' -count=1
+
+dist:
+	python3 scripts/package-release.py

@@ -14,19 +14,21 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Docker struct {
 	client     *http.Client
 	PublicHost string
 	BindIP     string
+	bootedAt   time.Time
 }
 
 func NewDocker(socket, publicHost, bindIP string) *Docker {
 	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}
-	return &Docker{client: &http.Client{Transport: transport}, PublicHost: publicHost, BindIP: bindIP}
+	return &Docker{client: &http.Client{Transport: transport}, PublicHost: publicHost, BindIP: bindIP, bootedAt: hostBootTime()}
 }
 
 type dockerError struct {
@@ -70,10 +72,11 @@ func containerPath(i Instance) string { return "/containers/" + url.PathEscape(c
 type dockerInspect struct {
 	ID    string
 	State struct {
-		Status   string
-		Running  bool
-		Error    string
-		ExitCode int
+		Status    string
+		Running   bool
+		Error     string
+		ExitCode  int
+		StartedAt time.Time
 	}
 	Config          struct{ Labels map[string]string }
 	NetworkSettings struct {
@@ -114,6 +117,10 @@ func (d *Docker) Inspect(ctx context.Context, i Instance) (Observation, error) {
 	observation := Observation{Exists: true, Started: state.State.Status != "created", Running: state.State.Running, Failure: state.State.Error}
 	if !state.State.Running && state.State.ExitCode != 0 {
 		observation.Failure = fmt.Sprintf("container exited with code %d: %s", state.State.ExitCode, state.State.Error)
+	}
+	if !state.State.Running && !state.State.StartedAt.IsZero() && state.State.StartedAt.Before(d.bootedAt) {
+		observation.Started = false
+		observation.Failure = ""
 	}
 	keys := make([]string, 0, len(state.NetworkSettings.Ports))
 	for key := range state.NetworkSettings.Ports {
@@ -223,4 +230,20 @@ func (d *Docker) Stop(ctx context.Context, i Instance) error {
 }
 func (d *Docker) Delete(ctx context.Context, i Instance) error {
 	return d.mutate(ctx, i, "DELETE", "?force=true&v=true")
+}
+
+func hostBootTime() time.Time {
+	data, err := os.ReadFile("/proc/stat")
+	if err != nil {
+		return time.Time{}
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if value, ok := strings.CutPrefix(line, "btime "); ok {
+			seconds, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+			if err == nil {
+				return time.Unix(seconds, 0)
+			}
+		}
+	}
+	return time.Time{}
 }

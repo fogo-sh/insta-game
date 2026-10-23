@@ -88,7 +88,7 @@ func TestSharedHostCostAndAccessBoundaries(t *testing.T) {
 			}
 			for _, rule := range rules {
 				expected := "OperatorCIDR"
-				if rule.IpProtocol == "udp" {
+				if strings.Contains(string(rule.FromPort), "UDPFrom") {
 					expected = "GameCIDR"
 				}
 				if !strings.Contains(string(rule.CidrIp), expected) {

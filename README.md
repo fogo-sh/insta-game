@@ -5,6 +5,34 @@ CLI, embedded web UI, Discord integration, and game agent share one instance
 model. Choose native Linux processes (`local`), local containers (`docker`), or
 a shared AWS EC2 host running either provider. Fly is not implemented.
 
+## Games
+
+| Game | Catalog ID | Gateway protocol | Transport |
+| --- | --- | --- | --- |
+| Quake 1 / FTEQW | `fteqw` | `quake1` | UDP, loading messages before sign-on |
+| Quake 2 / q2repro | `q2repro` | `quake2` | UDP |
+| Quake 3 Arena / ioquake3 | `ioquake3` | `quake3` | UDP |
+| OpenArena | `openarena` | `quake3` | UDP |
+| Xonotic | `xonotic` | `xonotic` | UDP |
+| Unreal Tournament 99 | `ut99` | `ut99` | UDP |
+| BZFlag | `bzflag` | `bzflag` | TCP and UDP on the same port |
+
+Each game can have independent instances, configuration, ports, and storage.
+Docker images supply the engine runtime; native games need an operator-installed
+engine profile. Commercial game assets must be supplied separately. Runtime validation coverage is recorded in
+[validation](docs/validation.md).
+
+## Binary bundles
+
+CI's `insta-game-packages` artifact contains Linux AMD64, Linux ARM64, and macOS
+ARM64 archives plus `SHA256SUMS`. Each archive includes `bin/insta-game`, the
+catalog, and these docs. Unpack your target archive and run commands from that
+directory; Go is needed only when building from source. Game engines, Docker,
+and commercial assets are installed separately.
+
+Build the same bundles locally with `make dist`. Native supervision runs on
+Linux; the macOS binary can use Docker or administer a remote controller.
+
 ## Start with Docker
 
 Requires Go 1.26, Docker Compose, and game images matching the runtime
@@ -112,90 +140,120 @@ game bind addresses are controlled by engine arguments/configuration;
 
 ## AWS
 
-AWS runs the controller and several games on one EC2 host. Game creation uses
-`local` exactly as it does on your machine; `docker` also works if you install
-a Docker daemon and compatible game images on the host. The host keeps its
-controller database and game files on encrypted gp3 EBS. Stopping EC2 retains
-that disk; destroying the stack deletes it.
+One stoppable EC2 host runs the same controller and providers. Choose CPU, memory, and disk for the number of games and players you run.
+Encrypted gp3 retains the database and game files while EC2 is stopped.
+Destroying the stack deletes that disk and all saved games.
+
+The supplied Docker images target ARM64. For those images, provision a `t4g`
+host and build an ARM64 controller. Native AMD64 deployments can use `t3` or
+`t3a` instead; the installer checks the controller binary against the host.
 
 ```sh
 ssh-keygen -t ed25519 -N '' -f ./game-host-key
-bin/insta-game aws plan --stack insta-game-dev \
-  --operator-cidr YOUR_PUBLIC_IP/32 --game-cidr YOUR_GATEWAY_PUBLIC_IP/32 \
-  --public-key ./game-host-key.pub
-# Review the printed changes, then apply their exact ARN:
-bin/insta-game aws apply --stack insta-game-dev --change-set REVIEWED_ARN \
+bin/insta-game aws plan --stack insta-game-host --instance-type t4g.small \
+  --disk-gib 32 --operator-cidr YOUR_PUBLIC_IP/32 \
+  --game-cidr YOUR_GATEWAY_PUBLIC_IP/32 --public-key ./game-host-key.pub
+# Review the changes and apply their exact ARN:
+bin/insta-game aws apply --stack insta-game-host --change-set REVIEWED_ARN \
   --key ./game-host-key --token-file ./game-host-token --out ./aws.json
+
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/insta-game-linux-arm64 ./cmd/insta-game
+bin/insta-game aws install --config ./aws.json \
+  --binary ./bin/insta-game-linux-arm64 --catalog ./docker-containers --pull-images
+bin/insta-game aws wake --config ./aws.json
 ```
 
-Set native engine paths in `native.json` to `/opt/insta-game/engine/ENGINE_NAME`
-and assets to `/opt/insta-game/assets`, then install your compatible Linux AMD64
-binary, engine, licensed assets, and a catalog containing that game's metadata:
+Installation enables Docker and uploads the controller plus catalog metadata and
+configs. `--pull-images` pulls the images named by that catalog; omit it when
+images are already installed. Use images built from the same release as the
+controller. `--env-file ./host.env` installs a private systemd environment file
+for asset URLs such as `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, `IOQUAKE3_DATA_URL`,
+and `UT99_DATA_URL`, or Discord settings. Keep those URLs and credentials out of
+the catalog. Limit a custom catalog to the games you want installed. An 8 GiB
+root disk can be too small for several games and their assets.
+
+Native engines are optional. Upload a directory containing any number of engines
+and runtime files with `--engines`, an asset directory with `--assets`, and
+profiles with `--native-config`. Profile paths on the host use
+`/opt/insta-game/engine` and `/opt/insta-game/assets`; preserve per-game
+subdirectories. Stop affected games before updating their engines or assets.
+Select `--provider local` when creating a native instance. Docker is the host's
+default provider.
+
+Use the IP returned by `aws wake` to create saved instances through the ordinary
+controller API. All catalog games use the same creation and lifecycle commands:
 
 ```sh
-bin/insta-game aws install --config ./aws.json --binary ./bin/insta-game \
-  --engine /path/to/fteqw.sv --assets /path/to/quake-assets \
-  --native-config ./native.json --catalog ./game-catalog
-bin/insta-game aws wake --config ./aws.json
-# Use the returned IP; client flags precede instance IDs:
 bin/insta-game create --url https://HOST_IP:3000 --token-file ./game-host-token \
-  --provider local --game fteqw --id quake-a --name "Quake night"
-bin/insta-game wake --config ./aws.json \
-  --route 100.YOUR.TAILNET.IP:26200=quake-a
+  --provider docker --game openarena --id arena --name "Arena night"
+bin/insta-game aws status --config ./aws.json
+bin/insta-game aws stop --config ./aws.json
+# Permanent deletion of the host and its saved games:
+bin/insta-game aws destroy --config ./aws.json
 ```
 
-Repeat `--route ADDRESS=GAME_ID` for other saved games on different wake ports.
-The listener requires AWS credentials and access to the controller's token.
-`aws status --config ./aws.json` reports EC2 state. `aws stop --config ./aws.json`
-stops the whole host; `aws destroy --config ./aws.json` removes the stack and all
-saved game data. Export data before destruction.
+SSH and the controller API accept only `--operator-cidr`. Game TCP and UDP use
+`--game-cidr`: restrict it to your gateway public IP when proxying, or to player
+networks for direct hosting. Its default is `0.0.0.0/0`. The VM needs no AWS
+credentials. The operator binary uses reviewed CloudFormation changes, verified
+SSH installation, and token-pinned controller TLS.
 
-The default host is a `t3a.micro` with 1 GiB RAM and an 8 GiB disk. CPU credits
-use Standard mode, which can throttle sustained workloads but avoids surplus
-credit charges. Size the host for the games and player count you actually run.
+The controller stops empty games according to their idle policies, then powers
+off the host after all games have stopped for two minutes. The host also has a
+boot lifetime cap (six hours by default). Set `aws install --host-max-runtime 0`
+to disable that cap, or give a duration such as `12h`. Starting EC2 can change its public IP; the gateway
+resolves fresh game endpoints after startup. Standard CPU credits avoid surplus
+credit charges but can throttle sustained workloads.
 
-The Go binary provisions the host through a reviewed CloudFormation change set
-and installs the controller and your native engine/assets over verified SSH.
-SSH and the controller API accept only `--operator-cidr`. Game UDP uses
-`--game-cidr`: restrict it to the gateway public IP for this relay setup. Its
-default is `0.0.0.0/0` for direct hosting of games without a gateway. Players
-join through the gateway. The VM needs no AWS credentials.
+A retained host costs its disk price plus running hours, public IPv4 hours, and
+transfer. The number of games changes the required capacity, not the number of
+VMs. Include startup and idle grace periods when estimating running hours;
+verify EC2 reaches `stopped` to end compute and public IPv4 charges.
 
-The controller stops each empty game according to its idle policy, then powers
-off the host after all games have stopped for two minutes. A separate six-hour
-boot timer bounds a failed experiment even if the controller fails. Starting
-EC2 assigns a fresh public address; connection information is refreshed from
-the controller.
+## Stable game addresses
 
-The wake gateway runs on an existing machine, such as your tailnet host.
-Players connect once to its stable address. It accepts the Quake connection and
-shows loading updates while EC2 starts, then relays gameplay to the saved game
-without changing the client's address or requiring another connect command.
-Each player has an independent backend socket. The gateway carries all game
-traffic, so its network location affects latency and its bandwidth must cover
-the players using it.
+Run the gateway on an existing machine reachable by players. It starts a saved
+game through its controller; `--config` additionally wakes an AWS host. Without
+AWS, use `--url` and `--token-file` for a native or Docker controller:
 
-Loading holds the connection before the first map sign-on; it does not need a
-waiting-room map or another game engine. The relay reserves a reliable-message
-prefix for loading updates and translates that prefix after the backend joins.
-Unreliable packet numbers stay unchanged, including their game-level frame
-acknowledgments. The FTE backend must use `sv_listen_nq 1` for basic NetQuake
-transport; both the supplied default config and native example set it.
+```sh
+bin/insta-game wake --config ./aws.json \
+  --route quake3://100.YOUR.TAILNET.IP:27960=arena
 
-Server-browser queries receive local status and never wake EC2. Startup attempts,
-client count, queues, and abandoned sessions are bounded. Keep the listener on a
-private/tailnet address. Lambda function URLs accept HTTPS and cannot receive
-Quake's UDP traffic. This gateway supports NetQuake, not QuakeWorld or Quake II.
+bin/insta-game wake --url http://127.0.0.1:3000 --token-file .insta-game/token \
+  --route xonotic://100.YOUR.TAILNET.IP:26000=friday \
+  --route bzflag://100.YOUR.TAILNET.IP:5154=tanks
+```
 
-At Canada Central prices checked on 2026-10-22, the default EC2 host costs
-US$0.0104/hour plus US$0.005/hour for its public IPv4 while running. Its 8 GiB
-gp3 disk costs US$0.704/month while retained. Three games sharing the host cost
-approximately **US$11.95/month continuously**, or **US$1.63/month at two hours
-of total host uptime per day**. These estimates exclude transfer, taxes, and
-any cost of your existing wake-listener machine. Calculate a retained month as
-`$0.704 + host-running-hours × $0.0154`. Boot and idle grace periods
-count as host uptime. Stopping games alone is not enough: verify EC2 reaches
-`stopped`, or destroy the stack to remove the disk charge too.
+Repeat `--route PROTOCOL://ADDRESS=INSTANCE_ID` for other saved games. Protocols
+are listed in the game table. Omitting the protocol selects `quake1`. An optional
+`/CATALOG_PORT` after the instance ID selects a specific backend endpoint.
+The listener requires the controller token and, for AWS, operator credentials.
+Keep listeners on private/tailnet addresses.
+
+Players always use the gateway address. NetQuake connections receive loading
+messages while the backend starts, then enter the game without reconnecting.
+Other protocols retain their own handshakes and packet numbers. The first UDP
+handshake is retained during startup; if a client stops waiting, retry the same
+address.
+
+Each player gets a separate backend socket. BZFlag's TCP greeting and UDP link
+negotiation use the same front port. Its initial greeting is shared by joins and
+queries, so BZFlag TCP queries can wake the host. Quake-family browser queries
+and UT99 GameSpy queries do not wake it; the gateway does not provide a full
+server-browser service or proxy UT99's additional query ports. Use direct
+hosting when those services are required.
+
+The FTE backend must use `sv_listen_nq 1` for NetQuake loading; the supplied config
+and native example set it. Reliable packet sequence translation accounts for
+the loading messages; unreliable packets remain unchanged. QuakeWorld is not
+supported by this loading path.
+
+A gateway process permits 64 TCP/UDP sessions; a BZFlag player normally uses
+one of each. Startup is limited to three minutes, failed starts have a one-minute
+cooldown, and inactive UDP sessions expire after one minute. The gateway carries gameplay traffic, so its location and bandwidth affect latency
+and capacity. It needs a persistent TCP/UDP listener; a Lambda function URL
+cannot receive game UDP packets.
 
 ## Controller access and Discord
 
@@ -231,6 +289,7 @@ with `bin/insta-game discord commands`. Register them with
 
 ```sh
 make build
+make dist        # Linux AMD64/ARM64 and macOS ARM64 bundles with catalog and checksums
 make test        # Go race tests and UI renderer tests
 make check       # Template lint, go vet, and Compose freshness check
 make lint-templates  # Embedded shared-host CloudFormation template
@@ -247,7 +306,7 @@ INSTA_GAME_DOCKER_CATALOG=/path/to/catalog go test -v ./internal/control \
 ```
 
 See [architecture](docs/architecture.md) for API and provider details, and
-[Go migration status](docs/go-unification.md) for validation scope.
+[Validation scope](docs/validation.md) for validation scope.
 
 `make check` uses `uv` to run pinned cfn-lint in an isolated Python environment.
 Template linting needs no AWS credentials and adds no application runtime dependency.

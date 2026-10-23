@@ -1,4 +1,4 @@
-// Package wake holds NetQuake clients before sign-on and relays their game connection.
+// Package wake starts saved games and relays client connections through stable addresses.
 package wake
 
 import (
@@ -20,7 +20,7 @@ const (
 	maxSessions     = 64
 )
 
-type Mapping struct{ Listen, GameID string }
+type Mapping struct{ Listen, InstanceID, Protocol string }
 
 type gameState struct {
 	done    chan struct{}
@@ -30,9 +30,12 @@ type gameState struct {
 }
 
 type listener struct {
-	conn     net.PacketConn
-	gameID   string
-	sessions map[netip.AddrPort]*session
+	conn       net.PacketConn
+	protocol   string
+	tcp        net.Listener
+	tcpPeers   map[netip.Addr]int
+	instanceID string
+	sessions   map[netip.AddrPort]*session
 }
 
 type Gateway struct {
@@ -50,17 +53,32 @@ func New(mappings []Mapping, start func(context.Context, string) (string, error)
 	if len(mappings) == 0 || start == nil {
 		return nil, fmt.Errorf("wake requires routes and a start callback")
 	}
+	mappings = append([]Mapping(nil), mappings...)
 	seen := map[string]bool{}
-	for _, m := range mappings {
-		if strings.TrimSpace(m.GameID) == "" || m.Listen == "" || seen[m.Listen] {
-			return nil, fmt.Errorf("wake requires unique addresses and nonempty game IDs")
+	protocols := map[string]string{}
+	for i, m := range mappings {
+		if m.Protocol == "" {
+			m.Protocol = "quake1"
+			mappings[i].Protocol = m.Protocol
+		}
+		switch m.Protocol {
+		case "quake1", "quake2", "quake3", "xonotic", "ut99", "bzflag":
+		default:
+			return nil, fmt.Errorf("unsupported wake protocol %q", m.Protocol)
+		}
+		if prior := protocols[m.InstanceID]; prior != "" && prior != m.Protocol {
+			return nil, fmt.Errorf("conflicting protocols for instance %q", m.InstanceID)
+		}
+		protocols[m.InstanceID] = m.Protocol
+		if strings.TrimSpace(m.InstanceID) == "" || m.Listen == "" || seen[m.Listen] {
+			return nil, fmt.Errorf("wake requires unique addresses and nonempty instance IDs")
 		}
 		if _, err := net.ResolveUDPAddr("udp", m.Listen); err != nil {
 			return nil, err
 		}
 		seen[m.Listen] = true
 	}
-	return &Gateway{mappings: append([]Mapping(nil), mappings...), start: start, games: map[string]*gameState{}}, nil
+	return &Gateway{mappings: mappings, start: start, games: map[string]*gameState{}}, nil
 }
 
 func (g *Gateway) Serve(ctx context.Context) error {
@@ -70,10 +88,26 @@ func (g *Gateway) Serve(ctx context.Context) error {
 		if err != nil {
 			for _, l := range listeners {
 				l.conn.Close()
+				if l.tcp != nil {
+					l.tcp.Close()
+				}
 			}
 			return fmt.Errorf("listen %s: %w", m.Listen, err)
 		}
-		listeners = append(listeners, &listener{conn: conn, gameID: m.GameID, sessions: map[netip.AddrPort]*session{}})
+		l := &listener{conn: conn, instanceID: m.InstanceID, protocol: m.Protocol, tcpPeers: map[netip.Addr]int{}, sessions: map[netip.AddrPort]*session{}}
+		listeners = append(listeners, l)
+		if m.Protocol == "bzflag" {
+			l.tcp, err = (&net.ListenConfig{}).Listen(ctx, "tcp", conn.LocalAddr().String())
+			if err != nil {
+				for _, l := range listeners {
+					l.conn.Close()
+					if l.tcp != nil {
+						l.tcp.Close()
+					}
+				}
+				return err
+			}
+		}
 	}
 	return g.serve(ctx, listeners)
 }
@@ -81,13 +115,19 @@ func (g *Gateway) Serve(ctx context.Context) error {
 func (g *Gateway) serve(ctx context.Context, listeners []*listener) error {
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	failures := make(chan error, len(listeners))
+	failures := make(chan error, 2*len(listeners))
 	var readers sync.WaitGroup
 	for _, l := range listeners {
 		readers.Go(func() { failures <- g.read(runCtx, l); cancel() })
+		if l.tcp != nil {
+			readers.Go(func() { failures <- g.tcp(runCtx, l, l.tcp); cancel() })
+		}
 	}
 	<-runCtx.Done()
 	for _, l := range listeners {
+		if l.tcp != nil {
+			l.tcp.Close()
+		}
 		l.conn.Close()
 	}
 	readers.Wait()
@@ -113,21 +153,28 @@ func (g *Gateway) read(ctx context.Context, l *listener) error {
 			continue
 		}
 		incoming := packet[:n]
-		if controlRequest(incoming, 2) {
+		netquake := l.protocol == "" || l.protocol == "quake1"
+		if netquake && controlRequest(incoming, 2) {
 			g.mu.Lock()
 			count := len(l.sessions)
 			g.mu.Unlock()
-			payload := append([]byte(l.conn.LocalAddr().String()+"\x00insta-game: "+l.gameID+"\x00on-demand\x00"), byte(count), maxSessions, 3)
+			payload := append([]byte(l.conn.LocalAddr().String()+"\x00insta-game: "+l.instanceID+"\x00on-demand\x00"), byte(count), maxSessions, 3)
 			l.conn.WriteTo(controlPacket(0x83, payload), peer)
 			continue
 		}
 		connect := controlRequest(incoming, 1)
-		if !connect {
+		if !netquake {
+			connect = connectionRequest(l.protocol, incoming)
+		}
+		if !connect && netquake {
 			if _, _, ok := frame(incoming); !ok {
 				continue
 			}
 		}
 		g.mu.Lock()
+		if l.protocol == "bzflag" && l.tcpPeers[address.Addr()] == 0 {
+			connect = false
+		}
 		s := l.sessions[address]
 		created := false
 		if s == nil && connect && g.clients < maxSessions {
@@ -137,7 +184,7 @@ func (g *Gateway) read(ctx context.Context, l *listener) error {
 			created = true
 		}
 		g.mu.Unlock()
-		if connect {
+		if connect && netquake {
 			if s == nil {
 				l.conn.WriteTo(rejection("Gateway full; try again shortly."), peer)
 				continue
@@ -155,10 +202,20 @@ func (g *Gateway) read(ctx context.Context, l *listener) error {
 				g.work.Go(func() {
 					defer g.remove(s)
 					if err := s.run(ctx); err != nil && ctx.Err() == nil {
-						log.Printf("wake %s %s: %v", l.gameID, address, err)
+						log.Printf("wake %s %s: %v", l.instanceID, address, err)
 					}
 				})
 			}
+			continue
+		}
+		if created {
+			first := append([]byte(nil), incoming...)
+			g.work.Go(func() {
+				defer g.remove(s)
+				if err := s.relay(ctx, first); err != nil && ctx.Err() == nil {
+					log.Printf("wake %s: %v", l.instanceID, err)
+				}
+			})
 			continue
 		}
 		if s != nil {
@@ -170,26 +227,21 @@ func (g *Gateway) read(ctx context.Context, l *listener) error {
 	}
 }
 
-func (g *Gateway) resolve(ctx, parent context.Context, gameID string) (string, error) {
+func (g *Gateway) resolve(ctx, parent context.Context, instanceID string) (string, error) {
 	g.mu.Lock()
-	state := g.games[gameID]
+	state := g.games[instanceID]
 	if state == nil || (!state.expires.IsZero() && time.Now().After(state.expires)) {
 		state = &gameState{done: make(chan struct{})}
-		g.games[gameID] = state
+		g.games[instanceID] = state
 		g.work.Go(func() {
 			wakeCtx, cancel := context.WithTimeout(parent, attemptTimeout)
 			defer cancel()
-			address, err := g.start(wakeCtx, gameID)
+			address, err := g.start(wakeCtx, instanceID)
 			if wakeCtx.Err() != nil {
 				err = wakeCtx.Err()
 			}
 			if err == nil {
-				parsed, parseErr := netip.ParseAddrPort(address)
-				if parseErr != nil || parsed.Port() == 0 || parsed.Addr().IsUnspecified() {
-					err = fmt.Errorf("invalid backend address")
-				} else {
-					address = netip.AddrPortFrom(parsed.Addr().Unmap(), parsed.Port()).String()
-				}
+				address, err = backendAddress(wakeCtx, address)
 			}
 			g.mu.Lock()
 			state.address, state.err = address, err
@@ -215,4 +267,32 @@ func (g *Gateway) remove(s *session) {
 	defer g.mu.Unlock()
 	delete(s.listener.sessions, s.address)
 	g.clients--
+}
+
+func backendAddress(ctx context.Context, address string) (string, error) {
+	host, portText, err := net.SplitHostPort(address)
+	port, portErr := strconv.Atoi(portText)
+	if err != nil || portErr != nil || port < 1 || port > 65535 || host == "" {
+		return "", fmt.Errorf("invalid backend address")
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		addresses, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+		if err != nil {
+			return "", err
+		}
+		if len(addresses) > 0 {
+			ip = addresses[0]
+			for _, candidate := range addresses {
+				if candidate.Is4() {
+					ip = candidate
+					break
+				}
+			}
+		}
+	}
+	if !ip.IsValid() || ip.IsUnspecified() {
+		return "", fmt.Errorf("invalid backend address")
+	}
+	return netip.AddrPortFrom(ip.Unmap(), uint16(port)).String(), nil
 }

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -161,6 +162,61 @@ func reservePort() (int, func(), error) {
 	return port, func() { tcp.Close(); udp.Close() }, nil
 }
 
+// Preserve offsets for engines such as UT99 whose query port is gamePort+1.
+func reserveGamePorts(game Game) (map[int]int, func(), error) {
+	unique := map[int]bool{}
+	for key := range game.Ports {
+		value, _, _ := strings.Cut(key, "/")
+		port, _ := strconv.Atoi(value)
+		if port != game.AgentPort {
+			unique[port] = true
+		}
+	}
+	numbers := make([]int, 0, len(unique))
+	for port := range unique {
+		numbers = append(numbers, port)
+	}
+	sort.Ints(numbers)
+	if len(numbers) == 0 {
+		return nil, nil, fmt.Errorf("game has no player ports")
+	}
+	for range 32 {
+		base, closeBase, err := reservePort()
+		if err != nil {
+			return nil, nil, err
+		}
+		releases := []func(){closeBase}
+		release := func() {
+			for _, closePort := range releases {
+				closePort()
+			}
+		}
+		ports := map[int]int{numbers[0]: base}
+		for _, original := range numbers[1:] {
+			assigned := base + original - numbers[0]
+			if assigned > 65535 {
+				break
+			}
+			tcp, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(assigned)))
+			if err != nil {
+				break
+			}
+			releases = append(releases, func() { tcp.Close() })
+			udp, err := net.ListenPacket("udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(assigned)))
+			if err != nil {
+				break
+			}
+			releases = append(releases, func() { udp.Close() })
+			ports[original] = assigned
+		}
+		if len(ports) == len(numbers) {
+			return ports, release, nil
+		}
+		release()
+	}
+	return nil, nil, fmt.Errorf("could not reserve game port offsets")
+}
+
 func (n *Native) Ensure(ctx context.Context, i Instance) (Observation, error) {
 	if _, err := n.state(i); err == nil {
 		return n.Inspect(ctx, i)
@@ -219,30 +275,24 @@ func (n *Native) Ensure(ctx context.Context, i Instance) (Observation, error) {
 	defer release()
 	state.Port = port
 	replacements := []string{"{config}", config, "{data}", work}
-	reserved := map[int]int{}
-	for key := range i.Game.Ports {
-		original, err := strconv.Atoi(strings.Split(key, "/")[0])
-		if original == i.Game.AgentPort {
-			continue
-		}
-		if err != nil {
-			return Observation{}, err
-		}
-		assigned := reserved[original]
-		if assigned == 0 {
-			var closePort func()
-			assigned, closePort, err = reservePort()
-			if err != nil {
-				return Observation{}, err
-			}
-			defer closePort()
-			reserved[original] = assigned
-			replacements = append(replacements, "{port:"+strconv.Itoa(original)+"}", strconv.Itoa(assigned))
-		}
+	reserved, closePorts, err := reserveGamePorts(i.Game)
+	if err != nil {
+		return Observation{}, err
+	}
+	defer closePorts()
+	for original, assigned := range reserved {
+		replacements = append(replacements, "{port:"+strconv.Itoa(original)+"}", strconv.Itoa(assigned))
 		if original == i.Game.GamePort {
 			replacements = append(replacements, "{port}", strconv.Itoa(assigned))
 		}
-		state.Endpoints = append(state.Endpoints, Endpoint{Port: original, Protocol: strings.Split(key, "/")[1], Address: net.JoinHostPort(n.PublicHost, strconv.Itoa(assigned))})
+	}
+	for key := range i.Game.Ports {
+		number, transport, _ := strings.Cut(key, "/")
+		original, _ := strconv.Atoi(number)
+		if original == i.Game.AgentPort {
+			continue
+		}
+		state.Endpoints = append(state.Endpoints, Endpoint{Port: original, Protocol: transport, Address: net.JoinHostPort(n.PublicHost, strconv.Itoa(reserved[original]))})
 	}
 	replacer := strings.NewReplacer(replacements...)
 	args := make([]string, len(game.Args))

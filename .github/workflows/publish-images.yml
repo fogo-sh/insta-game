@@ -88,7 +88,7 @@ jobs:
 
               images.append(image)
 
-          global_prefixes = ("internal/", "cmd/", "go.mod", "go.sum")
+          global_prefixes = ("internal/", "cmd/", "go.mod", "go.sum", ".github/workflows/publish-images.yml")
           selected = []
           for image in images:
               if any(path.startswith(global_prefixes) for path in changed) or any(

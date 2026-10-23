@@ -49,12 +49,12 @@ func (s *session) run(ctx context.Context) error {
 	ready := make(chan destination, 1)
 	resolve := func() {
 		s.gateway.work.Go(func() {
-			address, err := s.gateway.resolve(bootCtx, parent, s.listener.gameID)
+			address, err := s.gateway.resolve(bootCtx, parent, s.listener.instanceID)
 			ready <- destination{address, err}
 		})
 	}
 	resolve()
-	log.Printf("wake %s %s: connected; waiting for game", s.listener.gameID, s.address)
+	log.Printf("wake %s %s: connected; waiting for game", s.listener.instanceID, s.address)
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
 	lastSeen := time.Now()
@@ -86,7 +86,7 @@ func (s *session) run(ctx context.Context) error {
 					s.fail("Server did not start in time. Please try again.")
 					return err
 				}
-				log.Printf("wake %s: backend handshake: %v", s.listener.gameID, err)
+				log.Printf("wake %s: backend handshake: %v", s.listener.instanceID, err)
 				target = ""
 				resolve()
 			} else {
@@ -97,7 +97,7 @@ func (s *session) run(ctx context.Context) error {
 				if initial != nil {
 					backend.WriteToUDPAddrPort(initial, remote)
 				}
-				log.Printf("wake %s %s: relaying to %s", s.listener.gameID, s.address, remote)
+				log.Printf("wake %s %s: relaying to %s", s.listener.instanceID, s.address, remote)
 			}
 		}
 		select {

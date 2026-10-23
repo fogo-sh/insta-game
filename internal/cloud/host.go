@@ -15,9 +15,10 @@ import (
 )
 
 type HostState struct {
-	InstanceID string
-	State      string
-	PublicIP   string
+	InstanceID   string
+	Architecture string
+	State        string
+	PublicIP     string
 }
 
 // Host controls one existing, stack-owned EC2 machine. Games stay on its controller.
@@ -63,7 +64,7 @@ func (h *Host) Inspect(ctx context.Context) (HostState, error) {
 	if instance.State == nil {
 		return HostState{}, fmt.Errorf("EC2 host has no state")
 	}
-	return HostState{InstanceID: aws.ToString(instance.InstanceId), State: string(instance.State.Name), PublicIP: aws.ToString(instance.PublicIpAddress)}, nil
+	return HostState{InstanceID: aws.ToString(instance.InstanceId), Architecture: string(instance.Architecture), State: string(instance.State.Name), PublicIP: aws.ToString(instance.PublicIpAddress)}, nil
 }
 
 func (h *Host) Wake(ctx context.Context) (string, error) {

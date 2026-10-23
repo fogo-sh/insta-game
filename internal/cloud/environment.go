@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -54,10 +55,15 @@ func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions)
 	} else if !MissingStack(err) {
 		return "", err
 	}
+	architecture := "amd64"
+	if strings.HasPrefix(options.InstanceType, "t4g.") {
+		architecture = "arm64"
+	}
 	result, err := client.CreateChangeSet(ctx, &cloudformation.CreateChangeSetInput{
 		StackName: aws.String(name), ChangeSetName: aws.String(fmt.Sprintf("insta-game-%d", time.Now().UnixNano())),
 		ChangeSetType: kind, TemplateBody: aws.String(EnvironmentTemplate),
 		Parameters: []cf.Parameter{
+			{ParameterKey: aws.String("UbuntuImage"), ParameterValue: aws.String("/aws/service/canonical/ubuntu/server/24.04/stable/current/" + architecture + "/hvm/ebs-gp3/ami-id")},
 			{ParameterKey: aws.String("GameCIDR"), ParameterValue: aws.String(options.GameCIDR)},
 			{ParameterKey: aws.String("OperatorCIDR"), ParameterValue: aws.String(options.OperatorCIDR)},
 			{ParameterKey: aws.String("PublicKey"), ParameterValue: aws.String(options.PublicKey)},

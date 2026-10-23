@@ -9,7 +9,7 @@
     "GameCIDR": {
       "Type": "String",
       "Default": "0.0.0.0/0",
-      "Description": "Allowed player or gateway public IPv4 CIDR for game UDP"
+      "Description": "Allowed player or gateway public IPv4 CIDR for game TCP and UDP"
     },
     "PublicKey": {
       "Type": "String",
@@ -18,7 +18,7 @@
     "InstanceType": {
       "Type": "String",
       "Default": "t3a.micro",
-      "AllowedPattern": "t3a?\\.(micro|small|medium|large|xlarge|2xlarge)"
+      "AllowedPattern": "t(3a?|4g)\\.(micro|small|medium|large|xlarge|2xlarge)"
     },
     "DiskGiB": {
       "Type": "Number",
@@ -133,6 +133,18 @@
           },
           {
             "IpProtocol": "udp",
+            "FromPort": {
+              "Ref": "UDPFrom"
+            },
+            "ToPort": {
+              "Ref": "UDPTo"
+            },
+            "CidrIp": {
+              "Ref": "GameCIDR"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
             "FromPort": {
               "Ref": "UDPFrom"
             },

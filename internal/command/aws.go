@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
@@ -29,7 +30,7 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	gameCIDR := flags.String("game-cidr", "0.0.0.0/0", "Allowed player or gateway public IPv4 CIDR")
 	cidr := flags.String("operator-cidr", "", "Operator public IPv4 CIDR for SSH and HTTPS")
 	publicKey := flags.String("public-key", "", "SSH public key file")
-	instanceType := flags.String("instance-type", "t3a.micro", "AMD64 burstable EC2 instance type")
+	instanceType := flags.String("instance-type", "t3a.micro", "Burstable EC2 instance type (t3/t3a AMD64 or t4g ARM64)")
 	disk := flags.Int("disk-gib", 8, "Encrypted gp3 root disk size")
 	udpFrom := flags.Int("udp-from", 32768, "First public game UDP port")
 	udpTo := flags.Int("udp-to", 60999, "Last public game UDP port")
@@ -38,10 +39,13 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	output := flags.String("out", "", "Write host config here")
 	key := flags.String("key", "", "Local SSH private key path (saved in config)")
 	token := flags.String("token-file", "", "Local controller token path (created if missing)")
-	binary := flags.String("binary", "", "Linux AMD64 insta-game binary to install")
-	engine := flags.String("engine", "", "Native engine executable to install")
-	assets := flags.String("assets", "", "Game assets directory to install")
+	binary := flags.String("binary", "", "Linux insta-game binary matching the host architecture")
+	engines := flags.String("engines", "", "Optional directory of native engines and runtime files")
+	assets := flags.String("assets", "", "Optional directory of native game assets")
+	envFile := flags.String("env-file", "", "Optional private systemd environment file (asset URLs, Discord settings)")
 	nativeConfig := flags.String("native-config", "", "Native engine definitions using remote /opt/insta-game paths")
+	hostMaxRuntime := flags.Duration("host-max-runtime", 6*time.Hour, "Maximum boot lifetime (0 disables the independent poweroff timer)")
+	pullImages := flags.Bool("pull-images", false, "Pull the catalog Docker images during installation")
 	catalog := flags.String("catalog", "", "Game catalog directory to install")
 	if err := flags.Parse(args[1:]); err != nil {
 		return flagError(err)
@@ -152,7 +156,7 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 		}
 		switch action {
 		case "install":
-			return installHost(ctx, host, installOptions{Binary: *binary, Engine: *engine, Assets: *assets, NativeConfig: *nativeConfig, Catalog: *catalog}, out)
+			return installHost(ctx, host, installOptions{Binary: *binary, Engines: *engines, Assets: *assets, NativeConfig: *nativeConfig, Catalog: *catalog, PullImages: *pullImages, MaxHostRuntime: *hostMaxRuntime, EnvFile: *envFile}, out)
 		case "wake":
 			ip, err := host.Wake(ctx)
 			if err == nil {

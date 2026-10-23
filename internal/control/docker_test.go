@@ -1,12 +1,14 @@
 package control
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 type roundTrip func(*http.Request) (*http.Response, error)
@@ -44,5 +46,30 @@ func TestDockerMutationsVerifyOwnershipAndUseImmutableID(t *testing.T) {
 	}
 	if mutations != 1 {
 		t.Fatal("did not remove owned resource")
+	}
+}
+
+func TestDockerRebootRecoveryKeepsSameBootFailures(t *testing.T) {
+	instance := Instance{ID: "reboot", AgentToken: "secret"}
+	boot := time.Unix(200, 0)
+	for _, started := range []time.Time{boot.Add(-time.Minute), boot.Add(time.Minute)} {
+		t.Run(started.String(), func(t *testing.T) {
+			docker := &Docker{bootedAt: boot, client: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
+				value := map[string]any{"Id": "owned", "Config": map[string]any{"Labels": map[string]string{"gg.insta-game.instance": instance.ID, "gg.insta-game.owner": owner(instance)}}, "State": map[string]any{"Status": "exited", "Running": false, "ExitCode": 137, "StartedAt": started}}
+				data, _ := json.Marshal(value)
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(data))}, nil
+			})}}
+			got, err := docker.Inspect(context.Background(), instance)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if started.Before(boot) {
+				if got.Started || got.Failure != "" {
+					t.Fatalf("host reboot must permit restart: %+v", got)
+				}
+			} else if !got.Started || got.Failure == "" {
+				t.Fatalf("same-boot crash was hidden: %+v", got)
+			}
+		})
 	}
 }

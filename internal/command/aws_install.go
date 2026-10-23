@@ -3,6 +3,8 @@ package command
 import (
 	"archive/tar"
 	"context"
+	"debug/elf"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -13,39 +15,134 @@ import (
 	"time"
 
 	"github.com/fogo-sh/insta-game/internal/cloud"
+	"github.com/fogo-sh/insta-game/internal/control"
 	"golang.org/x/crypto/ssh"
 )
 
-type installOptions struct{ Binary, Engine, Assets, NativeConfig, Catalog string }
+type installOptions struct {
+	Binary, Engines, Assets, NativeConfig, Catalog, EnvFile string
+	PullImages                                              bool
+	MaxHostRuntime                                          time.Duration
+}
 type installFile struct {
 	Source, Destination string
 	Mode                int64
 }
 
-func installHost(ctx context.Context, host *cloud.Host, options installOptions, out io.Writer) error {
+type preparedInstall struct {
+	files        []installFile
+	architecture string
+	games        []control.Game
+}
+
+func prepareInstall(options installOptions, tokenPath string) (preparedInstall, error) {
+	if options.MaxHostRuntime < 0 || (options.MaxHostRuntime > 0 && options.MaxHostRuntime < time.Minute) {
+		return preparedInstall{}, fmt.Errorf("host-max-runtime must be zero or at least one minute")
+	}
+	games, err := control.LoadCatalog(options.Catalog)
+	if err != nil {
+		return preparedInstall{}, err
+	}
+	executable, err := elf.Open(options.Binary)
+	if err != nil {
+		return preparedInstall{}, fmt.Errorf("Linux ELF binary required: %w", err)
+	}
+	machine := executable.Machine
+	executable.Close()
+	architecture := ""
+	switch machine {
+	case elf.EM_X86_64:
+		architecture = "x86_64"
+	case elf.EM_AARCH64:
+		architecture = "arm64"
+	default:
+		return preparedInstall{}, fmt.Errorf("unsupported controller architecture %s", machine)
+	}
+	if options.NativeConfig != "" {
+		data, err := os.ReadFile(options.NativeConfig)
+		if err != nil {
+			return preparedInstall{}, err
+		}
+		var engines map[string]control.NativeGame
+		if err := json.Unmarshal(data, &engines); err != nil {
+			return preparedInstall{}, fmt.Errorf("native config: %w", err)
+		}
+		if len(engines) == 0 {
+			return preparedInstall{}, fmt.Errorf("native config contains no engines")
+		}
+		known := map[string]bool{}
+		for _, game := range games {
+			known[game.ID] = true
+		}
+		for id, engine := range engines {
+			if !known[id] || !filepath.IsAbs(engine.Command) || !filepath.IsAbs(engine.Assets) || !filepath.IsLocal(engine.ConfigPath) {
+				return preparedInstall{}, fmt.Errorf("invalid native profile %q: require a catalog game, absolute command/assets, and relative configPath", id)
+			}
+		}
+	}
 	files := []installFile{
 		{options.Binary, "usr/local/bin/insta-game.new", 0755},
-		{options.Engine, "opt/insta-game/engine/" + filepath.Base(options.Engine), 0755},
-		{options.NativeConfig, "opt/insta-game/native.json", 0600},
-		{host.Config.TokenPath, "var/lib/insta-game/token", 0600},
+		{tokenPath, "var/lib/insta-game/token", 0600},
+	}
+	if options.EnvFile != "" {
+		files = append(files, installFile{options.EnvFile, "etc/insta-game.env", 0600})
+	}
+	metadata, _ := filepath.Glob(filepath.Join(options.Catalog, "*", "game.json"))
+	for _, path := range metadata {
+		directory := filepath.Dir(path)
+		destination := "opt/insta-game/docker-containers/" + filepath.Base(directory) + "/"
+		files = append(files, installFile{path, destination + "game.json", 0644})
+		for _, name := range []string{"server.cfg", "UnrealTournament.ini"} {
+			source := filepath.Join(directory, name)
+			if _, err := os.Lstat(source); err == nil {
+				files = append(files, installFile{source, destination + name, 0644})
+			} else if !os.IsNotExist(err) {
+				return preparedInstall{}, err
+			}
+		}
+	}
+	if options.NativeConfig != "" {
+		files = append(files, installFile{options.NativeConfig, "opt/insta-game/native.json", 0600})
 	}
 	for _, file := range files {
-		info, err := os.Stat(file.Source)
+		info, err := os.Lstat(file.Source)
 		if err != nil {
-			return fmt.Errorf("install file %q: %w", file.Source, err)
+			return preparedInstall{}, fmt.Errorf("install file %q: %w", file.Source, err)
 		}
 		if !info.Mode().IsRegular() {
-			return fmt.Errorf("install file %q is not regular", file.Source)
+			return preparedInstall{}, fmt.Errorf("install file %q is not regular", file.Source)
 		}
 	}
-	for _, path := range []string{options.Assets, options.Catalog} {
+	for _, path := range []string{options.Engines, options.Assets} {
+		if path == "" {
+			continue
+		}
 		info, err := os.Stat(path)
 		if err != nil {
-			return err
+			return preparedInstall{}, err
 		}
 		if !info.IsDir() {
-			return fmt.Errorf("%s must be a directory", path)
+			return preparedInstall{}, fmt.Errorf("%s must be a directory", path)
 		}
+		if err := filepath.WalkDir(path, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !entry.IsDir() && !entry.Type().IsRegular() {
+				return fmt.Errorf("install tree contains nonregular file: %s", path)
+			}
+			return nil
+		}); err != nil {
+			return preparedInstall{}, err
+		}
+	}
+	return preparedInstall{files: files, architecture: architecture, games: games}, nil
+}
+
+func installHost(ctx context.Context, host *cloud.Host, options installOptions, out io.Writer) error {
+	prepared, err := prepareInstall(options, host.Config.TokenPath)
+	if err != nil {
+		return err
 	}
 	private, err := os.ReadFile(host.Config.KeyPath)
 	if err != nil {
@@ -54,6 +151,13 @@ func installHost(ctx context.Context, host *cloud.Host, options installOptions, 
 	signer, err := ssh.ParsePrivateKey(private)
 	if err != nil {
 		return err
+	}
+	state, err := host.Inspect(ctx)
+	if err != nil {
+		return err
+	}
+	if state.Architecture != prepared.architecture {
+		return fmt.Errorf("controller binary is %s; host is %s", prepared.architecture, state.Architecture)
 	}
 	fmt.Fprintln(out, "Starting shared host and verifying its SSH identity...")
 	ip, err := host.Wake(ctx)
@@ -72,23 +176,32 @@ func installHost(ctx context.Context, host *cloud.Host, options installOptions, 
 	cancelClose := context.AfterFunc(ctx, func() { client.Close() })
 	defer cancelClose()
 	if err := runSSH(client, `sudo cloud-init status --wait >/dev/null
-sudo systemctl stop insta-game.service 2>/dev/null || true
+if systemctl cat insta-game.service >/dev/null 2>&1; then sudo systemctl stop insta-game.service; fi
 sudo env DEBIAN_FRONTEND=noninteractive apt-get update -qq
-sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ca-certificates curl zlib1g libstdc++6
+sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ca-certificates curl zlib1g libstdc++6 docker.io
+sudo systemctl enable --now docker
 sudo install -d -m 0700 /var/lib/insta-game
 sudo install -d -m 0755 /opt/insta-game/engine /opt/insta-game/assets /opt/insta-game/docker-containers`, nil, out); err != nil {
 		return err
+	}
+	if options.PullImages {
+		for _, game := range prepared.games {
+			image := "'" + strings.ReplaceAll(game.Image, "'", "'\"'\"'") + "'"
+			if err := runSSH(client, "sudo docker pull -- "+image, nil, out); err != nil {
+				return fmt.Errorf("pull %s: %w", game.Image, err)
+			}
+		}
 	}
 	reader, writer := io.Pipe()
 	sent := make(chan error, 1)
 	go func() {
 		archive := tar.NewWriter(writer)
-		err := writeInstallFiles(archive, files)
-		if err == nil {
-			err = writeInstallTree(archive, options.Assets, "opt/insta-game/assets")
+		err := writeInstallFiles(archive, prepared.files)
+		if err == nil && options.Engines != "" {
+			err = writeInstallTree(archive, options.Engines, "opt/insta-game/engine")
 		}
-		if err == nil {
-			err = writeInstallTree(archive, options.Catalog, "opt/insta-game/docker-containers")
+		if err == nil && options.Assets != "" {
+			err = writeInstallTree(archive, options.Assets, "opt/insta-game/assets")
 		}
 		if closeErr := archive.Close(); err == nil {
 			err = closeErr
@@ -104,6 +217,23 @@ sudo install -d -m 0755 /opt/insta-game/engine /opt/insta-game/assets /opt/insta
 	}
 	if uploadErr != nil {
 		return uploadErr
+	}
+	lifetime := "sudo systemctl disable --now insta-game-deadline.timer"
+	if options.MaxHostRuntime > 0 {
+		lifetime = fmt.Sprintf(`sudo install -d /etc/systemd/system/insta-game-deadline.timer.d
+sudo tee /etc/systemd/system/insta-game-deadline.timer.d/lifetime.conf >/dev/null <<'LIFETIME'
+[Unit]
+Description=Game host maximum boot lifetime
+[Timer]
+OnBootSec=
+OnBootSec=%dms
+LIFETIME
+sudo systemctl daemon-reload
+sudo systemctl enable insta-game-deadline.timer
+sudo systemctl restart insta-game-deadline.timer`, options.MaxHostRuntime.Milliseconds())
+	}
+	if err := runSSH(client, lifetime, nil, out); err != nil {
+		return err
 	}
 	if err := runSSH(client, installService, nil, out); err != nil {
 		return err
@@ -229,7 +359,11 @@ set -eu
 metadata=http://169.254.169.254/latest
 imds_token=$(curl --fail --silent --show-error --max-time 10 -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' "$metadata/api/token")
 public_ip=$(curl --fail --silent --show-error --max-time 10 -H "X-aws-ec2-metadata-token: $imds_token" "$metadata/meta-data/public-ipv4")
-exec /usr/local/bin/insta-game serve --listen 0.0.0.0:3000 --tls --poweroff-idle=2m --data /var/lib/insta-game --native-config /opt/insta-game/native.json --catalog /opt/insta-game/docker-containers --default-provider local --public-host "$public_ip" --game-bind 0.0.0.0
+set --
+if [ -f /opt/insta-game/native.json ]; then
+    set -- --native-config /opt/insta-game/native.json
+fi
+exec /usr/local/bin/insta-game serve "$@" --listen 0.0.0.0:3000 --tls --poweroff-idle=2m --data /var/lib/insta-game --catalog /opt/insta-game/docker-containers --default-provider docker --public-host "$public_ip" --game-bind 0.0.0.0
 SCRIPT
 sudo chmod 0755 /usr/local/bin/insta-game-host
 sudo tee /etc/systemd/system/insta-game.service >/dev/null <<'SERVICE'
@@ -239,6 +373,7 @@ Wants=network-online.target
 After=network-online.target
 [Service]
 Type=simple
+EnvironmentFile=-/etc/insta-game.env
 ExecStart=/usr/local/bin/insta-game-host
 Restart=on-failure
 RestartSec=5

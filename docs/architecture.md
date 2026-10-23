@@ -15,7 +15,7 @@ can use the same game without sharing runtime identity or writable data.
 | `internal/agent` | One game process, startup assets/config, readiness, console, logs, authenticated management |
 | `internal/protocol` | Engine status queries and player counts |
 | `internal/cloud` | Shared EC2 host provisioning, SSH installation, wake/stop/destroy |
-| `internal/wake` | NetQuake loading connections, UDP relay, and deduplicated cold starts |
+| `internal/wake` | Game wake routing, NetQuake loading, TCP/UDP relay, and deduplicated starts |
 | `internal/securehttp` | Token-pinned TLS for controller and agent clients |
 
 The controller owns lifecycle policy. Providers implement `Ensure`, `Inspect`,
@@ -60,9 +60,9 @@ network view; a remote daemon is unsupported.
 ## Shared AWS host
 
 One CloudFormation stack provisions a public subnet and one EBS-backed EC2 VM.
-Several native games share its CPU and memory while retaining independent
+Native games and Docker containers share its CPU and memory while retaining independent
 working directories, ports, and lifecycle state. The VM runs the same controller
-and local provider as a workstation. There is one authoritative game database,
+and providers as a workstation. There is one authoritative game database,
 on its persistent disk.
 
 Normal EC2 stop retains the disk. Start refreshes the auto-assigned public IP;
@@ -73,13 +73,27 @@ The controller's optional `--poweroff-idle` flag powers off only after every
 saved game is fully stopped or deleted for the complete grace period. Failed,
 unknown, running, or pending states prevent idle shutdown. Game idle policy
 still counts human players where the protocol supports it. An independent
-six-hour systemd boot timer bounds the experiment if the controller crashes.
+systemd boot timer bounds host lifetime independently of the controller. The
+installer defaults it to six hours; `--host-max-runtime` changes or disables it.
 
-A gateway on an existing operator host owns the stable player-facing UDP
-address. It accepts a NetQuake connection immediately and sends reliable loading
+A gateway on an existing operator host owns stable player-facing addresses.
+It starts saved games through any reachable controller, optionally waking EC2
+first. All catalog protocols have a gateway route type. Quake 2, Quake 3,
+Xonotic, and UT99 use per-client connected UDP sockets and retain the initial
+handshake until startup finishes. Payloads and sequence numbers are unchanged.
+Client connection timeouts remain client policy; users retry the same address
+if a cold start exceeds them. UT99 GameSpy queries are ignored and additional
+query services use direct hosting.
+
+BZFlag accepts its TCP greeting before waking the game, then relays both TCP
+and UDP over the same front port. UDP link setup is admitted only while a TCP
+connection from that client address exists. Queries share the TCP greeting and
+can therefore wake the host. Connections, startup, and idle work are bounded.
+
+For NetQuake, the gateway provides a loading connection before sign-on. It accepts a NetQuake connection immediately and sends reliable loading
 messages before game sign-on. The shared wake callback starts EC2, waits for
 fresh authenticated controller readiness, and starts the selected saved game.
-Status queries are answered locally without waking anything.
+NetQuake status queries are answered locally without waking anything.
 
 Each player gets a separate backend UDP socket and negotiation. The gateway
 waits for the last loading message to be acknowledged, connects to the backend,
@@ -99,7 +113,7 @@ The listener bounds active clients, packet queues, boot attempts, and idle
 sessions. Wake work is shared by game ID; one disconnect cannot cancel another
 client's startup. Canceling the gateway closes its listeners, backend sockets,
 and workers. Backend game ports use `--game-cidr`, set to the gateway public
-IP in this deployment. SSH and the controller API use `--operator-cidr`.
+IP when proxying. SSH and the controller API use `--operator-cidr`.
 
 This uses the intermediary/session pattern from notscared's Elixir master_server.
 Its custom Quake II transfer packets and engine hooks are not part of this

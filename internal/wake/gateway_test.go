@@ -25,14 +25,14 @@ func listenUDP(t *testing.T) *net.UDPConn {
 func serveGateway(t *testing.T, start func(context.Context, string) (string, error)) (*Gateway, *net.UDPAddr, context.CancelFunc) {
 	t.Helper()
 	conn := listenUDP(t)
-	g, err := New([]Mapping{{Listen: conn.LocalAddr().String(), GameID: "quake"}}, start)
+	g, err := New([]Mapping{{Listen: conn.LocalAddr().String(), InstanceID: "quake"}}, start)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- g.serve(ctx, []*listener{{conn: conn, gameID: "quake", sessions: map[netip.AddrPort]*session{}}})
+		done <- g.serve(ctx, []*listener{{conn: conn, instanceID: "quake", sessions: map[netip.AddrPort]*session{}}})
 	}()
 	t.Cleanup(func() {
 		cancel()

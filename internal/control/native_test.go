@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -142,5 +143,35 @@ func TestNativeRecoveryDistinguishesRebootFromGameExit(t *testing.T) {
 		if observed.Started != (previousBoot == boot) {
 			t.Fatalf("boot %q: %+v", previousBoot, observed)
 		}
+	}
+}
+
+func TestNativeCatalogPortsRetainOffsetsAndReserveBothTransports(t *testing.T) {
+	games, err := LoadCatalog("../../docker-containers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, game := range games {
+		t.Run(game.ID, func(t *testing.T) {
+			ports, release, err := reserveGamePorts(game)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer release()
+			for original, assigned := range ports {
+				if assigned-ports[game.GamePort] != original-game.GamePort {
+					t.Fatal("native port offsets changed")
+				}
+				address := net.JoinHostPort("127.0.0.1", strconv.Itoa(assigned))
+				if c, err := net.Listen("tcp", address); err == nil {
+					c.Close()
+					t.Fatal("TCP reservation missing")
+				}
+				if c, err := net.ListenPacket("udp", address); err == nil {
+					c.Close()
+					t.Fatal("UDP reservation missing")
+				}
+			}
+		})
 	}
 }

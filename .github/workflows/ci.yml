@@ -25,7 +25,9 @@ jobs:
           go vet ./...
           python3 generate-compose.py --check
           docker compose config --quiet
-      - name: Build supported targets
-        run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /tmp/insta-game-linux-arm64 ./cmd/insta-game
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o /tmp/insta-game-darwin-arm64 ./cmd/insta-game
+      - name: Package supported targets
+        run: python3 scripts/package-release.py --output /tmp/insta-game-dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: insta-game-packages
+          path: /tmp/insta-game-dist/*

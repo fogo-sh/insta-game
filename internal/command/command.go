@@ -27,7 +27,7 @@ const help = `insta-game — on-demand dedicated servers
 
   discord  Print or register the Go controller's Discord commands
 	aws      Manage an AWS game host
-  wake     Answer Quake connection attempts and wake an AWS host
+  wake     Relay game connections and start stopped servers
   serve    Run the controller and embedded web UI
   agent    Supervise one game (configured through GAME_* environment variables)
   games    List supported games

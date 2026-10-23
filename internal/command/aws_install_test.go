@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -93,5 +94,56 @@ func TestHostTokenDoesNotReuseLocalSession(t *testing.T) {
 	next, _ := os.ReadFile(path)
 	if string(next) != string(data) {
 		t.Fatal("existing host identity changed")
+	}
+}
+
+func TestInstallPreflightExcludesDownloadsAndKeepsSecretsPrivate(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("installer requires a Linux ELF controller")
+	}
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	catalog := filepath.Join(root, "catalog")
+	if err := os.MkdirAll(filepath.Join(catalog, "game", "downloads"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	metadata := `{"id":"game","gameCmd":"server","gamePort":26000,"agentPort":5001,"ports":{"26000/udp":{}}}`
+	for name, data := range map[string]string{"game.json": metadata, "server.cfg": "hostname test", "downloads/private.pak": "not a catalog file"} {
+		if err := os.WriteFile(filepath.Join(catalog, "game", name), []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	token := filepath.Join(root, "token")
+	env := filepath.Join(root, "host.env")
+	for _, path := range []string{token, env} {
+		if err := os.WriteFile(path, []byte("private"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	options := installOptions{Binary: binary, Catalog: catalog, EnvFile: env}
+	prepared, err := prepareInstall(options, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prepared.files) != 5 {
+		t.Fatalf("unexpected upload list: %+v", prepared.files)
+	}
+	for _, file := range prepared.files {
+		if strings.Contains(file.Destination, "private.pak") {
+			t.Fatal("downloaded assets included in catalog")
+		}
+		if (file.Source == token || file.Source == env) && file.Mode != 0600 {
+			t.Fatal("secret file is not private")
+		}
+	}
+	options.NativeConfig = filepath.Join(root, "native.json")
+	if err := os.WriteFile(options.NativeConfig, []byte(`{"game":{"command":"relative","assets":"/assets","configPath":"server.cfg"}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := prepareInstall(options, token); err == nil {
+		t.Fatal("invalid native paths accepted")
 	}
 }
