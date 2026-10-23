@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -56,5 +57,45 @@ func TestDarkPlacesBackendHandshake(t *testing.T) {
 				t.Fatal("relay changed the challenge socket")
 			}
 		})
+	}
+}
+
+func TestXonoticHoldsNetQuakeClientAndNegotiatesDarkPlacesBackend(t *testing.T) {
+	backend := listenUDP(t)
+	var starts atomic.Int32
+	ready := make(chan struct{})
+	_, front, _ := serveGateway(t, "xonotic", func(ctx context.Context, _ string) (string, error) {
+		starts.Add(1)
+		select {
+		case <-ready:
+			return backend.LocalAddr().String(), nil
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	})
+	client := listenUDP(t)
+	sendUDP(t, client, front, []byte("\xff\xff\xff\xffgetchallenge"))
+	expectSilence(t, client)
+	if starts.Load() != 0 {
+		t.Fatal("legacy challenge started a second transport")
+	}
+	sendUDP(t, client, front, backendConnect)
+	expectPacket(t, client, accept(front.Port))
+	initial := transportPacket(flagData|flagEOM, 0, 1)
+	sendUDP(t, client, front, initial)
+	receiveLimbo(t, client)
+	close(ready)
+	sendUDP(t, client, front, transportPacket(flagAck, 0))
+	peer := expectPacket(t, backend, []byte("\xff\xff\xff\xffgetchallenge"))
+	sendUDP(t, backend, peer, []byte("\xff\xff\xff\xffchallenge smoke\x00"))
+	expectPacket(t, backend, []byte("\xff\xff\xff\xffconnect\\protocol\\darkplaces 3\\protocols\\DP7\\challenge\\smoke"))
+	sendUDP(t, backend, peer, []byte("\xff\xff\xff\xffaccept"))
+	expectPacket(t, backend, initial)
+	sendUDP(t, backend, peer, transportPacket(flagData|flagEOM, 0, 8, 'o', 'k', 0))
+	expectPacket(t, client, transportPacket(flagData|flagEOM, 1, 8, 'o', 'k', 0))
+	sendUDP(t, client, front, transportPacket(flagAck, 1))
+	expectPacket(t, backend, transportPacket(flagAck, 0))
+	if starts.Load() != 1 {
+		t.Fatal("wake was not shared with the loading connection")
 	}
 }

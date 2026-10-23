@@ -22,17 +22,17 @@ func listenUDP(t *testing.T) *net.UDPConn {
 	return conn
 }
 
-func serveGateway(t *testing.T, start func(context.Context, string) (string, error)) (*Gateway, *net.UDPAddr, context.CancelFunc) {
+func serveGateway(t *testing.T, protocol string, start func(context.Context, string) (string, error)) (*Gateway, *net.UDPAddr, context.CancelFunc) {
 	t.Helper()
 	conn := listenUDP(t)
-	g, err := New([]Mapping{{Listen: conn.LocalAddr().String(), InstanceID: "quake"}}, start)
+	g, err := New([]Mapping{{Listen: conn.LocalAddr().String(), InstanceID: "quake", Protocol: protocol}}, start)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- g.serve(ctx, []*listener{{conn: conn, instanceID: "quake", sessions: map[netip.AddrPort]*session{}}})
+		done <- g.serve(ctx, []*listener{{conn: conn, protocol: protocol, instanceID: "quake", sessions: map[netip.AddrPort]*session{}}})
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -135,7 +135,7 @@ func awaitClients(t *testing.T, g *Gateway, want int) {
 func TestLimboDrainsReliableACKBeforeRelayingBothChannels(t *testing.T) {
 	admission, backend := listenUDP(t), listenUDP(t)
 	ready := make(chan struct{})
-	_, address, _ := serveGateway(t, func(ctx context.Context, _ string) (string, error) {
+	_, address, _ := serveGateway(t, "quake1", func(ctx context.Context, _ string) (string, error) {
 		select {
 		case <-ready:
 			return admission.LocalAddr().String(), nil
@@ -201,7 +201,7 @@ func TestClientsShareWakeButHaveIndependentBackendSockets(t *testing.T) {
 	backend := listenUDP(t)
 	ready := make(chan struct{})
 	var calls atomic.Int32
-	_, address, _ := serveGateway(t, func(ctx context.Context, _ string) (string, error) {
+	_, address, _ := serveGateway(t, "quake1", func(ctx context.Context, _ string) (string, error) {
 		calls.Add(1)
 		select {
 		case <-ready:
@@ -242,7 +242,7 @@ func TestClientsShareWakeButHaveIndependentBackendSockets(t *testing.T) {
 
 func TestDisconnectDoesNotCancelAnotherClientsWake(t *testing.T) {
 	started := make(chan context.Context, 1)
-	g, address, cancel := serveGateway(t, func(ctx context.Context, _ string) (string, error) {
+	g, address, cancel := serveGateway(t, "quake1", func(ctx context.Context, _ string) (string, error) {
 		started <- ctx
 		<-ctx.Done()
 		return "", ctx.Err()
@@ -272,7 +272,7 @@ func TestDisconnectDoesNotCancelAnotherClientsWake(t *testing.T) {
 
 func TestStatusAndMalformedPacketsDoNotWakeAndSessionsAreBounded(t *testing.T) {
 	var calls atomic.Int32
-	g, address, _ := serveGateway(t, func(ctx context.Context, _ string) (string, error) {
+	g, address, _ := serveGateway(t, "quake1", func(ctx context.Context, _ string) (string, error) {
 		calls.Add(1)
 		<-ctx.Done()
 		return "", ctx.Err()
@@ -324,7 +324,7 @@ func TestStatusAndMalformedPacketsDoNotWakeAndSessionsAreBounded(t *testing.T) {
 
 func TestFailureCooldownDoesNotLeakProviderErrorsOrRetryAutomatically(t *testing.T) {
 	var calls atomic.Int32
-	g, address, _ := serveGateway(t, func(context.Context, string) (string, error) {
+	g, address, _ := serveGateway(t, "quake1", func(context.Context, string) (string, error) {
 		calls.Add(1)
 		return "", errors.New("private provider detail")
 	})
@@ -355,7 +355,7 @@ func TestBackendRejectionDisconnectsWithoutRetrying(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend := listenUDP(t)
-			g, address, _ := serveGateway(t, func(context.Context, string) (string, error) {
+			g, address, _ := serveGateway(t, "quake1", func(context.Context, string) (string, error) {
 				return backend.LocalAddr().String(), nil
 			})
 			client := connectClient(t, address)
