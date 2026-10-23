@@ -21,18 +21,19 @@ import (
 	"github.com/fogo-sh/insta-game/internal/wake"
 )
 
+type wakeTarget struct {
+	id, protocol string
+	port         int
+}
+
+type controllerHTTPError int
+
+func (e controllerHTTPError) Error() string { return fmt.Sprintf("controller HTTP %d", e) }
+
 // wakeGame starts a saved game through its controller, optionally waking EC2 first.
-func wakeGame(ctx context.Context, host *cloud.Host, controllerURL, token, id, protocol string) (string, error) {
-	id, portText, _ := strings.Cut(id, "/")
-	port := 0
-	if portText != "" {
-		var err error
-		port, err = strconv.Atoi(portText)
-		if err != nil || port < 1 || port > 65535 {
-			return "", fmt.Errorf("invalid catalog port %q", portText)
-		}
-	}
-	requestedAt := time.Now()
+func wakeGame(ctx context.Context, host *cloud.Host, controllerURL, token string, target wakeTarget) (string, error) {
+	id := target.id
+	var observedAt time.Time
 	if host != nil {
 		ip, err := host.Wake(ctx)
 		if err != nil {
@@ -59,7 +60,7 @@ func wakeGame(ctx context.Context, host *cloud.Host, controllerURL, token, id, p
 			return fmt.Errorf("game %s: %w", id, os.ErrNotExist)
 		}
 		if res.StatusCode < 200 || res.StatusCode >= 300 {
-			return fmt.Errorf("controller HTTP %d", res.StatusCode)
+			return controllerHTTPError(res.StatusCode)
 		}
 		if result != nil {
 			return json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(result)
@@ -72,14 +73,16 @@ func wakeGame(ctx context.Context, host *cloud.Host, controllerURL, token, id, p
 	for {
 		var instance control.Instance
 		err := request(http.MethodGet, base, &instance)
-		if errors.Is(err, os.ErrNotExist) {
-			return "", err
-		}
-		if err == nil && instance.UpdatedAt.After(requestedAt) {
-			if instance.Game.Protocol != protocol {
-				return "", fmt.Errorf("route protocol %s does not match game protocol %s", protocol, instance.Game.Protocol)
+		if err == nil {
+			// Wait for reconciliation without comparing clocks on different hosts.
+			fresh := !observedAt.IsZero() && !instance.UpdatedAt.Equal(observedAt)
+			if observedAt.IsZero() {
+				observedAt = instance.UpdatedAt
 			}
-			if instance.Phase == "deleted" || instance.Phase == "failed" {
+			if instance.Game.Protocol != target.protocol {
+				return "", fmt.Errorf("route protocol %s does not match game protocol %s", target.protocol, instance.Game.Protocol)
+			}
+			if fresh && (instance.Phase == "deleted" || instance.Phase == "failed") {
 				return "", fmt.Errorf("game %s is %s: %s", id, instance.Phase, instance.Error)
 			}
 			if instance.Desired == "stopped" && !started {
@@ -88,17 +91,21 @@ func wakeGame(ctx context.Context, host *cloud.Host, controllerURL, token, id, p
 					started = true
 				}
 			}
-			if err == nil && instance.Phase == "running" && instance.Desired == "running" && instance.Error == "" && instance.Players != nil && instance.Connect() != "" {
-				if port == 0 {
+			if fresh && err == nil && instance.Phase == "running" && instance.Desired == "running" && instance.Error == "" && instance.Players != nil && instance.Connect() != "" {
+				if target.port == 0 {
 					return instance.Connect(), nil
 				}
 				for _, endpoint := range instance.Endpoints {
-					if endpoint.Port == port {
+					if endpoint.Port == target.port {
 						return endpoint.Address, nil
 					}
 				}
-				return "", fmt.Errorf("game %s has no endpoint for catalog port %d", id, port)
+				return "", fmt.Errorf("game %s has no endpoint for catalog port %d", id, target.port)
 			}
+		}
+		var status controllerHTTPError
+		if errors.Is(err, os.ErrNotExist) || (errors.As(err, &status) && status >= 400 && status < 500 && status != 408 && status != 409 && status != 429) {
+			return "", err
 		}
 		if err != nil && host != nil && time.Since(lastWake) >= 10*time.Second {
 			ip, wakeErr := host.Wake(ctx)
@@ -106,7 +113,7 @@ func wakeGame(ctx context.Context, host *cloud.Host, controllerURL, token, id, p
 				return "", wakeErr
 			}
 			base = "https://" + net.JoinHostPort(ip, "3000") + "/api/instances/" + url.PathEscape(id)
-			requestedAt, lastWake = time.Now(), time.Now()
+			observedAt, lastWake = time.Time{}, time.Now()
 			started = false
 		}
 		select {
@@ -123,6 +130,7 @@ func wakeCommand(ctx context.Context, args []string, out io.Writer) error {
 	controllerURL := flags.String("url", "http://127.0.0.1:3000", "Controller URL without AWS hosting")
 	tokenPath := flags.String("token-file", ".insta-game/token", "Controller token file without AWS hosting")
 	var mappings []wake.Mapping
+	targets := map[string]wakeTarget{}
 	flags.Func("route", "[PROTOCOL://]listen-address=instance-id[/catalog-port] (repeatable; private/tailnet only)", func(value string) error {
 		listen, id, ok := strings.Cut(value, "=")
 		if !ok || strings.TrimSpace(id) == "" {
@@ -132,6 +140,7 @@ func wakeCommand(ctx context.Context, args []string, out io.Writer) error {
 		if scheme, address, ok := strings.Cut(listen, "://"); ok {
 			protocol, listen = scheme, address
 		}
+		target := wakeTarget{id: id, protocol: protocol}
 		if base, port, hasPort := strings.Cut(id, "/"); hasPort {
 			if strings.TrimSpace(base) == "" {
 				return fmt.Errorf("route requires a game ID")
@@ -140,7 +149,9 @@ func wakeCommand(ctx context.Context, args []string, out io.Writer) error {
 			if err != nil || n < 1 || n > 65535 {
 				return fmt.Errorf("invalid catalog port")
 			}
+			target.id, target.port = base, n
 		}
+		targets[id] = target
 		mappings = append(mappings, wake.Mapping{Listen: listen, InstanceID: id, Protocol: protocol})
 		return nil
 	})
@@ -183,12 +194,7 @@ func wakeCommand(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	gateway, err := wake.New(mappings, func(ctx context.Context, id string) (string, error) {
-		for _, mapping := range mappings {
-			if mapping.InstanceID == id {
-				return wakeGame(ctx, host, *controllerURL, token, id, mapping.Protocol)
-			}
-		}
-		return "", fmt.Errorf("unknown route %s", id)
+		return wakeGame(ctx, host, *controllerURL, token, targets[id])
 	})
 	if err != nil {
 		return err

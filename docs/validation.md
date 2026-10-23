@@ -18,6 +18,13 @@ unchanged unreliable traffic. BZFlag coverage exercises its TCP greeting and UDP
 link on one stable front port. These protocol tests use fake backends; real engine and gameplay coverage is
 listed below.
 
+A controller-to-gateway integration test runs the real CLI route parser, authenticated
+HTTP API, database, reconciliation loop, and UDP relay together. It verifies that a
+connection starts only the requested saved game and carries gameplay traffic over
+the same address. Infrastructure and game status are test doubles; this runs in CI
+without Docker or AWS. Wake regressions also cover rejected credentials and clock
+skew between the gateway and controller.
+
 Provider regressions cover resource ownership, retained instance data, native
 port offsets, and recovery across host boots while preserving same-boot crash
 failures. CloudFormation checks enforce shared-host cost and access boundaries.
