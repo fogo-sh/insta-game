@@ -99,6 +99,8 @@ func TestWakeGatewayStartsOnlyRequestedSavedGame(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
+	notice := "\xff\xff\xff\xffprint\nStarting server...\n\x00"
+	sawNotice := false
 	handshake := []byte("\xff\xff\xff\xffgetchallenge 123")
 	buffer := make([]byte, 4096)
 	for {
@@ -106,6 +108,10 @@ func TestWakeGatewayStartsOnlyRequestedSavedGame(t *testing.T) {
 		client.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		n, err := client.Read(buffer)
 		if err == nil {
+			if string(buffer[:n]) == notice {
+				sawNotice = true
+				continue
+			}
 			if string(buffer[:n]) != "backend:"+string(handshake) {
 				t.Fatalf("unexpected handshake: %q", buffer[:n])
 			}
@@ -114,6 +120,9 @@ func TestWakeGatewayStartsOnlyRequestedSavedGame(t *testing.T) {
 		if ctx.Err() != nil {
 			t.Fatalf("gateway never reached backend: %v", err)
 		}
+	}
+	if !sawNotice {
+		t.Fatal("no loading progress before the real server handshake")
 	}
 	// Gameplay keeps the same public socket and reaches the selected backend.
 	if _, err := client.Write([]byte("gameplay")); err != nil {

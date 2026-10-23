@@ -73,14 +73,18 @@ requires a fresh authenticated controller observation. Listeners, queues, client
 startup attempts, and idle sessions are bounded. Cancellation closes sockets and
 joins workers.
 
-Quake 2, Quake 3, Xonotic, and UT99 retain the initial handshake during startup,
-then relay unchanged payloads and sequence numbers through separate client UDP
-sockets. Clients may time out and need to retry the same address. UT99 GameSpy
+Quake 2/3 and OpenArena receive out-of-band progress while awaiting the real
+challenge. UT99 receives packet -1 keepalives, which refresh receive time without
+advancing sign-on sequences. Its initial HELLO is retained. After readiness, each
+client relays through its own UDP socket with unchanged payloads and sequences. UT99 GameSpy
 queries are ignored; extra query services require direct hosting.
 
-BZFlag accepts its TCP greeting before waking the game and relays TCP/UDP on one
-front port. UDP link setup requires a TCP connection from that client address.
-Queries share the greeting and can wake the host.
+BZFlag sends its protocol greeting and a virtual player ID immediately, then
+buffers the client handshake while starting the server. A per-client permutation
+translates player IDs in both directions, including shots and flag ownership.
+TCP and UDP share a front port; UDP links bind to the TCP client by address and
+virtual ID. Queries share the greeting and can wake the host. Support is pinned
+to protocol 0221; replay and shared-process robot connections are excluded.
 
 NetQuake clients connect immediately and receive reliable loading messages;
 status queries are answered locally without waking anything. After the last
@@ -90,7 +94,8 @@ loading-message count; client ACK/NAK sequences lose it. Client DATA, backend
 ACKs, and unreliable packets stay unchanged. Extended game protocols use those
 unreliable sequence numbers in snapshot acknowledgments.
 
-Sign-on continues on the same connection without a waiting map, client changes,
+Xonotic uses the same hold, but negotiates DarkPlaces 7 with the backend before
+relaying. Sign-on continues on the same connection without a waiting map, client changes,
 reconnect commands, or engine patches. FTE needs `sv_listen_nq 1`; basic handshakes
 on both legs preserve ProQuake angle negotiation. Backend rejection and
 unsupported transport fail visibly. The session pattern comes from notscared's

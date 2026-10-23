@@ -75,7 +75,11 @@ func (s *session) run(ctx context.Context) error {
 	}()
 	for {
 		if backend == nil && target != "" && pending == nil {
-			conn, peer, err := connectBackend(bootCtx, target)
+			connect := connectBackend
+			if s.listener.protocol == "xonotic" {
+				connect = connectDarkPlacesBackend
+			}
+			conn, peer, err := connect(bootCtx, target)
 			if err != nil {
 				var rejected *backendRejection
 				if errors.As(err, &rejected) {

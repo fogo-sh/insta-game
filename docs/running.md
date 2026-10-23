@@ -155,11 +155,11 @@ are listed in the [game table](../README.md#games). Omitting the protocol select
 The gateway needs the controller token and, for AWS, operator credentials.
 Keep listeners on private/tailnet addresses.
 
-Players always use the gateway address. NetQuake connections receive loading
-messages while the backend starts, then enter the game without reconnecting.
-Other protocols retain their own handshakes and packet numbers. The first UDP
-handshake is retained during startup; if a client stops waiting, retry the same
-address.
+Players use the gateway address once. The gateway holds the connection while
+the game starts, then completes the real server handshake. Quake and Xonotic
+show loading text. Quake II/III and OpenArena receive connection progress; UT99
+keeps its connecting screen alive; BZFlag receives server messages. Startup is
+bounded to three minutes. A failed start reports an error through the game protocol.
 
 Each player has a separate backend socket. BZFlag's TCP greeting and UDP link
 negotiation use the same front port. Its initial greeting is shared by joins and
@@ -170,12 +170,14 @@ hosting when those services are required.
 
 The FTE backend must use `sv_listen_nq 1` for NetQuake loading; the supplied config
 and native example set it. Reliable packet sequence translation accounts for
-the loading messages; unreliable packets remain unchanged. QuakeWorld is not
-supported by this loading path.
+the loading messages; unreliable packets remain unchanged. QuakeWorld is
+unsupported. Xonotic uses the DarkPlaces 7 handshake with the same reliable
+loading transport.
 
-A gateway process permits 64 TCP/UDP sessions; a BZFlag player normally uses
-one of each. Startup is limited to three minutes, failed starts have a one-minute
-cooldown, and inactive UDP sessions expire after one minute. The gateway carries gameplay traffic, so its location and bandwidth affect latency
+A gateway permits 64 clients. A BZFlag client shares one admission slot across
+TCP and UDP. Failed starts have a one-minute cooldown; waiting and connected UDP-only
+clients expire after one minute without traffic. BZFlag support targets protocol
+0221 (the 2.4 series). Replay and `-solo` robot connections are unsupported. The gateway carries gameplay traffic, so its location and bandwidth affect latency
 and capacity. It needs a persistent TCP/UDP listener. Lambda function URLs cannot receive game UDP.
 
 ## Controller access and Discord

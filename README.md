@@ -35,7 +35,7 @@ or 120 minutes by default; `--idle 0` and `--max-runtime 0` disable those limits
 
 | Game | Catalog ID | Gateway protocol | Transport |
 | --- | --- | --- | --- |
-| Quake 1 / FTEQW | `fteqw` | `quake1` | UDP, loading messages before sign-on |
+| Quake 1 / FTEQW | `fteqw` | `quake1` | UDP |
 | Quake 2 / q2repro | `q2repro` | `quake2` | UDP |
 | Quake 3 Arena / ioquake3 | `ioquake3` | `quake3` | UDP |
 | OpenArena | `openarena` | `quake3` | UDP |
@@ -48,9 +48,10 @@ Supply commercial game assets yourself. Native games need an installed engine
 and a profile; Docker images contain the runtime. See [running servers](docs/running.md)
 for native setup, AWS, stable wake addresses, storage, access, and Discord.
 
-The gateway starts saved games at a stable address. NetQuake clients receive
-loading messages and continue without reconnecting. Other clients may need to
-retry that address while the server boots. See [validation](docs/validation.md)
+The gateway keeps clients connected while the saved game and optional AWS host
+start. Quake and Xonotic show loading messages; Quake II/III and OpenArena show
+connection progress. UT99 keeps its connecting screen alive, and BZFlag shows
+server messages. Clients continue into the game on the same connection. See [validation](docs/validation.md)
 for tested engines and remaining gameplay checks. Fly is not implemented.
 
 ## Downloads

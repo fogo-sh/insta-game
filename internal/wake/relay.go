@@ -3,22 +3,18 @@ package wake
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
-	"io"
+	"errors"
 	"log"
 	"net"
-	"net/netip"
 	"time"
 )
 
-// Other protocols keep their own handshake and packet numbers end to end.
-// Clients whose connection timeout is shorter than startup must retry the same address.
 func connectionRequest(protocol string, packet []byte) bool {
 	if len(packet) == 0 || len(packet) > 4096 {
 		return false
 	}
 	switch protocol {
-	case "quake2", "quake3", "xonotic":
+	case "quake2", "quake3":
 		if !bytes.HasPrefix(packet, []byte{255, 255, 255, 255}) {
 			return false
 		}
@@ -27,19 +23,18 @@ func connectionRequest(protocol string, packet []byte) bool {
 	case "ut99":
 		// GameSpy status requests are separate from the binary game handshake.
 		return len(packet) >= 3 && packet[0] != '\\'
-	case "bzflag":
-		// UDP link requests carry the slot assigned over TCP.
-		return len(packet) == 5 && binary.BigEndian.Uint16(packet[:2]) == 1 && binary.BigEndian.Uint16(packet[2:4]) == 0x6f66
+
 	}
 	return false
 }
 
 func (s *session) relay(ctx context.Context, first []byte) error {
+	parent := ctx
 	ctx, end := context.WithCancel(ctx)
 	defer end()
 	bootCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
 	defer cancel()
-	address, err := s.gateway.resolve(bootCtx, ctx, s.listener.instanceID)
+	address, err := s.waitForGame(bootCtx, parent)
 	if err != nil {
 		return err
 	}
@@ -106,77 +101,67 @@ drained:
 	}
 }
 
-func (g *Gateway) tcp(ctx context.Context, l *listener, socket net.Listener) error {
+// Hold clients before the backend handshake without consuming game sequences.
+func (s *session) waitForGame(ctx, parent context.Context) (string, error) {
+	interval := 5 * time.Second
+	var progress []byte
+	switch s.listener.protocol {
+	case "quake2", "quake3":
+		progress = []byte("\xff\xff\xff\xffprint\nStarting server...\n\x00")
+	case "ut99":
+		// Packet -1 refreshes receive time without advancing the initial sequence.
+		progress, interval = []byte{0xff, 0x7f}, time.Second
+	default:
+		return s.gateway.resolve(ctx, parent, s.listener.instanceID)
+	}
+	ready := make(chan destination, 1)
+	s.gateway.work.Go(func() {
+		address, err := s.gateway.resolve(ctx, parent, s.listener.instanceID)
+		ready <- destination{address, err}
+	})
+	notice := func(message string) error {
+		return s.send(append([]byte{255, 255, 255, 255}, []byte("print\n"+message+"\n\x00")...))
+	}
+	fail := func(message string) {
+		if s.listener.protocol == "ut99" {
+			for range 3 {
+				s.send(ut99Rejection())
+			}
+		} else {
+			notice(message)
+		}
+	}
+	if s.listener.protocol != "ut99" {
+		if err := s.send(progress); err != nil {
+			return "", err
+		}
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	idle := time.NewTimer(clientTimeout)
+	defer idle.Stop()
 	for {
-		client, err := socket.Accept()
-		if err != nil {
-			return err
+		select {
+		case <-idle.C:
+			return "", errors.New("client inactive while waiting for server")
+		case <-ctx.Done():
+			if parent.Err() == nil {
+				fail("Server did not start in time. Please try again.")
+			}
+			return "", ctx.Err()
+		case result := <-ready:
+			if result.err != nil {
+				fail("Unable to start server. Please try again.")
+			}
+			return result.address, result.err
+		case <-ticker.C:
+			if err := s.send(progress); err != nil {
+				return "", err
+			}
+		case <-s.input:
+			// The client resends its challenge request until the backend answers.
+			idle.Reset(clientTimeout)
 		}
-		g.mu.Lock()
-		admitted := g.clients < maxSessions
-		if admitted {
-			g.clients++
-		}
-		g.mu.Unlock()
-		if !admitted {
-			client.Close()
-			continue
-		}
-		g.work.Go(func() {
-			defer func() { g.mu.Lock(); g.clients--; g.mu.Unlock() }()
-			defer client.Close()
-			stopClose := context.AfterFunc(ctx, func() { client.Close() })
-			defer stopClose()
-			client.SetDeadline(time.Now().Add(5 * time.Second))
-			header := make([]byte, len("BZFLAG\r\n\r\n"))
-			if _, err := io.ReadFull(client, header); err != nil || string(header) != "BZFLAG\r\n\r\n" {
-				return
-			}
-			client.SetDeadline(time.Now().Add(attemptTimeout))
-			peer, err := netip.ParseAddrPort(client.RemoteAddr().String())
-			if err != nil {
-				return
-			}
-			g.mu.Lock()
-			l.tcpPeers[peer.Addr()]++
-			g.mu.Unlock()
-			defer func() {
-				g.mu.Lock()
-				l.tcpPeers[peer.Addr()]--
-				if l.tcpPeers[peer.Addr()] == 0 {
-					delete(l.tcpPeers, peer.Addr())
-				}
-				g.mu.Unlock()
-			}()
-			bootCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
-			defer cancel()
-			address, err := g.resolve(bootCtx, ctx, l.instanceID)
-			if err != nil {
-				log.Printf("wake %s: %v", l.instanceID, err)
-				return
-			}
-			backend, err := (&net.Dialer{}).DialContext(bootCtx, "tcp", address)
-			if err != nil {
-				log.Printf("wake %s: %v", l.instanceID, err)
-				return
-			}
-			defer backend.Close()
-			if _, err := backend.Write(header); err != nil {
-				return
-			}
-			client.SetDeadline(time.Time{})
-			// Gameplay can stay on UDP while its TCP control connection is quiet.
-			client.(*net.TCPConn).SetKeepAliveConfig(net.KeepAliveConfig{Enable: true, Idle: time.Minute, Interval: 20 * time.Second, Count: 3})
-			done := make(chan struct{})
-			go func() {
-				io.Copy(writeDeadlineConnection{backend}, writeDeadlineConnection{client})
-				backend.Close()
-				close(done)
-			}()
-			io.Copy(writeDeadlineConnection{client}, writeDeadlineConnection{backend})
-			client.Close()
-			<-done
-		})
 	}
 }
 
