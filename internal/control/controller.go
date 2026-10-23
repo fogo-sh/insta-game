@@ -189,6 +189,11 @@ func (c *Controller) reconcileInstance(ctx context.Context, instance Instance) {
 	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	observation, phase, opErr := c.reconcile(opCtx, instance)
 	cancel()
+	var status AgentStatus
+	var agentErr error
+	if opErr == nil && phase == "running" {
+		agentErr = c.agentRequest(ctx, instance, observation.AgentURL, "GET", "/status", nil, &status)
+	}
 	now := time.Now().UTC()
 	if saveErr := c.Store.Update(instance.ID, func(current *Instance) error {
 		// A user may have changed intent while an infrastructure request was in flight.
@@ -206,15 +211,14 @@ func (c *Controller) reconcileInstance(ctx context.Context, instance Instance) {
 		current.Endpoints = observation.Endpoints
 		current.Error = observation.Failure
 		current.Players = nil
-		if phase != "running" {
+		if phase == "running" {
+			applyAgentStatus(current, status, agentErr)
+		} else {
 			current.EmptySince = time.Time{}
 		}
 		return nil
 	}); saveErr != nil {
 		log.Printf("save observation for %s: %v", instance.ID, saveErr)
-	}
-	if opErr == nil && phase == "running" {
-		c.observeAgent(ctx, instance, observation)
 	}
 }
 
@@ -277,51 +281,43 @@ type AgentStatus struct {
 	Error   string `json:"error"`
 }
 
-func (c *Controller) observeAgent(ctx context.Context, i Instance, o Observation) {
-	var status AgentStatus
-	err := c.agentRequest(ctx, i, o.AgentURL, "GET", "/status", nil, &status)
-	c.Store.Update(i.ID, func(current *Instance) error {
-		if current.Desired != "running" || current.Generation != i.Generation {
-			return nil
+func applyAgentStatus(current *Instance, status AgentStatus, err error) {
+	if err != nil {
+		current.Error = "Agent unavailable: " + err.Error()
+		current.Players = nil
+		current.EmptySince = time.Time{}
+		current.Phase = "starting"
+		return
+	}
+	if !status.Running {
+		current.Phase = "failed"
+		current.Error = "Game process exited"
+		if status.Error != "" {
+			current.Error = status.Error
 		}
-		if err != nil {
-			current.Error = "Agent unavailable: " + err.Error()
-			current.Players = nil
-			current.EmptySince = time.Time{}
-			current.Phase = "starting"
-			return nil
-		}
-		if !status.Running {
-			current.Phase = "failed"
-			current.Error = "Game process exited"
-			if status.Error != "" {
-				current.Error = status.Error
-			}
-			return nil
-		}
-		if !status.Ready {
-			current.Phase = "starting"
-			current.EmptySince = time.Time{}
-			return nil
-		}
-		current.Phase = "running"
-		current.Players = &status.Players
-		current.Map = status.Map
-		current.Error = ""
-		now := time.Now().UTC()
-		if status.Players > 0 {
-			current.EmptySince = time.Time{}
-			return nil
-		}
-		if current.EmptySince.IsZero() {
-			current.EmptySince = now
-		}
-		if current.IdleMinutes > 0 && now.Sub(current.EmptySince) >= time.Duration(current.IdleMinutes)*time.Minute {
-			current.Desired = "stopped"
-			current.StopReason = "Server empty for idle timeout"
-		}
-		return nil
-	})
+		return
+	}
+	if !status.Ready {
+		current.Phase = "starting"
+		current.EmptySince = time.Time{}
+		return
+	}
+	current.Phase = "running"
+	current.Players = &status.Players
+	current.Map = status.Map
+	current.Error = ""
+	now := time.Now().UTC()
+	if status.Players > 0 {
+		current.EmptySince = time.Time{}
+		return
+	}
+	if current.EmptySince.IsZero() {
+		current.EmptySince = now
+	}
+	if current.IdleMinutes > 0 && now.Sub(current.EmptySince) >= time.Duration(current.IdleMinutes)*time.Minute {
+		current.Desired = "stopped"
+		current.StopReason = "Server empty for idle timeout"
+	}
 }
 func (c *Controller) agentRequest(ctx context.Context, i Instance, base, method, path string, body io.Reader, result any) error {
 	if base == "" {

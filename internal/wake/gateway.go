@@ -33,7 +33,7 @@ type listener struct {
 	conn       net.PacketConn
 	protocol   string
 	tcp        net.Listener
-	tcpPeers   map[netip.Addr]int
+	bzClients  map[byte]*bzClient
 	instanceID string
 	sessions   map[netip.AddrPort]*session
 }
@@ -94,7 +94,7 @@ func (g *Gateway) Serve(ctx context.Context) error {
 			}
 			return fmt.Errorf("listen %s: %w", m.Listen, err)
 		}
-		l := &listener{conn: conn, instanceID: m.InstanceID, protocol: m.Protocol, tcpPeers: map[netip.Addr]int{}, sessions: map[netip.AddrPort]*session{}}
+		l := &listener{conn: conn, instanceID: m.InstanceID, protocol: m.Protocol, bzClients: map[byte]*bzClient{}, sessions: map[netip.AddrPort]*session{}}
 		listeners = append(listeners, l)
 		if m.Protocol == "bzflag" {
 			l.tcp, err = (&net.ListenConfig{}).Listen(ctx, "tcp", conn.LocalAddr().String())
@@ -120,7 +120,7 @@ func (g *Gateway) serve(ctx context.Context, listeners []*listener) error {
 	for _, l := range listeners {
 		readers.Go(func() { failures <- g.read(runCtx, l); cancel() })
 		if l.tcp != nil {
-			readers.Go(func() { failures <- g.tcp(runCtx, l, l.tcp); cancel() })
+			readers.Go(func() { failures <- g.bzflagTCP(runCtx, l, l.tcp); cancel() })
 		}
 	}
 	<-runCtx.Done()
@@ -153,7 +153,11 @@ func (g *Gateway) read(ctx context.Context, l *listener) error {
 			continue
 		}
 		incoming := packet[:n]
-		netquake := l.protocol == "" || l.protocol == "quake1"
+		if l.protocol == "bzflag" {
+			g.bzflagUDP(l, address, peer, incoming)
+			continue
+		}
+		netquake := l.protocol == "" || l.protocol == "quake1" || l.protocol == "xonotic"
 		if netquake && controlRequest(incoming, 2) {
 			g.mu.Lock()
 			count := len(l.sessions)
@@ -172,9 +176,6 @@ func (g *Gateway) read(ctx context.Context, l *listener) error {
 			}
 		}
 		g.mu.Lock()
-		if l.protocol == "bzflag" && l.tcpPeers[address.Addr()] == 0 {
-			connect = false
-		}
 		s := l.sessions[address]
 		created := false
 		if s == nil && connect && g.clients < maxSessions {

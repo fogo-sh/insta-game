@@ -314,3 +314,54 @@ func TestIdleShutdownAndStartCannotBothCommit(t *testing.T) {
 		}
 	}
 }
+
+func TestReconcilePublishesInfrastructureAndReadinessTogether(t *testing.T) {
+	c, p, _ := setup(t)
+	requested, release := make(chan struct{}), make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(requested)
+		select {
+		case <-release:
+			json.NewEncoder(w).Encode(AgentStatus{Running: true, Ready: true, Players: 2})
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	p.agent = server.URL
+	create(t, c, "atomic")
+	c.Reconcile(context.Background())
+	before, err := c.Store.Get("atomic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	go func() { defer close(done); c.Reconcile(ctx) }()
+	select {
+	case <-requested:
+	case <-ctx.Done():
+		t.Fatal("agent was never queried")
+	}
+	during, err := c.Store.Get("atomic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Release even on assertion failure so server cleanup cannot block.
+	close(release)
+	if during.Phase != before.Phase || !during.UpdatedAt.Equal(before.UpdatedAt) {
+		t.Fatalf("published a partial observation: before=%+v during=%+v", before, during)
+	}
+	select {
+	case <-done:
+	case <-ctx.Done():
+		t.Fatal("reconciliation did not finish")
+	}
+	after, err := c.Store.Get("atomic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Phase != "running" || after.Players == nil || *after.Players != 2 || !after.UpdatedAt.After(before.UpdatedAt) {
+		t.Fatalf("readiness was not committed: %+v", after)
+	}
+}
