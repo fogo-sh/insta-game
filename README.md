@@ -49,7 +49,8 @@ and a profile; Docker images contain the runtime. See [running servers](docs/run
 for native setup, AWS, stable wake addresses, storage, access, and Discord.
 
 AWS can also serve an always-accessible launch page through Lambda while the
-game host sleeps. Friends start saved games there, then connect directly. See
+game host sleeps. Friends choose games, create servers, and manage them there.
+Multiple servers can use the same game. Players connect directly once ready. See
 [the AWS launch page](docs/running.md#aws-launch-page) and its
 [screenshot](docs/images/aws-launch-page.png).
 

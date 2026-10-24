@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -27,13 +29,17 @@ func (m *memoryTable) Read(_ context.Context, id string) (Row, error) {
 	defer m.mu.Unlock()
 	return m.rows[id], m.err
 }
-func (m *memoryTable) Request(_ context.Context, id string, now time.Time) error {
+func (m *memoryTable) Request(ctx context.Context, id string, now time.Time) error {
+	return m.Queue(ctx, id, "start", now)
+}
+func (m *memoryTable) Queue(_ context.Context, id, action string, now time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	r := m.rows[id]
-	if r.Pending(now) || r.RequestedAt > now.Add(-30*time.Second).Unix() {
+	if r.Pending(now) || (r.Action == action && r.RequestedAt > now.Add(-30*time.Second).Unix()) {
 		return ErrBusy
 	}
+	r.Action = action
 	r.RequestID = control.NewToken()
 	r.RequestedAt = now.Unix()
 	r.ExpiresAt = now.Add(RequestLifetime).Unix()
@@ -305,4 +311,176 @@ func TestPreviousBootFailureDoesNotCompletePendingRequest(t *testing.T) {
 	if m.rows["quake"].CompletedID != "" {
 		t.Fatal("old failure completed a new boot request")
 	}
+}
+
+func (m *memoryTable) List(context.Context) ([]Row, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	rows := []Row{}
+	for _, r := range m.rows {
+		rows = append(rows, r)
+	}
+	return rows, m.err
+}
+func (m *memoryTable) Create(_ context.Context, template string, s Snapshot, now time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.rows[s.ID]; ok {
+		return ErrBusy
+	}
+	m.rows[s.ID] = Row{TemplateID: template, Snapshot: s, Action: "start", RequestID: s.ID, ExpiresAt: now.Add(RequestLifetime).Unix(), RequestedAt: now.Unix()}
+	return m.err
+}
+
+func TestIndependentServersFromOnePreset(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	table, host, service := setup()
+	store, err := control.OpenStore(filepath.Join(t.TempDir(), "instances.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	game := control.Game{ID: "quake1", DisplayName: "Quake"}
+	_, err = store.Create(control.Instance{ID: "quake", Name: "Preset", Game: game, Provider: "docker", Config: "private config", Desired: "stopped", Phase: "stopped", IdleMinutes: 15, UpdatedAt: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller := control.NewController(store, []control.Game{game}, map[string]control.Provider{"docker": nil}, "docker")
+	worker := &Worker{Table: table, IDs: service.IDs, Controller: controller, StartedAt: now}
+	if err := worker.Sync(ctx, now); err != nil {
+		t.Fatal(err)
+	}
+	handler := service.Handler()
+	ids := []string{"server-11111111111111111111111111111111", "server-22222222222222222222222222222222"}
+	for _, id := range ids {
+		payload := fmt.Sprintf(`{"id":%q,"template":"quake","name":"Friends"}`, id)
+		for attempt := 0; attempt < 2; attempt++ {
+			req := httptest.NewRequest("POST", "/api/games", strings.NewReader(payload))
+			req.Header.Set("Authorization", "Bearer invitation")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, req)
+			if response.Code != 202 {
+				t.Fatal(response.Code, response.Body)
+			}
+		}
+	}
+	if err := worker.Sync(ctx, now); err != nil {
+		t.Fatal(err)
+	}
+	first, _ := store.Get(ids[0])
+	second, _ := store.Get(ids[1])
+	preset, _ := store.Get("quake")
+	if first.Config != "private config" || first.IdleMinutes != 15 || first.Desired != "running" || second.Desired != "running" || preset.Desired != "stopped" || first.AgentToken == second.AgentToken || first.RconPassword == second.RconPassword {
+		t.Fatal("instances did not remain independent")
+	}
+	for _, id := range ids {
+		if err := store.Update(id, func(i *control.Instance) error {
+			i.Phase = "running"
+			i.Players = new(int)
+			i.UpdatedAt = now.Add(time.Second)
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := worker.Sync(ctx, now.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := table.Queue(ctx, ids[0], "stop", now.Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.Sync(ctx, now.Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	first, _ = store.Get(ids[0])
+	second, _ = store.Get(ids[1])
+	if first.Desired != "stopped" || second.Desired != "running" {
+		t.Fatal("stop affected another instance")
+	}
+	if err := store.Update(ids[0], func(i *control.Instance) error {
+		i.Phase = "stopped"
+		i.UpdatedAt = now.Add(3 * time.Second)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.Sync(ctx, now.Add(3*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := table.Queue(ctx, ids[0], "remove", now.Add(4*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.Sync(ctx, now.Add(4*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	row, _ := table.Read(ctx, ids[0])
+	if !row.Pending(now) {
+		t.Fatal("remove acknowledged before resources were deleted")
+	}
+	if err := store.Update(ids[0], func(i *control.Instance) error {
+		i.Phase = "deleted"
+		i.UpdatedAt = now.Add(5 * time.Second)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.Sync(ctx, now.Add(5*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	row, _ = table.Read(ctx, ids[0])
+	if row.Pending(now) || row.Failure != "" {
+		t.Fatal("remove not completed", row)
+	}
+	if response := request(handler, "POST", "/api/games/quake/remove", "invitation"); response.Code != 409 {
+		t.Fatal("preset deletion allowed", response.Code)
+	}
+	if response := request(handler, "POST", "/api/games/unrelated/stop", "invitation"); response.Code != 404 {
+		t.Fatal("unrelated server exposed")
+	}
+	listing := request(handler, "GET", "/api/games", "invitation")
+	var body struct {
+		Presets []any
+		Games   []View
+	}
+	if err := json.Unmarshal(listing.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Presets) != 1 || len(body.Games) != 3 || strings.Contains(listing.Body.String(), "private config") || host.wakes != 4 {
+		t.Fatal(listing.Body.String(), host.wakes)
+	}
+}
+
+func TestRemovedServersStayDeletedAfterHostRestart(t *testing.T) {
+	table, _, service := setup()
+	now := time.Now().UTC()
+	store, err := control.OpenStore(filepath.Join(t.TempDir(), "instances.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	id := "server-11111111111111111111111111111111"
+	_, err = store.Create(control.Instance{ID: id, Name: "Removed", Desired: "deleted", Phase: "deleted", UpdatedAt: now.Add(-time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	table.rows[id] = Row{TemplateID: "quake", Snapshot: Snapshot{ID: id, Name: "Removed"}}
+	worker := &Worker{Table: table, IDs: service.IDs, Controller: control.NewController(store, nil, nil, ""), StartedAt: now}
+	if err := worker.Sync(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	response := request(service.Handler(), "GET", "/api/games", "invitation")
+	var body struct{ Games []View }
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	for _, game := range body.Games {
+		if game.ID == id {
+			if game.Phase != "deleted" {
+				t.Fatal("removed server reappeared", game)
+			}
+			return
+		}
+	}
+	t.Fatal("deleted status missing")
 }

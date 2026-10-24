@@ -44,6 +44,10 @@ func NewToken() string {
 }
 
 func (c *Controller) Create(req CreateRequest) (Instance, error) {
+	return c.CreateRequested(req, "")
+}
+
+func (c *Controller) CreateRequested(req CreateRequest, requestID string) (Instance, error) {
 	c.intentMu.Lock()
 	defer c.intentMu.Unlock()
 	if c.shuttingDown {
@@ -87,7 +91,7 @@ func (c *Controller) Create(req CreateRequest) (Instance, error) {
 	}
 
 	now := time.Now().UTC()
-	instance := Instance{Generation: 1, ID: req.ID, Name: req.Name, Game: game, Provider: req.Provider, Desired: "running", Phase: "queued", Config: config, IdleMinutes: req.IdleMinutes, MaxMinutes: req.MaxMinutes, CreatedAt: now, StartedAt: now, UpdatedAt: now, AgentToken: NewToken(), RconPassword: NewToken()}
+	instance := Instance{StartRequestID: requestID, Generation: 1, ID: req.ID, Name: req.Name, Game: game, Provider: req.Provider, Desired: "running", Phase: "queued", Config: config, IdleMinutes: req.IdleMinutes, MaxMinutes: req.MaxMinutes, CreatedAt: now, StartedAt: now, UpdatedAt: now, AgentToken: NewToken(), RconPassword: NewToken()}
 	return c.Store.Create(instance)
 }
 
@@ -105,6 +109,12 @@ func (c *Controller) SetDesired(id, desired string) error {
 
 // RequestStart records acceptance with intent so a retried request cannot undo a later stop.
 func (c *Controller) RequestStart(id, requestID string) error {
+	return c.RequestDesired(id, requestID, "running")
+}
+func (c *Controller) RequestDesired(id, requestID, desired string) error {
+	if desired != "running" && desired != "stopped" && desired != "deleted" {
+		return fmt.Errorf("invalid desired state")
+	}
 	c.intentMu.Lock()
 	defer c.intentMu.Unlock()
 	if c.shuttingDown {
@@ -117,7 +127,7 @@ func (c *Controller) RequestStart(id, requestID string) error {
 		if i.StartRequestID == requestID {
 			return nil
 		}
-		if err := setDesired(i, "running"); err != nil {
+		if err := setDesired(i, desired); err != nil {
 			return err
 		}
 		i.StartRequestID = requestID

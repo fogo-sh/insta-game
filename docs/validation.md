@@ -3,7 +3,8 @@
 `make test` runs Go race tests and UI settings tests. `make check` runs
 CloudFormation lint, vet, and Compose freshness. CI validates Compose and packages
 Linux AMD64/ARM64 and macOS ARM64 binaries. A Chromium check covers launch-page
-retry limits, retrying after a failed start, and sign-out. Run it with
+retry limits, duplicate-safe creation, independent server controls, mobile layout,
+and sign-out. Run it with
 `make test-browser`; install Chromium first with
 `uv run --no-project --with playwright==1.64.1 playwright install --with-deps --only-shell chromium`.
 
@@ -80,6 +81,10 @@ the other clients match the table above. The direct Quake run verified the
 matching engine/public port required by NetQuake sign-on.
 
 
+Two servers created through the deployed page also accepted simultaneous vkQuake
+clients on separate ports. Stopping and removing one left the other running. New
+servers from all seven presets reached ready and were removed after testing.
+
 Use an isolated stack named `insta-game-lambda-check`, with the launch page
 installed and a stopped, allowlisted `bzflag` instance. All other instances must
 also be stopped or deleted. Start with the host running and its controller
@@ -97,11 +102,12 @@ These additional checks use operator credentials and the selected AWS region:
 
 ```sh
 AWS_REGION=ca-central-1 INSTA_GAME_LOBBY_TEST_TABLE=YOUR_ISOLATED_TABLE \
-  go test -v ./internal/lobby -run '^TestDynamoDBRequestConcurrency$' -count=1
+  go test -v ./internal/lobby -run '^TestDynamoDB' -count=1
 AWS_REGION=ca-central-1 INSTA_GAME_AWS_CLEANUP_TEST=1 \
   go test -v ./internal/cloud -run '^TestAWSDestroyLobbyArtifacts$' -count=1 -timeout=12m
 ```
 
-The concurrency check requires a table from the isolated check stack. Cleanup
+The DynamoDB checks require a table from the isolated check stack. They cover
+concurrent starts, duplicate creation, server discovery, and request ordering. Cleanup
 checks create their own tagged bucket/table stacks, refuse occupied fixture
 names, and verify deletion with both nonempty and already-missing code buckets.

@@ -45,7 +45,7 @@
     "LobbyInstances": {
       "Type": "String",
       "Default": "",
-      "Description": "Up to 16 comma-separated saved instance IDs; empty disables the web lobby"
+      "Description": "Up to 16 comma-separated launch preset instance IDs; empty disables the web lobby"
     },
     "LobbyTokenHash": {
       "Type": "String",
@@ -350,6 +350,8 @@
                 {
                   "Effect": "Allow",
                   "Action": [
+                    "dynamodb:Scan",
+                    "dynamodb:PutItem",
                     "dynamodb:GetItem",
                     "dynamodb:UpdateItem"
                   ],
@@ -402,6 +404,8 @@
                 {
                   "Effect": "Allow",
                   "Action": [
+                    "dynamodb:Scan",
+                    "dynamodb:PutItem",
                     "dynamodb:GetItem",
                     "dynamodb:UpdateItem"
                   ],

@@ -146,7 +146,8 @@ Keep the original until you have copied its assets/config and tested the replace
 ## AWS launch page
 
 The optional launch page stays accessible while EC2 sleeps. Friends enter a
-separate invitation key, start a saved game, then copy its current address.
+separate invitation key, choose a game, and start a named server. Multiple servers
+can use the same game. Copy an address once the server is ready.
 Gameplay goes directly to EC2. Joining a sleeping address from a game client
 still requires the separate wake gateway.
 
@@ -156,8 +157,12 @@ Add these flags to the initial `aws plan` above, keeping the other host options:
 --lobby-instances arena,quake --lobby-token-file ./invitation
 ```
 
-The IDs must match saved instances you create through the controller. The first
-apply provisions request storage and the private code bucket. Package the same
+The IDs identify saved instances used as launch presets. Create those through
+the controller; each new server copies its preset configuration and lifecycle
+limits, with separate ports, data, and credentials. Prepare game assets for new
+containers through the image seed or the catalog’s data URL environment variable;
+files copied into one existing container are not shared with new servers.
+The first apply provisions request storage and the private code bucket. Package the same
 static Linux binary for Lambda, review the printed change set, and apply it:
 
 ```sh
@@ -168,9 +173,11 @@ bin/insta-game aws install --config ./aws.json \
 ```
 
 `LobbyURL` in `aws.json` is the HTTPS page. Share that URL and `./invitation` with
-friends; keep the controller token private. The page permits listing and starting
-up to 16 allowlisted saved instances. Creation, deletion, configuration, console,
-and logs remain administrative operations. Game assets still need installing.
+friends; keep the controller token private. The dropdown offers up to 16 presets.
+Friends can create multiple servers, stop and restart them, or remove them and
+their saved data. Presets, configuration, console, and logs remain administrative.
+All servers share the host’s CPU, memory, and disk; there is no automatic scaling.
+Game assets still need installing.
 
 Starts are saved before EC2 wakes. Closing the page does not cancel a start.
 Requests expire after ten minutes, duplicate clicks coalesce, and a scheduled

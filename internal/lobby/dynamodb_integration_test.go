@@ -92,3 +92,62 @@ func TestDynamoDBRequestConcurrency(t *testing.T) {
 		t.Fatal("old completion overwrote a newer request")
 	}
 }
+
+func TestDynamoDBManagedServerRequests(t *testing.T) {
+	name := os.Getenv("INSTA_GAME_LOBBY_TEST_TABLE")
+	if name == "" {
+		t.Skip("set INSTA_GAME_LOBBY_TEST_TABLE to an isolated check table")
+	}
+	if !strings.HasPrefix(name, "insta-game-lambda-check-") {
+		t.Fatal("refusing a table outside the isolated check stack")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	sdk, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := &Table{Client: dynamodb.NewFromConfig(sdk), Name: name}
+	id := "test-managed-server"
+	defer func() {
+		if _, err := table.Client.DeleteItem(context.Background(), &dynamodb.DeleteItemInput{TableName: aws.String(name), Key: key(id)}); err != nil {
+			t.Error(err)
+		}
+	}()
+	now := time.Now().UTC()
+	if err := table.Create(ctx, "test-preset", Snapshot{ID: id, Name: "Check", Phase: "queued", ObservedAt: now}, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := table.Create(ctx, "test-preset", Snapshot{ID: id, Name: "Duplicate"}, now); !errors.Is(err, ErrBusy) {
+		t.Fatal("duplicate create", err)
+	}
+	rows, err := table.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, row := range rows {
+		if row.Snapshot.ID == id {
+			found = row.TemplateID == "test-preset" && row.Snapshot.Name == "Check" && row.Pending(now)
+		}
+	}
+	if !found {
+		t.Fatal("managed request missing from listing")
+	}
+	if err := table.Queue(ctx, id, "stop", now); !errors.Is(err, ErrBusy) {
+		t.Fatal("overwrote pending start", err)
+	}
+	if err := table.Mark(ctx, id, id, "completedID", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := table.Queue(ctx, id, "stop", now); err != nil {
+		t.Fatal("stop blocked by start cooldown", err)
+	}
+	row, err := table.Read(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.Action != "stop" || row.TemplateID != "test-preset" || row.RequestID == id {
+		t.Fatal(row)
+	}
+}

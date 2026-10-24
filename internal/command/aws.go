@@ -49,7 +49,7 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	nativeConfig := flags.String("native-config", "", "Native engine definitions using remote /opt/insta-game paths")
 	hostMaxRuntime := flags.Duration("host-max-runtime", 6*time.Hour, "Maximum boot lifetime (0 disables the independent poweroff timer)")
 	pullImages := flags.Bool("pull-images", false, "Pull the catalog Docker images during installation")
-	lobbyIDs := flags.String("lobby-instances", "", "Saved instance IDs available through the AWS launch page (comma-separated)")
+	lobbyIDs := flags.String("lobby-instances", "", "Saved instance IDs used as AWS launch presets (comma-separated)")
 	lobbyToken := flags.String("lobby-token-file", "", "Separate invitation key file for the launch page (created if missing)")
 	catalog := flags.String("catalog", "", "Game catalog directory to install")
 	if err := flags.Parse(args[1:]); err != nil {

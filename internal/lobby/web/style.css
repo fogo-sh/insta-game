@@ -7,11 +7,11 @@ h1 { font-size: 24px; letter-spacing: -.6px; margin: 0; }
 h2 { font-size: 18px; margin: 0; }
 p { color: #b3b9b1; }
 label { display: block; margin-bottom: 8px; }
-button, input { font: inherit; border: 1px solid #596056; border-radius: 4px; padding: 8px 12px; }
+button, input, select { font: inherit; border: 1px solid #596056; border-radius: 4px; padding: 8px 12px; }
 button { background: #d2edab; color: #182012; cursor: pointer; white-space: nowrap; }
 button:disabled { opacity: .55; cursor: default; }
-button:focus-visible, input:focus-visible { outline: 3px solid #d2edab; outline-offset: 3px; }
-input { background: #20231f; color: inherit; min-width: 0; flex: 1; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #d2edab; outline-offset: 3px; }
+input, select { background: #20231f; color: inherit; min-width: 0; flex: 1; }
 .login-row { display: flex; gap: 12px; }
 article { border-top: 1px solid #3b4138; padding: 16px 0; }
 .game-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
@@ -22,3 +22,8 @@ code { overflow-wrap: anywhere; }
 .error { color: #ffb5a7; }
 [hidden] { display: none !important; }
 @media (max-width: 480px) { main { margin: 32px auto; padding: 0 16px; } .login-row { flex-wrap: wrap; } }
+
+#create { margin: 24px 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: end; }
+.actions .secondary { background: transparent; color: #d2edab; }
+#create .login-row { flex-wrap: wrap; }

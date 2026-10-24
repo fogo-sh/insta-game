@@ -18,7 +18,11 @@ type Worker struct {
 }
 
 func (w *Worker) Sync(ctx context.Context, now time.Time) error {
-	for _, id := range w.IDs {
+	rows, err := w.Table.List(ctx)
+	if err != nil {
+		return fmt.Errorf("list lobby: %w", err)
+	}
+	for _, id := range managedIDs(rows, w.IDs) {
 		if err := w.syncInstance(ctx, id, now); err != nil {
 			return fmt.Errorf("lobby %s: %w", id, err)
 		}
@@ -31,13 +35,44 @@ func (w *Worker) syncInstance(ctx context.Context, id string, now time.Time) err
 		return err
 	}
 	instance, err := w.Controller.Store.Get(id)
-	if errors.Is(err, control.ErrNotFound) || (err == nil && instance.Desired == "deleted") {
+	if errors.Is(err, control.ErrNotFound) && row.TemplateID != "" && row.Pending(now) && row.Action == "start" {
+		template, e := w.Controller.Store.Get(row.TemplateID)
+		if e != nil && !errors.Is(e, control.ErrNotFound) {
+			return e
+		}
+		if errors.Is(e, control.ErrNotFound) || template.Desired == "deleted" {
+			return w.Table.Mark(ctx, id, row.RequestID, "completedID", "Game preset is no longer available")
+		}
+		config := template.Config
+		instance, err = w.Controller.CreateRequested(control.CreateRequest{ID: id, Name: row.Snapshot.Name, Game: template.Game.ID, Provider: template.Provider, Config: &config, IdleMinutes: template.IdleMinutes, MaxMinutes: template.MaxMinutes}, row.RequestID)
+	}
+	if errors.Is(err, control.ErrNotFound) {
 		if row.Pending(now) {
-			if err := w.Table.Mark(ctx, id, row.RequestID, "completedID", "Saved game no longer exists"); err != nil {
+			reason := "Saved game no longer exists"
+			if row.Action == "remove" {
+				reason = ""
+			}
+			if err := w.Table.Mark(ctx, id, row.RequestID, "completedID", reason); err != nil {
 				return err
 			}
 		}
-		return w.Table.Publish(ctx, Snapshot{ID: id, Name: id, Phase: "unavailable", Error: "Saved game no longer exists", ObservedAt: now})
+		snapshot := Snapshot{ID: id, Name: id, Phase: "unavailable", Error: "Saved game no longer exists", ObservedAt: now}
+		if row.TemplateID != "" {
+			snapshot = row.Snapshot
+			snapshot.Phase = "stopped"
+			snapshot.Desired = "stopped"
+			snapshot.Address = ""
+			snapshot.Players = nil
+			snapshot.ObservedAt = now
+			if row.Action == "remove" {
+				snapshot.Desired = "deleted"
+				snapshot.Phase = "deleted"
+			}
+		}
+		return w.Table.Publish(ctx, snapshot)
+	}
+	if errors.Is(err, control.ErrShuttingDown) {
+		return nil
 	}
 	if err != nil {
 		return err
@@ -45,18 +80,21 @@ func (w *Worker) syncInstance(ctx context.Context, id string, now time.Time) err
 	if row.RequestID != "" && row.RequestID != row.CompletedID {
 		switch {
 		case !row.Pending(now):
-			err = w.Table.Mark(ctx, id, row.RequestID, "completedID", "Start request expired; try again")
+			err = w.Table.Mark(ctx, id, row.RequestID, "completedID", "Request expired; try again")
 		case row.AcceptedID != row.RequestID:
-			err = w.Controller.RequestStart(id, row.RequestID)
+			desired := map[string]string{"": "running", "start": "running", "stop": "stopped", "remove": "deleted"}[row.Action]
+			err = w.Controller.RequestDesired(id, row.RequestID, desired)
 			if errors.Is(err, control.ErrShuttingDown) {
 				return nil
 			}
 			if err == nil {
 				err = w.Table.Mark(ctx, id, row.RequestID, "acceptedID", "")
 			}
-		case instance.Phase == "running" && instance.Desired == "running" && instance.Players != nil && !instance.UpdatedAt.Before(w.StartedAt):
+		case row.Action == "stop" && instance.Phase == "stopped", row.Action == "remove" && instance.Phase == "deleted":
 			err = w.Table.Mark(ctx, id, row.RequestID, "completedID", "")
-		case (instance.Phase == "failed" && !instance.UpdatedAt.Before(w.StartedAt)) || instance.Desired != "running":
+		case (row.Action == "start" || row.Action == "") && instance.Phase == "running" && instance.Desired == "running" && instance.Players != nil && !instance.UpdatedAt.Before(w.StartedAt):
+			err = w.Table.Mark(ctx, id, row.RequestID, "completedID", "")
+		case (instance.Phase == "failed" && !instance.UpdatedAt.Before(w.StartedAt)) || ((row.Action == "" || row.Action == "start") && instance.Desired != "running"):
 			reason := publicError(instance.Error)
 			if reason == "" {
 				reason = instance.StopReason
@@ -76,7 +114,7 @@ func (w *Worker) syncInstance(ctx context.Context, id string, now time.Time) err
 		return err
 	}
 	snapshot := Snapshot{ID: id, Name: instance.Name, Game: instance.Game.DisplayName, Phase: instance.Phase, Desired: instance.Desired, Address: instance.Connect(), Players: instance.Players, Error: publicError(instance.Error), ObservedAt: instance.UpdatedAt}
-	if instance.UpdatedAt.Before(w.StartedAt) {
+	if instance.Phase != "deleted" && instance.UpdatedAt.Before(w.StartedAt) {
 		snapshot.Phase = "starting"
 		snapshot.Address = ""
 		snapshot.Players = nil
@@ -86,7 +124,11 @@ func (w *Worker) syncInstance(ctx context.Context, id string, now time.Time) err
 
 // Pending makes idle shutdown fail closed if request storage cannot be reached.
 func (w *Worker) Pending(ctx context.Context, now time.Time) (bool, error) {
-	for _, id := range w.IDs {
+	rows, err := w.Table.List(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, id := range managedIDs(rows, w.IDs) {
 		row, err := w.Table.Read(ctx, id)
 		if err != nil {
 			return false, err
