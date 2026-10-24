@@ -39,8 +39,32 @@
       "MaxValue": 65535
     },
     "UbuntuImage": {
-      "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
-      "Default": "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
+      "Type": "AWS::EC2::Image::Id",
+      "Description": "Pinned Ubuntu AMI; resolved once when the host is created"
+    },
+    "LobbyInstances": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Up to 16 comma-separated saved instance IDs; empty disables the web lobby"
+    },
+    "LobbyTokenHash": {
+      "Type": "String",
+      "Default": "",
+      "NoEcho": true,
+      "Description": "SHA-256 of the separate lobby invitation key"
+    },
+    "LobbyCodeKey": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Uploaded bootstrap ZIP key; set by aws lobby after initial provisioning"
+    },
+    "LobbyArchitecture": {
+      "Type": "String",
+      "Default": "arm64",
+      "AllowedValues": [
+        "arm64",
+        "x86_64"
+      ]
     }
   },
   "Resources": {
@@ -236,6 +260,327 @@
         ],
         "UserData": {
           "Fn::Base64": "#!/bin/bash\nset -eu\nssh-keygen -A\ncat > /usr/local/sbin/insta-game-ssh-key <<'KEYSCRIPT'\n#!/bin/sh\nprintf 'INSTA_GAME_SSH_HOST_KEY=%s\\n' \"$(cat /etc/ssh/ssh_host_ed25519_key.pub)\" > /dev/console\nKEYSCRIPT\nchmod 0755 /usr/local/sbin/insta-game-ssh-key\ncat > /etc/systemd/system/insta-game-ssh-key.service <<'KEYSERVICE'\n[Unit]\nDescription=Publish the SSH host identity to the authenticated EC2 console\nAfter=ssh.service\n[Service]\nType=oneshot\nExecStart=/usr/local/sbin/insta-game-ssh-key\n[Install]\nWantedBy=multi-user.target\nKEYSERVICE\nsystemctl daemon-reload\nsystemctl enable --now insta-game-ssh-key.service\ncat > /etc/systemd/system/insta-game-deadline.service <<'EOF'\n[Unit]\nDescription=Stop the game host after its maximum boot lifetime\n[Service]\nType=oneshot\nExecStart=/usr/bin/systemctl poweroff\nEOF\ncat > /etc/systemd/system/insta-game-deadline.timer <<'EOF'\n[Unit]\nDescription=Six hour game host cost limit\n[Timer]\nOnBootSec=6h\nAccuracySec=1min\nUnit=insta-game-deadline.service\n[Install]\nWantedBy=timers.target\nEOF\nsystemctl daemon-reload\nsystemctl enable --now insta-game-deadline.timer\n"
+        },
+        "IamInstanceProfile": {
+          "Fn::If": [
+            "HasLobby",
+            {
+              "Ref": "HostProfile"
+            },
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        }
+      }
+    },
+    "LobbyTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Condition": "HasLobby",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "id",
+            "KeyType": "HASH"
+          }
+        ]
+      }
+    },
+    "LobbyCode": {
+      "Type": "AWS::S3::Bucket",
+      "Condition": "HasLobby",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "AbandonedUploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    "HostRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "HasLobby",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "LobbyRequests",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LobbyTable",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "HostProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Condition": "HasLobby",
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "HostRole"
+          }
+        ]
+      }
+    },
+    "LobbyRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "HasLobbyCode",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "WakeSavedGames",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LobbyTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeInstances"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:StartInstances"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${Host}"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-lobby:*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "LobbyLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Condition": "HasLobbyCode",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-lobby"
+        },
+        "RetentionInDays": 3
+      }
+    },
+    "LobbyFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Condition": "HasLobbyCode",
+      "DependsOn": [
+        "LobbyLogs"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-lobby"
+        },
+        "Runtime": "provided.al2023",
+        "Handler": "bootstrap",
+        "Architectures": [
+          {
+            "Ref": "LobbyArchitecture"
+          }
+        ],
+        "MemorySize": 128,
+        "Timeout": 30,
+        "ReservedConcurrentExecutions": 4,
+        "Role": {
+          "Fn::GetAtt": [
+            "LobbyRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "LobbyCode"
+          },
+          "S3Key": {
+            "Ref": "LobbyCodeKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "INSTA_GAME_LOBBY_TABLE": {
+              "Ref": "LobbyTable"
+            },
+            "INSTA_GAME_LOBBY_INSTANCES": {
+              "Ref": "LobbyInstances"
+            },
+            "INSTA_GAME_LOBBY_TOKEN_HASH": {
+              "Ref": "LobbyTokenHash"
+            },
+            "INSTA_GAME_HOST_ID": {
+              "Ref": "Host"
+            },
+            "INSTA_GAME_STACK_ID": {
+              "Ref": "AWS::StackId"
+            }
+          }
+        }
+      }
+    },
+    "LobbyURL": {
+      "Type": "AWS::Lambda::Url",
+      "Condition": "HasLobbyCode",
+      "Properties": {
+        "AuthType": "NONE",
+        "TargetFunctionArn": {
+          "Ref": "LobbyFunction"
+        },
+        "InvokeMode": "RESPONSE_STREAM"
+      }
+    },
+    "LobbyURLPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Condition": "HasLobbyCode",
+      "Properties": {
+        "Action": "lambda:InvokeFunctionUrl",
+        "FunctionName": {
+          "Ref": "LobbyFunction"
+        },
+        "Principal": "*",
+        "FunctionUrlAuthType": "NONE"
+      }
+    },
+    "LobbyInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Condition": "HasLobbyCode",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "LobbyFunction"
+        },
+        "Principal": "*",
+        "InvokedViaFunctionUrl": true
+      }
+    },
+    "LobbyRetry": {
+      "Type": "AWS::Events::Rule",
+      "Condition": "HasLobbyCode",
+      "Properties": {
+        "ScheduleExpression": "rate(1 minute)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Id": "RetryPendingStarts",
+            "Arn": {
+              "Fn::GetAtt": [
+                "LobbyFunction",
+                "Arn"
+              ]
+            },
+            "RetryPolicy": {
+              "MaximumEventAgeInSeconds": 120,
+              "MaximumRetryAttempts": 1
+            }
+          }
+        ]
+      }
+    },
+    "LobbyRetryPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Condition": "HasLobbyCode",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "LobbyFunction"
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "LobbyRetry",
+            "Arn"
+          ]
         }
       }
     }
@@ -246,13 +591,65 @@
         "Ref": "Host"
       }
     },
-    "PublicIP": {
+    "LobbyTable": {
+      "Condition": "HasLobby",
+      "Value": {
+        "Ref": "LobbyTable"
+      }
+    },
+    "LobbyInstances": {
+      "Condition": "HasLobby",
+      "Value": {
+        "Ref": "LobbyInstances"
+      }
+    },
+    "LobbyCodeBucket": {
+      "Condition": "HasLobby",
+      "Value": {
+        "Ref": "LobbyCode"
+      }
+    },
+    "LobbyURL": {
+      "Condition": "HasLobbyCode",
       "Value": {
         "Fn::GetAtt": [
-          "Host",
-          "PublicIp"
+          "LobbyURL",
+          "FunctionUrl"
         ]
       }
+    }
+  },
+  "Conditions": {
+    "HasLobby": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LobbyInstances"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+    "HasLobbyCode": {
+      "Fn::And": [
+        {
+          "Condition": "HasLobby"
+        },
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "LobbyCodeKey"
+                },
+                ""
+              ]
+            }
+          ]
+        }
+      ]
     }
   }
 }

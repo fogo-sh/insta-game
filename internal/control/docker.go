@@ -138,6 +138,9 @@ func (d *Docker) Inspect(ctx context.Context, i Instance) (Observation, error) {
 			observation.AgentURL = "http://" + net.JoinHostPort("127.0.0.1", bindings[0].HostPort)
 			continue
 		}
+		if parts[0] == state.Config.Labels["gg.insta-game.game-port"] {
+			port = i.Game.GamePort
+		}
 		observation.Endpoints = append(observation.Endpoints, Endpoint{Port: port, Protocol: parts[1], Address: net.JoinHostPort(d.PublicHost, bindings[0].HostPort)})
 	}
 	return observation, nil
@@ -174,24 +177,46 @@ func (d *Docker) Ensure(ctx context.Context, i Instance) (Observation, error) {
 		defer udp.Close()
 		shared[port] = number
 	}
+	gamePort := strconv.Itoa(i.Game.GamePort)
+	runtimePort := gamePort
+	if strings.Contains(i.Game.GameArgs, "{port}") {
+		if _, ok := i.Game.Ports[gamePort+"/udp"]; !ok {
+			return Observation{}, fmt.Errorf("game port templates require a UDP game port")
+		}
+		if shared[gamePort] == "" {
+			listener, err := net.ListenPacket("udp", net.JoinHostPort(d.BindIP, "0"))
+			if err != nil {
+				return Observation{}, err
+			}
+			defer listener.Close()
+			shared[gamePort] = strconv.Itoa(listener.LocalAddr().(*net.UDPAddr).Port)
+		}
+		runtimePort = shared[gamePort]
+	}
 	for port := range i.Game.Ports {
 		if port == fmt.Sprintf("%d/tcp", i.Game.AgentPort) {
 			continue
 		}
 		number, _, _ := strings.Cut(port, "/")
-		ports[port] = []map[string]string{{"HostIp": d.BindIP, "HostPort": shared[number]}}
+		hostPort := shared[number]
+		if number == gamePort && runtimePort != gamePort {
+			_, transport, _ := strings.Cut(port, "/")
+			port = runtimePort + "/" + transport
+			hostPort = runtimePort
+		}
+		ports[port] = []map[string]string{{"HostIp": d.BindIP, "HostPort": hostPort}}
 		exposed[port] = struct{}{}
 	}
 	management := fmt.Sprintf("%d/tcp", i.Game.AgentPort)
 	ports[management] = []map[string]string{{"HostIp": "127.0.0.1", "HostPort": ""}}
 	exposed[management] = struct{}{}
-	env := []string{"GAME_CMD=" + i.Game.GameCmd, "GAME_ARGS=" + i.Game.GameArgs, "GAME_PORT=" + strconv.Itoa(i.Game.GamePort), "PROTOCOL=" + i.Game.Protocol, "PORT=" + strconv.Itoa(i.Game.AgentPort), "CONFIG_PATH=" + i.Game.ConfigPath, "CONFIG_TEXT=" + i.Config, "TOKEN=" + i.AgentToken, "RCON_PASSWORD=" + i.RconPassword, "GAME_QUIT_CMD=" + i.Game.GameQuitCmd, "GAME_QUIT_TIMEOUT=" + strconv.Itoa(i.Game.GameQuitTimeout)}
+	env := []string{"GAME_CMD=" + i.Game.GameCmd, "GAME_ARGS=" + strings.ReplaceAll(i.Game.GameArgs, "{port}", runtimePort), "GAME_PORT=" + runtimePort, "PROTOCOL=" + i.Game.Protocol, "PORT=" + strconv.Itoa(i.Game.AgentPort), "CONFIG_PATH=" + i.Game.ConfigPath, "CONFIG_TEXT=" + i.Config, "TOKEN=" + i.AgentToken, "RCON_PASSWORD=" + i.RconPassword, "GAME_QUIT_CMD=" + i.Game.GameQuitCmd, "GAME_QUIT_TIMEOUT=" + strconv.Itoa(i.Game.GameQuitTimeout)}
 	if i.Game.DataURLEnv != "" {
 		if value := os.Getenv(i.Game.DataURLEnv); value != "" {
 			env = append(env, "DATA_URL="+value)
 		}
 	}
-	body := map[string]any{"Image": i.Game.Image, "Env": env, "ExposedPorts": exposed, "Labels": map[string]string{"gg.insta-game.instance": i.ID, "gg.insta-game.owner": owner(i)}, "HostConfig": map[string]any{"PortBindings": ports, "Init": true, "RestartPolicy": map[string]string{"Name": "no"}, "LogConfig": map[string]any{"Type": "json-file", "Config": map[string]string{"max-size": "10m", "max-file": "2"}}}}
+	body := map[string]any{"Image": i.Game.Image, "Env": env, "ExposedPorts": exposed, "Labels": map[string]string{"gg.insta-game.instance": i.ID, "gg.insta-game.owner": owner(i), "gg.insta-game.game-port": runtimePort}, "HostConfig": map[string]any{"PortBindings": ports, "Init": true, "RestartPolicy": map[string]string{"Name": "no"}, "LogConfig": map[string]any{"Type": "json-file", "Config": map[string]string{"max-size": "10m", "max-file": "2"}}}}
 	err = d.request(ctx, "POST", "/containers/create?name="+url.QueryEscape(containerName(i)), body, nil)
 	if e, ok := err.(*dockerError); ok && e.status == 404 {
 		return Observation{}, fmt.Errorf("image %s is not installed; build or pull it before creating a server", i.Game.Image)

@@ -1,0 +1,84 @@
+"""Check launch-page retries in Chromium without AWS credentials."""
+
+import argparse
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from threading import Thread
+
+from playwright.sync_api import expect, sync_playwright
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--url", help="Use deployed assets instead of the local web directory; API calls stay mocked")
+args = parser.parse_args()
+
+
+class QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *_):
+        pass
+
+
+server = None
+if not args.url:
+    directory = Path(__file__).resolve().parents[1] / "internal/lobby/web"
+    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(QuietHandler, directory=str(directory)))
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    args.url = f"http://127.0.0.1:{server.server_port}"
+
+try:
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        game = {
+            "id": "friday",
+            "name": "Friday games",
+            "game": "BZFlag",
+            "phase": "sleeping",
+            "desired": "stopped",
+            "pending": False,
+        }
+        attempts = 0
+        mode = "busy"
+
+        def api(route):
+            global attempts
+            if route.request.method == "GET":
+                route.fulfill(json={"host": "stopped", "games": [game]})
+                return
+            attempts += 1
+            if mode == "busy" or attempts == 1:
+                route.fulfill(status=429, json={"error": "Try again"})
+            else:
+                game["pending"] = True
+                route.fulfill(status=202, json={"message": "Start requested"})
+
+        page.route("**/api/**", api)
+        page.goto(args.url)
+        page.get_by_label("Invitation key").fill("browser-test-key")
+        page.get_by_role("button", name="Continue", exact=True).click()
+        start = page.get_by_role("button", name="Start", exact=True)
+        expect(start).to_be_enabled()
+        start.click()
+        expect(page.locator("#message")).to_have_text("Try again", timeout=10000)
+        expect(start).to_be_enabled()
+        assert attempts == 3, f"unbounded retries: {attempts}"
+
+        mode, attempts = "retry", 0
+        start.click()
+        expect(page.locator("#message")).to_have_text("Start requested", timeout=10000)
+        expect(page.get_by_role("button", name="Starting…", exact=True)).to_be_disabled()
+        assert attempts == 2, f"did not recover from one throttle: {attempts}"
+        page.get_by_role("button", name="Sign out").click()
+        expect(page.get_by_label("Invitation key")).to_be_visible()
+        expect(page.locator("article")).to_have_count(0)
+        assert not errors, errors
+        browser.close()
+        print("Launch-page retries, failed-start recovery, and sign-out passed")
+finally:
+    if server:
+        server.shutdown()
+        server.server_close()
+        thread.join()

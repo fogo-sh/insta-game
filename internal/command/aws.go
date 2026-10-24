@@ -2,7 +2,10 @@ package command
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -20,7 +23,7 @@ import (
 
 func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("aws requires plan, apply, config, install, status, wake, stop, or destroy")
+		return fmt.Errorf("aws requires plan, apply, config, install, lobby, status, wake, stop, or destroy")
 	}
 	action := args[0]
 	flags := flag.NewFlagSet("aws "+action, flag.ContinueOnError)
@@ -46,6 +49,8 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	nativeConfig := flags.String("native-config", "", "Native engine definitions using remote /opt/insta-game paths")
 	hostMaxRuntime := flags.Duration("host-max-runtime", 6*time.Hour, "Maximum boot lifetime (0 disables the independent poweroff timer)")
 	pullImages := flags.Bool("pull-images", false, "Pull the catalog Docker images during installation")
+	lobbyIDs := flags.String("lobby-instances", "", "Saved instance IDs available through the AWS launch page (comma-separated)")
+	lobbyToken := flags.String("lobby-token-file", "", "Separate invitation key file for the launch page (created if missing)")
 	catalog := flags.String("catalog", "", "Game catalog directory to install")
 	if err := flags.Parse(args[1:]); err != nil {
 		return flagError(err)
@@ -79,7 +84,20 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	switch action {
+	case "lobby":
+		id, err := cloud.PlanLobby(ctx, sdk, *name, *binary)
+		if errors.Is(err, cloud.ErrLobbyCurrent) {
+			fmt.Fprintln(out, "Launch page already uses this binary.")
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		return printChangeSet(ctx, sdk, id, out)
 	case "plan":
+		if *lobbyIDs == "" {
+			*lobbyIDs = c.LobbyInstances
+		}
 		material, err := os.ReadFile(*publicKey)
 		if err != nil {
 			return fmt.Errorf("read --public-key: %w", err)
@@ -91,21 +109,26 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 		if parsed.Type() != ssh.KeyAlgoED25519 && parsed.Type() != ssh.KeyAlgoRSA {
 			return fmt.Errorf("EC2 requires an ED25519 or RSA SSH key")
 		}
-		id, err := cloud.Plan(ctx, sdk, stackShortName(*name), cloud.PlanOptions{GameCIDR: *gameCIDR, OperatorCIDR: *cidr, PublicKey: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(parsed))), InstanceType: *instanceType, DiskGiB: *disk, UDPFrom: *udpFrom, UDPTo: *udpTo})
-		if err != nil {
-			return err
-		}
-		changes, err := cloudformation.NewFromConfig(sdk).DescribeChangeSet(ctx, &cloudformation.DescribeChangeSetInput{ChangeSetName: aws.String(id)})
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(out, id)
-		for _, change := range changes.Changes {
-			if r := change.ResourceChange; r != nil {
-				fmt.Fprintf(out, "%s %s (%s), replacement=%s\n", r.Action, aws.ToString(r.LogicalResourceId), aws.ToString(r.ResourceType), r.Replacement)
+		hash := ""
+		if *lobbyIDs != "" {
+			if *lobbyToken == "" {
+				return fmt.Errorf("--lobby-instances requires --lobby-token-file")
 			}
+			if err := ensureHostToken(*lobbyToken); err != nil {
+				return err
+			}
+			data, err := os.ReadFile(*lobbyToken)
+			if err != nil {
+				return err
+			}
+			sum := sha256.Sum256([]byte(strings.TrimSpace(string(data))))
+			hash = hex.EncodeToString(sum[:])
 		}
-		return nil
+		id, err := cloud.Plan(ctx, sdk, stackShortName(*name), cloud.PlanOptions{LobbyInstances: *lobbyIDs, LobbyTokenHash: hash, GameCIDR: *gameCIDR, OperatorCIDR: *cidr, PublicKey: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(parsed))), InstanceType: *instanceType, DiskGiB: *disk, UDPFrom: *udpFrom, UDPTo: *udpTo})
+		if err != nil {
+			return err
+		}
+		return printChangeSet(ctx, sdk, id, out)
 	case "apply":
 		if *changeSet == "" {
 			return fmt.Errorf("apply requires --change-set from aws plan")
@@ -210,4 +233,18 @@ func ensureHostToken(path string) error {
 		return writeErr
 	}
 	return closeErr
+}
+
+func printChangeSet(ctx context.Context, sdk aws.Config, id string, out io.Writer) error {
+	changes, err := cloudformation.NewFromConfig(sdk).DescribeChangeSet(ctx, &cloudformation.DescribeChangeSetInput{ChangeSetName: aws.String(id)})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, id)
+	for _, change := range changes.Changes {
+		if r := change.ResourceChange; r != nil {
+			fmt.Fprintf(out, "%s %s (%s), replacement=%s\n", r.Action, aws.ToString(r.LogicalResourceId), aws.ToString(r.ResourceType), r.Replacement)
+		}
+	}
+	return nil
 }

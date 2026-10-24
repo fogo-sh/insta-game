@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	cf "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	"github.com/fogo-sh/insta-game/internal/lobby"
 )
 
 //go:embed environment.json
@@ -20,13 +21,14 @@ var EnvironmentTemplate string
 var stackName = regexp.MustCompile(`^insta-game-[a-zA-Z0-9-]{1,60}$`)
 
 type PlanOptions struct {
-	OperatorCIDR string
-	GameCIDR     string
-	PublicKey    string
-	InstanceType string
-	DiskGiB      int
-	UDPFrom      int
-	UDPTo        int
+	OperatorCIDR                   string
+	GameCIDR                       string
+	PublicKey                      string
+	InstanceType                   string
+	DiskGiB                        int
+	UDPFrom                        int
+	UDPTo                          int
+	LobbyInstances, LobbyTokenHash string
 }
 
 func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions) (string, error) {
@@ -46,9 +48,22 @@ func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions)
 	if options.PublicKey == "" || options.InstanceType == "" || options.DiskGiB < 8 || options.UDPFrom < 1 || options.UDPTo < options.UDPFrom || options.UDPTo > 65535 {
 		return "", fmt.Errorf("public key, instance type, disk >= 8 GiB, and valid UDP range are required")
 	}
+	if options.LobbyInstances != "" {
+		if _, err := lobby.ParseIDs(options.LobbyInstances); err != nil {
+			return "", err
+		}
+		if err := lobby.ValidateHash(options.LobbyTokenHash); err != nil {
+			return "", err
+		}
+	}
 	client := cloudformation.NewFromConfig(sdk)
 	kind := cf.ChangeSetTypeCreate
+	var previous *cf.Stack
 	if stack, err := describeEnvironment(ctx, client, name); err == nil {
+		previous = stack
+		if Outputs(stack)["LobbyTable"] != "" && options.LobbyInstances == "" {
+			return "", fmt.Errorf("lobby is already enabled; preserve --lobby-instances or destroy the deployment")
+		}
 		if stack.StackStatus != cf.StackStatusReviewInProgress {
 			kind = cf.ChangeSetTypeUpdate
 		}
@@ -59,11 +74,20 @@ func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions)
 	if strings.HasPrefix(options.InstanceType, "t4g.") {
 		architecture = "arm64"
 	}
+	image, err := hostImage(ctx, sdk, previous, architecture)
+	if err != nil {
+		return "", err
+	}
 	result, err := client.CreateChangeSet(ctx, &cloudformation.CreateChangeSetInput{
 		StackName: aws.String(name), ChangeSetName: aws.String(fmt.Sprintf("insta-game-%d", time.Now().UnixNano())),
+		Capabilities:  []cf.Capability{cf.CapabilityCapabilityIam},
 		ChangeSetType: kind, TemplateBody: aws.String(EnvironmentTemplate),
 		Parameters: []cf.Parameter{
-			{ParameterKey: aws.String("UbuntuImage"), ParameterValue: aws.String("/aws/service/canonical/ubuntu/server/24.04/stable/current/" + architecture + "/hvm/ebs-gp3/ami-id")},
+			{ParameterKey: aws.String("LobbyInstances"), ParameterValue: aws.String(options.LobbyInstances)},
+			{ParameterKey: aws.String("LobbyTokenHash"), ParameterValue: aws.String(options.LobbyTokenHash)},
+			preserveParameter(previous, "LobbyCodeKey", ""),
+			preserveParameter(previous, "LobbyArchitecture", "arm64"),
+			{ParameterKey: aws.String("UbuntuImage"), ParameterValue: aws.String(image)},
 			{ParameterKey: aws.String("GameCIDR"), ParameterValue: aws.String(options.GameCIDR)},
 			{ParameterKey: aws.String("OperatorCIDR"), ParameterValue: aws.String(options.OperatorCIDR)},
 			{ParameterKey: aws.String("PublicKey"), ParameterValue: aws.String(options.PublicKey)},
@@ -93,6 +117,11 @@ func Apply(ctx context.Context, sdk aws.Config, name, changeSet string) error {
 	changes, err := client.DescribeChangeSet(ctx, &cloudformation.DescribeChangeSetInput{ChangeSetName: aws.String(changeSet), StackName: aws.String(name)})
 	if err != nil {
 		return err
+	}
+	for _, change := range changes.Changes {
+		if r := change.ResourceChange; r != nil && aws.ToString(r.LogicalResourceId) == "Host" && (r.Replacement == cf.ReplacementTrue || r.Replacement == cf.ReplacementConditional) {
+			return fmt.Errorf("refusing a host replacement that could delete saved game data; create a separate stack")
+		}
 	}
 	managed := false
 	for _, tag := range changes.Tags {
@@ -139,7 +168,7 @@ func ReadConfig(ctx context.Context, sdk aws.Config, name string) (Config, error
 		return Config{}, fmt.Errorf("environment is %s", stack.StackStatus)
 	}
 	o := Outputs(stack)
-	return Config{Region: sdk.Region, Stack: aws.ToString(stack.StackId), InstanceID: o["InstanceID"]}, nil
+	return Config{Region: sdk.Region, Stack: aws.ToString(stack.StackId), InstanceID: o["InstanceID"], LobbyTable: o["LobbyTable"], LobbyInstances: o["LobbyInstances"], LobbyURL: o["LobbyURL"]}, nil
 }
 
 func Destroy(ctx context.Context, sdk aws.Config, name string) error {
@@ -149,6 +178,9 @@ func Destroy(ctx context.Context, sdk aws.Config, name string) error {
 		return nil
 	}
 	if err != nil {
+		return err
+	}
+	if err := emptyLobbyCode(ctx, sdk, stack); err != nil {
 		return err
 	}
 	if _, err := client.DeleteStack(ctx, &cloudformation.DeleteStackInput{StackName: stack.StackId}); err != nil {
@@ -195,4 +227,15 @@ func describeEnvironment(ctx context.Context, client *cloudformation.Client, nam
 		}
 	}
 	return nil, fmt.Errorf("refusing unmanaged review stack %s", name)
+}
+
+func preserveParameter(stack *cf.Stack, key, value string) cf.Parameter {
+	if stack != nil && stack.StackStatus != cf.StackStatusReviewInProgress {
+		for _, p := range stack.Parameters {
+			if aws.ToString(p.ParameterKey) == key {
+				return cf.Parameter{ParameterKey: aws.String(key), UsePreviousValue: aws.Bool(true)}
+			}
+		}
+	}
+	return cf.Parameter{ParameterKey: aws.String(key), ParameterValue: aws.String(value)}
 }

@@ -67,7 +67,8 @@ game bind addresses are controlled by engine arguments/configuration;
 
 One EC2 host runs the controller and games. Size it for your games and players.
 Encrypted gp3 retains the database and game files while EC2 is stopped.
-Destroying the stack deletes that disk and all saved games.
+Destroying the stack deletes that disk and all saved games. The AMI is pinned
+at creation; updating the launch page keeps the game host and disk.
 
 The supplied Docker images target ARM64. For those images, provision a `t4g`
 host and build an ARM64 controller. Native AMD64 deployments can use `t3` or
@@ -95,7 +96,9 @@ controller. `--env-file ./host.env` installs a private systemd environment file
 for asset URLs such as `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, `IOQUAKE3_DATA_URL`,
 and `UT99_DATA_URL`, or Discord settings. Keep those URLs and credentials out of
 the catalog. Limit a custom catalog to the games you want installed. An 8 GiB
-root disk can be too small for several games and their assets.
+root disk can be too small for several games and their assets. FTE defaults to
+a 64 MiB QuakeC arena for small hosts; larger mods can set `pr_ssqc_memsize` in
+their game configuration.
 
 Native engines are optional. Upload a directory containing any number of engines
 and runtime files with `--engines`, an asset directory with `--assets`, and
@@ -119,8 +122,8 @@ bin/insta-game aws destroy --config ./aws.json
 
 SSH and the controller API accept only `--operator-cidr`. Game TCP and UDP use
 `--game-cidr`: restrict it to your gateway public IP when proxying, or to player
-networks for direct hosting. Its default is `0.0.0.0/0`. The VM needs no AWS
-credentials. The operator binary uses reviewed CloudFormation changes, verified
+networks for direct hosting. Its default is `0.0.0.0/0`. Without the launch page,
+the VM receives no AWS role. The operator binary uses reviewed CloudFormation changes, verified
 SSH installation, and token-pinned controller TLS.
 
 The controller stops empty games according to their idle policies, then powers
@@ -133,6 +136,59 @@ credit charges but can throttle sustained workloads.
 You pay for the retained disk, running hours, public IPv4 hours, and transfer.
 Games share one VM. Count startup and idle grace periods in running hours;
 compute and public IPv4 charges end when EC2 reaches `stopped`.
+
+Catalog `gameArgs` can use `{port}` to keep the engine's UDP port equal to its
+public Docker port. FTE uses this because NetQuake embeds the port in sign-on.
+Existing instances keep their saved engine arguments and container mappings;
+create a new instance with the updated catalog for this direct-connection fix.
+Keep the original until you have copied its assets/config and tested the replacement.
+
+## AWS launch page
+
+The optional launch page stays accessible while EC2 sleeps. Friends enter a
+separate invitation key, start a saved game, then copy its current address.
+Gameplay goes directly to EC2. Joining a sleeping address from a game client
+still requires the separate wake gateway.
+
+Add these flags to the initial `aws plan` above, keeping the other host options:
+
+```sh
+--lobby-instances arena,quake --lobby-token-file ./invitation
+```
+
+The IDs must match saved instances you create through the controller. The first
+apply provisions request storage and the private code bucket. Package the same
+static Linux binary for Lambda, review the printed change set, and apply it:
+
+```sh
+bin/insta-game aws lobby --config ./aws.json --binary ./bin/insta-game-linux-arm64
+bin/insta-game aws apply --config ./aws.json --change-set REVIEWED_ARN --out ./aws.json
+bin/insta-game aws install --config ./aws.json \
+  --binary ./bin/insta-game-linux-arm64 --catalog ./docker-containers --pull-images
+```
+
+`LobbyURL` in `aws.json` is the HTTPS page. Share that URL and `./invitation` with
+friends; keep the controller token private. The page permits listing and starting
+up to 16 allowlisted saved instances. Creation, deletion, configuration, console,
+and logs remain administrative operations. Game assets still need installing.
+
+Starts are saved before EC2 wakes. Closing the page does not cancel a start.
+Requests expire after ten minutes, duplicate clicks coalesce, and a scheduled
+Lambda retries interrupted wakes once a minute. Status older than 45 seconds
+cannot advertise a ready address. Idle shutdown retains games and their files.
+The page reports failures; administrators can inspect detailed controller logs.
+
+The host uses an instance role restricted to its request table. Lambda can start
+only its stack's EC2 instance. No operator credentials are installed on the host.
+To replace the invitation key, repeat the original host plan/apply with the new
+key file and the same host settings. Reinstall after changing the allowlist.
+Use `aws lobby` and its reviewed apply again to update the Lambda executable.
+
+There is no always-on gateway, NAT gateway, load balancer, or reserved public IP.
+The retained game disk is the main sleeping cost; Lambda, table requests, code
+storage, short-retention logs, and the retry schedule also incur usage charges.
+`aws destroy` empties this stack's code bucket before deleting all its resources,
+including saved games. It never searches for or wipes unrelated infrastructure.
 
 ## Stable game addresses
 

@@ -18,8 +18,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/fogo-sh/insta-game/internal/agent"
+	"github.com/fogo-sh/insta-game/internal/cloud"
 	"github.com/fogo-sh/insta-game/internal/control"
+	"github.com/fogo-sh/insta-game/internal/lobby"
 	"github.com/fogo-sh/insta-game/internal/securehttp"
 )
 
@@ -50,6 +53,8 @@ func Run(ctx context.Context, args []string, out io.Writer) error {
 		return nil
 	}
 	switch args[0] {
+	case "lambda":
+		return lambdaCommand(ctx)
 	case "discord":
 		return discordCommand(ctx, args[1:], out)
 	case "aws":
@@ -178,8 +183,23 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	var lobbyWorker *lobby.Worker
+	if table := os.Getenv("INSTA_GAME_LOBBY_TABLE"); table != "" {
+		ids, err := lobby.ParseIDs(os.Getenv("INSTA_GAME_LOBBY_INSTANCES"))
+		if err != nil {
+			return err
+		}
+		sdk, err := cloud.LoadSDK(ctx, os.Getenv("AWS_REGION"))
+		if err != nil {
+			return err
+		}
+		lobbyWorker = &lobby.Worker{Table: &lobby.Table{Client: dynamodb.NewFromConfig(sdk), Name: table}, IDs: ids, Controller: controller, StartedAt: time.Now().UTC()}
+	}
 	var workers sync.WaitGroup
 	workers.Go(func() { controller.Run(runCtx) })
+	if lobbyWorker != nil {
+		workers.Go(func() { lobbyWorker.Run(runCtx) })
+	}
 	defer func() { cancel(); workers.Wait() }()
 	server := &http.Server{Addr: *listen, Handler: controller.Handler(token), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}
 	scheme := "http"
@@ -204,6 +224,12 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 		idleDone = make(chan error, 1)
 		workers.Go(func() {
 			idleDone <- poweroffWhenIdle(runCtx, *poweroffIdle, store.List, func(ctx context.Context) (bool, error) {
+				if lobbyWorker != nil {
+					pending, err := lobbyWorker.Pending(ctx, time.Now())
+					if err != nil || pending {
+						return false, err
+					}
+				}
 				committed, err := controller.BeginIdleShutdown()
 				if err != nil || !committed {
 					return false, err

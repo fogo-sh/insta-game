@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>insta-game</title>
+<link rel="stylesheet" href="/style.css">
+<script type="module" src="/app.js"></script>
+</head>
+<body>
+<main>
+<header><h1>insta-game</h1><button id="leave" hidden>Sign out</button></header>
+<p>Start a server, then connect from your game.</p>
+<form id="login">
+<label for="key">Invitation key</label>
+<div class="login-row"><input id="key" type="password" autocomplete="current-password" required><button>Continue</button></div>
+</form>
+<p id="message" role="status" aria-live="polite"></p>
+<section id="games" aria-label="Game servers"></section>
+<noscript>Enable JavaScript to start a server and check its status.</noscript>
+</main>
+</body>
+</html>

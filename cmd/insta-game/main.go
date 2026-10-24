@@ -14,7 +14,11 @@ import (
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := command.Run(ctx, os.Args[1:], os.Stdout); err != nil && !errors.Is(err, context.Canceled) {
+	args := os.Args[1:]
+	if os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
+		args = []string{"lambda"}
+	}
+	if err := command.Run(ctx, args, os.Stdout); err != nil && !errors.Is(err, context.Canceled) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

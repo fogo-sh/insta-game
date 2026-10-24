@@ -15,7 +15,11 @@ args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 output = args.output.resolve()
 output.mkdir(parents=True, exist_ok=True)
-files = [root / "README.md", *sorted((root / "docs").glob("*.md"))]
+files = [
+    root / "README.md",
+    *sorted((root / "docs").glob("*.md")),
+    *sorted((root / "docs/images").glob("*.png")),
+]
 for game in sorted((root / "docker-containers").glob("*/game.json")):
     files.append(game)
     configs = (game.parent / "server.cfg", game.parent / "UnrealTournament.ini")
