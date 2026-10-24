@@ -26,29 +26,33 @@ for table in [
 ]:
     db.execute("DROP TABLE IF EXISTS " + table)
 db.execute(
-    "CREATE TABLE hosts(tier VARCHAR, instance_id VARCHAR, memory_gib DOUBLE, vcpus INTEGER, baseline_cores DOUBLE, hourly_usd DOUBLE,idle_cpu_cores DOUBLE,idle_memory_mib DOUBLE,memory_usable_mib DOUBLE)"
+    "CREATE TABLE hosts(tier VARCHAR, instance_id VARCHAR, memory_gib DOUBLE, vcpus INTEGER, baseline_cores DOUBLE, hourly_usd DOUBLE,idle_cpu_cores DOUBLE,idle_memory_mib DOUBLE,memory_usable_mib DOUBLE,instance_type VARCHAR)"
 )
-for tier, mem, baseline, price in [
-    ("t4g.micro", 1, 0.2, 0.0092),
-    ("t4g.small", 2, 0.4, 0.0184),
-    ("t4g.medium", 4, 0.4, 0.0368),
-]:
-    connection = a.data / tier / "connection.json"
-    if connection.exists():
-        db.execute(
-            "INSERT INTO hosts VALUES (?,?,?,?,?,?,?,?,?)",
-            [
-                tier,
-                json.loads(connection.read_text())["instance_id"],
-                mem,
-                2,
-                baseline,
-                price,
-                None,
-                None,
-                None,
-            ],
-        )
+specs = {
+    "t4g.micro": (1, 0.2, 0.0092),
+    "t4g.small": (2, 0.4, 0.0184),
+    "t4g.medium": (4, 0.4, 0.0368),
+}
+for path in sorted(a.data.glob("t4g.*/connection.json")):
+    connection = json.loads(path.read_text())
+    tier = path.parent.name
+    instance_type = connection.get("instance_type", tier)
+    mem, baseline, price = specs[instance_type]
+    db.execute(
+        "INSERT INTO hosts VALUES (?,?,?,?,?,?,?,?,?,?)",
+        [
+            tier,
+            connection["instance_id"],
+            mem,
+            2,
+            baseline,
+            price,
+            None,
+            None,
+            None,
+            instance_type,
+        ],
+    )
 db.execute(
     "CREATE TABLE runs(run_id VARCHAR PRIMARY KEY,tier VARCHAR,label VARCHAR,load_kind VARCHAR,server_count INTEGER,bots_per_server DOUBLE,network_clients INTEGER,status VARCHAR,error VARCHAR,started_at DOUBLE,measured_at DOUBLE,measured_until DOUBLE,metadata JSON,population_ok BOOLEAN,created_count INTEGER,input_isolated BOOLEAN)"
 )

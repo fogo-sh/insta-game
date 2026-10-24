@@ -57,7 +57,7 @@ for h in hosts:
             if (
                 r["tier"] != h["tier"]
                 or r["games"] != [game]
-                or r["bots_per_server"] + r["network_clients"] / r["server_count"] < 4
+                or r["bots_per_server"] + r["network_clients"] / r["server_count"] <= 0
             ):
                 continue
             key = (r["bots_per_server"], r["network_clients"] / r["server_count"])

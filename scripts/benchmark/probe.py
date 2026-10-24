@@ -19,7 +19,7 @@ def probe(game, address):
         else:
             request = {
                 "fteqw": b"\x80\x00\x00\x0c\x02QUAKE\x00\x03",
-                "q2repro": b"\xff" * 4 + b"getstatus",
+                "q2repro": b"\xff" * 4 + b"status",
                 "ioquake3": b"\xff" * 4 + b"getstatus capacity",
                 "openarena": b"\xff" * 4 + b"getstatus capacity",
                 "xonotic": b"\xff" * 4 + b"getinfo",

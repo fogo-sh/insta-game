@@ -24,7 +24,8 @@ uv run --no-project --with duckdb==2.0.0 --with plotly==7.1.0 \
 
 The connection file points to a pinned SSH tunnel, not an unauthenticated public
 controller. It names the isolated `insta-game-capacity-*` stack ARN in `stack`, tier, instance ID, local tunnel URL, and private token
-file, plus the path to its live telemetry file in `samples`. Raw input layout is
+file, plus the path to its live telemetry file in `samples`. Separate repeat hosts
+use a distinct tier directory and set `instance_type` to their actual EC2 type. Raw input layout is
 `TIER/connection.json`, `TIER/samples.jsonl`, and
 `results/RUN/{run.json,probes.jsonl}`. Keep tokens and asset files out of reports.
 
@@ -54,3 +55,6 @@ under `~/.local/share/insta-game/fixtures` (override with
 launch commands document the binaries and assets needed to reproduce a client;
 install or update those paths before another run. Fixtures and commercial game
 data are not part of the repository or report.
+
+Optional `annotations.json` records analysis exclusions without changing raw run
+files. DuckDB metadata preserves the original status and the reason.

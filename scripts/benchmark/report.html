@@ -160,8 +160,8 @@
         “credit neutral” below is a model based on measured average CPU. Failed
         and partial runs remain in the data. Several later client cohorts
         stopped on generator memory guards; those do not establish EC2 capacity
-        limits. Early Xonotic probe-validation rows retain a query-burst
-        artifact; corrected, spaced-query reruns supply its capacity results.
+        limits. Probe-validation rows retain earlier query mistakes; corrected
+        reruns supply the capacity results.
       </p>
     </div>
     <div class="controls">
@@ -201,7 +201,7 @@
         ><span>Credit-neutral CPU only</span
         ><input id="credits" type="checkbox" /></label
       ><label
-        ><span>Show smoke/setup checks</span
+        ><span>Show validation checks</span
         ><input id="validation" type="checkbox"
       /></label>
     </div>
@@ -261,11 +261,13 @@
     <section class="planner">
       <h2>Try a packing estimate</h2>
       <p>
-        Uses the worst p95 per-server CPU and memory measured with eight
+        Uses the worst single-server p95 across the measured hosts, with eight
         participants: engine bots, scripted network clients, or a hybrid. It
         adds an observed idle-host allowance and your headroom. Estimates are
         additive; mixed-game tests above are stronger evidence. A blank game
         means there is no qualifying measurement, not zero resource cost.
+        Planner CPU-credit cost assumes that estimated p95 demand stays
+        constant.
       </p>
       <div class="controls">
         <label>Host<select id="planhost"></select></label>
@@ -277,11 +279,12 @@
       <summary>Method and limits</summary>
       <p>
         Hosts: T4g micro / small / medium, Canada Central, two vCPUs, Unlimited
-        credit mode. Engine, map, configuration, exact timing, workload, and
-        observed player counts are retained in each run’s metadata in DuckDB.
-        Engine-only runs normally warm for 20 seconds and measure 60 seconds;
-        longer runs are explicitly recorded. Network probes originate on the
-        operator’s Linux system.
+        credit mode. A .q2 host label identifies the fresh small-host Quake II
+        rerun. Engine, map, configuration, exact timing, workload, and observed
+        player counts are retained in each run’s metadata in DuckDB. Engine-only
+        runs normally warm for 20 seconds and measure 60 seconds; longer runs
+        are explicitly recorded. Network probes originate on the operator’s
+        Linux system.
       </p>
       <p>
         Defaults target 25% CPU and 20% memory headroom. Query failure rate ≤1%
@@ -361,7 +364,9 @@
       return data.runs.filter(
         (r) =>
           ($("validation").checked ||
-            (!/^(smoke|pilot)/.test(r.label) && r.status !== "setup-error")) &&
+            (!/^(smoke|pilot)/.test(r.label) &&
+              r.status !== "setup-error" &&
+              r.status !== "probe-validation")) &&
           (!$("tier").value || r.tier === $("tier").value) &&
           (!$("game").value || r.games.includes($("game").value)) &&
           (!$("load").value || r.load_kind === $("load").value),
@@ -461,7 +466,7 @@
       for (const r of rows) {
         if (
           r.games.length !== 1 ||
-          r.bots_per_server + r.network_clients / r.server_count < 4
+          r.bots_per_server + r.network_clients / r.server_count <= 0
         )
           continue;
         const key = JSON.stringify([
@@ -643,7 +648,6 @@
         const game = input.dataset.game;
         const cases = data.runs.filter(
           (r) =>
-            r.tier === h.tier &&
             r.games.length === 1 &&
             r.games[0] === game &&
             r.server_count === 1 &&
