@@ -4,6 +4,7 @@ const message = document.querySelector('#message');
 const leave = document.querySelector('#leave');
 const create = document.querySelector('#create');
 const preset = document.querySelector('#preset');
+const host = document.querySelector('#host');
 let submission;
 let key = sessionStorage.getItem('insta-game-invitation') || '';
 let timer;
@@ -31,6 +32,8 @@ function element(tag, text, className) {
   return node;
 }
 function render(body) {
+  host.hidden = false;
+  host.textContent = `Host server: ${{ stopped: 'asleep', pending: 'starting', running: 'online', stopping: 'shutting down', 'shutting-down': 'shutting down', terminated: 'removed' }[body.host] || 'status unavailable'}`;
   const choices = body.presets || [];
   const previous = preset.value;
   if (JSON.stringify(choices) !== preset.dataset.choices) {
@@ -99,7 +102,7 @@ async function refresh() {
     login.hidden = true;
     leave.hidden = false;
     render(body);
-  } catch (error) { message.textContent = error.message; }
+  } catch (error) { message.textContent = error.message; if (key) host.textContent = 'Host server: status unavailable'; }
   finally {
     loading = false;
     clearTimeout(timer);
@@ -116,6 +119,7 @@ function signOut() {
   login.hidden = false;
   leave.hidden = true;
   create.hidden = true;
+  host.hidden = true;
   submission = undefined;
   document.querySelector('#key').value = '';
 }

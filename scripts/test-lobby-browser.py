@@ -60,6 +60,7 @@ try:
         page.get_by_label("Invitation key").fill("browser-test-key")
         page.get_by_role("button", name="Continue", exact=True).click()
         start = page.get_by_role("button", name="Start", exact=True)
+        expect(page.locator('#host')).to_have_text('Host server: asleep')
         expect(start).to_be_enabled()
         start.click()
         expect(page.locator("#message")).to_have_text("Try again", timeout=10000)
@@ -74,6 +75,7 @@ try:
         page.get_by_role("button", name="Sign out").click()
         expect(page.get_by_label("Invitation key")).to_be_visible()
         expect(page.locator("article")).to_have_count(0)
+        expect(page.locator("#host")).to_be_hidden()
         servers = []
         create_ids = []
 
@@ -101,6 +103,7 @@ try:
         page.get_by_label("Invitation key").fill("browser-test-key")
         page.get_by_role("button", name="Continue", exact=True).click()
         expect(page.get_by_label("Game", exact=True)).to_be_visible()
+        expect(page.locator("#host")).to_have_text("Host server: online")
         for name in ["Friday", "Saturday"]:
             page.get_by_label("Server name", exact=True).fill(name)
             page.get_by_role("button", name="Start server", exact=True).click()
