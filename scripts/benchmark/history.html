@@ -1,0 +1,196 @@
+<style>
+  body {
+    max-width: 1120px;
+  }
+  .history {
+    margin: 32px 0;
+    border-top: 1px solid #374037;
+    padding-top: 8px;
+  }
+  .history .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: end;
+    margin: 16px 0;
+  }
+  .history label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: #bac4bb;
+  }
+  .history select,
+  .history button {
+    font: inherit;
+    color: inherit;
+    background: #242a25;
+    border: 1px solid #64715f;
+    border-radius: 3px;
+    padding: 8px;
+  }
+  .history button {
+    cursor: pointer;
+  }
+  .history .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 13px;
+    margin: 10px 0;
+  }
+  .history .legend span::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: var(--color);
+    margin-right: 6px;
+  }
+  .history svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+    font: 11px system-ui;
+  }
+  .history .domain {
+    stroke: #59635b;
+  }
+  .history .tick line {
+    stroke: #364038;
+  }
+  .history .tick text {
+    fill: #aab7ad;
+  }
+  .history .chart-title {
+    fill: #e5e9e3;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .history .resource-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 28px;
+  }
+  .history .resource-grid > div {
+    min-width: 0;
+  }
+  .history .inspector {
+    border-left: 3px solid #87988c;
+    padding: 8px 12px;
+    min-height: 62px;
+    margin: 10px 0 18px;
+  }
+  .history .inspector strong {
+    display: block;
+  }
+  .history .inspector p {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+    margin: 4px 0;
+  }
+  .history .run {
+    cursor: pointer;
+  }
+  .history .run:focus {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+  .history .brush .selection {
+    fill: #8bcad5;
+    fill-opacity: 0.16;
+    stroke: #8bcad5;
+  }
+  .history .handle {
+    fill: #8bcad5;
+  }
+  .history .hover-label {
+    fill: #dce7dc;
+    font-size: 11px;
+  }
+  .history-tip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 20;
+    max-width: 330px;
+    background: #242a25;
+    border: 1px solid #64715f;
+    padding: 10px 12px;
+    font: 13px/1.5 system-ui;
+    white-space: pre-line;
+    box-shadow: 0 6px 24px #0006;
+  }
+  @media (max-width: 650px) {
+    .history .resource-grid {
+      grid-template-columns: 1fr;
+    }
+    .history .controls {
+      gap: 8px;
+    }
+    .history .controls select {
+      max-width: 200px;
+    }
+    .history .legend {
+      gap: 10px;
+    }
+  }
+</style>
+<section class="history" id="history">
+  <h2>The tests, over time</h2>
+  <p>
+    <small
+      >Select a test to inspect it. Drag the time strip to zoom; reset to see
+      the session. All times UTC.</small
+    >
+  </p>
+  <div class="controls">
+    <label>Session<select id="history-session"></select></label>
+    <label>Resource charts for<select id="history-host"></select></label>
+    <label
+      >Highlight game<select id="history-game">
+        <option value="">All games</option>
+      </select></label
+    >
+    <button id="history-reset" type="button">Reset zoom</button>
+  </div>
+  <div class="legend">
+    <span style="--color: #9dcc8a">Passed</span>
+    <span style="--color: #e3b45d">Pressure / threshold</span>
+    <span style="--color: #ec897d">Failed attempt</span>
+    <span style="--color: #8896af">Validation / interrupted</span>
+  </div>
+  <div id="history-timeline"></div>
+  <div id="history-brush"></div>
+  <div id="history-inspector" class="inspector" aria-live="polite">
+    <strong>Select a test</strong>
+    <p>
+      Bars cover startup through completion. The bright stripe marks
+      measurement. Dashed bars have no recorded finish.
+    </p>
+  </div>
+  <div class="resource-grid">
+    <div id="history-cpu"></div>
+    <div id="history-memory"></div>
+    <div id="history-density"></div>
+    <div id="history-generator"></div>
+  </div>
+  <p>
+    <small
+      >Dashed lines mark screening/credit thresholds. Red shading marks low host
+      RAM or recorded local memory stalls above 5%. Gaps mean no samples. A
+      failed test is not necessarily an EC2 fault; select it for the recorded
+      reason.</small
+    >
+  </p>
+</section>
+<div class="history-tip" id="history-tip" hidden></div>
+<script>
+  __D3__;
+</script>
+<script type="application/json" id="history-data">
+  __HISTORY_DATA__
+</script>
+<script>
+  __HISTORY_JS__;
+</script>

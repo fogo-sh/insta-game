@@ -6,6 +6,7 @@ import math
 import pathlib
 
 import duckdb
+from history import render as render_history
 
 p = argparse.ArgumentParser()
 p.add_argument("database", type=pathlib.Path)
@@ -243,6 +244,7 @@ for key, value in {
     "__NETWORK_ROWS__": "".join(network_rows),
     "__QUAKE_MARGIN__": margin,
     "__RUN_COUNT__": str(len(runs)),
+    "__HISTORY__": render_history(db, runs, hosts, output["policy"], a.database.parent),
 }.items():
     page = page.replace(key, value)
 a.database.with_name("index.html").write_text(page)

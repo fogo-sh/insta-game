@@ -43,6 +43,10 @@ uv run --no-project --with duckdb==2.0.0 \
   python scripts/benchmark/model.py ./report/capacity.duckdb
 ```
 
+The summary includes an interactive D3 test timeline and linked CPU, RAM, server
+count, and load-generator charts. Select a test or drag the time strip to zoom.
+D3 is vendored with its license; the report works without a CDN.
+
 Requests use observed single-server p95 resources at eight participants. The
 report separates bot and network profiles, retains failed runs, and checks
 population and client isolation before using a run for packing. CPU credit
