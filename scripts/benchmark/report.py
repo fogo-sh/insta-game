@@ -66,6 +66,9 @@ for path in sorted((a.data / "results").glob("*/run.json")):
     }
     if r["run_id"] in annotations:
         r["annotation"] = annotations[r["run_id"]]
+        if "analysis_status" in r["annotation"]:
+            r["recorded_status"] = r["status"]
+            r["status"] = r["annotation"]["analysis_status"]
     runs.append(r)
     loads = r["loads"]
     db.execute(
