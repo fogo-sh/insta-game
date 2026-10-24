@@ -11,6 +11,7 @@ observations, and activity policy. Instances never share writable data or identi
 | `internal/control` | Store, reconciliation, providers, API, Discord, embedded UI |
 | `internal/agent` | One game process, assets/config, readiness, console, logs, authenticated management |
 | `internal/protocol` | Status queries and player counts |
+| `internal/lobby` | Lambda launch page, durable starts, published status |
 | `internal/cloud` | EC2 provisioning, verified SSH installation, wake/stop/destroy |
 | `internal/wake` | Wake routing, NetQuake loading, TCP/UDP relay, shared starts |
 | `internal/securehttp` | Token-pinned TLS |
@@ -58,11 +59,37 @@ shutdown. Human player counts drive game idle policy where supported. A systemd
 boot timer caps host lifetime even if the controller stops: six hours by default,
 changed or disabled by `--host-max-runtime`.
 
-AWS commands run on the operator's machine. The VM needs no AWS credentials.
+AWS commands run on the operator's machine. Without the optional lobby, the VM
+receives no AWS role.
 SSH and API port 3000 use `--operator-cidr`; game TCP/UDP use `--game-cidr`,
 usually the gateway's public IP. Installation verifies SSH against the host key
 from the authenticated EC2 console API. The controller uses bearer authentication
 and TLS pinned to the token. Local agents use authenticated loopback HTTP.
+
+## AWS launch page
+
+`internal/lobby` adds a restricted HTTP page and a controller worker. The same
+executable runs as a Go Lambda custom-runtime bootstrap. A Function URL serves
+the embedded page and API; one DynamoDB table stores pending starts and sanitized
+status for up to 16 approved instance IDs. The controller database remains the
+source of truth for games, private credentials, and lifecycle policy.
+
+Lambda saves a request before starting its owned EC2 instance. The host consumes
+requests using a table-scoped instance role and publishes observations. Acceptance
+is stored atomically with local running intent, so retrying after a lost remote
+acknowledgement cannot undo a later stop. Completion requires fresh readiness.
+An EventBridge rule retries pending wakes each minute, including requests that
+arrive during shutdown. Requests expire after ten minutes.
+
+Friends use a separate invitation key; Lambda stores only its SHA-256 digest.
+The public API exposes listing and starting, without administrative operations.
+Old observations and sleeping hosts never advertise ready addresses. Gameplay
+connects directly to the host, whose public IP can change after waking.
+
+The CloudFormation stack owns the request table, private code bucket, Lambda,
+roles, retry rule, and short-retention logs. Deployment stages a bootstrap ZIP
+before a reviewed code update. The host AMI is pinned at creation; code updates
+reuse the deployed template and reject changes to game infrastructure. Destroy empties only the owned artifact bucket.
 
 ## Wake gateway
 

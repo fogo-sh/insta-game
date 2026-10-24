@@ -48,6 +48,11 @@ Supply commercial game assets yourself. Native games need an installed engine
 and a profile; Docker images contain the runtime. See [running servers](docs/running.md)
 for native setup, AWS, stable wake addresses, storage, access, and Discord.
 
+AWS can also serve an always-accessible launch page through Lambda while the
+game host sleeps. Friends start saved games there, then connect directly. See
+[the AWS launch page](docs/running.md#aws-launch-page) and its
+[screenshot](docs/images/aws-launch-page.png).
+
 The gateway keeps clients connected while the saved game and optional AWS host
 start. Quake and Xonotic show loading messages; Quake II/III and OpenArena show
 connection progress. UT99 keeps its connecting screen alive, and BZFlag shows

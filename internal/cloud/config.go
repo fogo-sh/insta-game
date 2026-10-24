@@ -17,11 +17,14 @@ import (
 )
 
 type Config struct {
-	Region     string
-	Stack      string
-	InstanceID string
-	KeyPath    string
-	TokenPath  string
+	Region         string
+	Stack          string
+	InstanceID     string
+	KeyPath        string
+	TokenPath      string
+	LobbyTable     string `json:",omitempty"`
+	LobbyInstances string `json:",omitempty"`
+	LobbyURL       string `json:",omitempty"`
 }
 
 func LoadSDK(ctx context.Context, region string) (aws.Config, error) {

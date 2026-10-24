@@ -11,11 +11,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/fogo-sh/insta-game/internal/cloud"
 	"github.com/fogo-sh/insta-game/internal/control"
+	"github.com/fogo-sh/insta-game/internal/lobby"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -175,7 +177,13 @@ func installHost(ctx context.Context, host *cloud.Host, options installOptions, 
 	defer client.Close()
 	cancelClose := context.AfterFunc(ctx, func() { client.Close() })
 	defer cancelClose()
-	if err := runSSH(client, `sudo cloud-init status --wait >/dev/null
+	if err := runSSH(client, `cloud_init_status=0
+sudo cloud-init status --wait || cloud_init_status=$?
+case "$cloud_init_status" in
+  0) ;;
+  2) echo "cloud-init finished with recoverable warnings" ;;
+  *) exit "$cloud_init_status" ;;
+esac
 if systemctl cat insta-game.service >/dev/null 2>&1; then sudo systemctl stop insta-game.service; fi
 sudo env DEBIAN_FRONTEND=noninteractive apt-get update -qq
 sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ca-certificates curl zlib1g libstdc++6 docker.io
@@ -233,6 +241,19 @@ sudo systemctl enable insta-game-deadline.timer
 sudo systemctl restart insta-game-deadline.timer`, options.MaxHostRuntime.Milliseconds())
 	}
 	if err := runSSH(client, lifetime, nil, out); err != nil {
+		return err
+	}
+	lobbyEnv := "sudo rm -f /etc/insta-game-lobby.env"
+	if host.Config.LobbyTable != "" {
+		if _, err := lobby.ParseIDs(host.Config.LobbyInstances); err != nil {
+			return err
+		}
+		if !regexp.MustCompile(`^[A-Za-z0-9_.-]+$`).MatchString(host.Config.LobbyTable) || !regexp.MustCompile(`^[a-z0-9-]+$`).MatchString(host.Config.Region) {
+			return fmt.Errorf("invalid lobby table or region")
+		}
+		lobbyEnv = fmt.Sprintf("sudo tee /etc/insta-game-lobby.env >/dev/null <<'LOBBY'\nAWS_REGION=%s\nINSTA_GAME_LOBBY_TABLE=%s\nINSTA_GAME_LOBBY_INSTANCES=%s\nLOBBY\nsudo chmod 0600 /etc/insta-game-lobby.env", host.Config.Region, host.Config.LobbyTable, host.Config.LobbyInstances)
+	}
+	if err := runSSH(client, lobbyEnv, nil, out); err != nil {
 		return err
 	}
 	if err := runSSH(client, installService, nil, out); err != nil {
@@ -374,6 +395,7 @@ After=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=-/etc/insta-game.env
+EnvironmentFile=-/etc/insta-game-lobby.env
 ExecStart=/usr/local/bin/insta-game-host
 Restart=on-failure
 RestartSec=5
@@ -385,6 +407,7 @@ UMask=0077
 WantedBy=multi-user.target
 SERVICE
 sudo systemctl daemon-reload
-sudo systemctl enable --now insta-game.service
+sudo systemctl enable insta-game.service
+sudo systemctl restart insta-game.service
 sudo systemctl is-active insta-game.service
 `)

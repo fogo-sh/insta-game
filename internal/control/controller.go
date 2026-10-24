@@ -100,32 +100,56 @@ func (c *Controller) SetDesired(id, desired string) error {
 	if desired != "running" && desired != "stopped" && desired != "deleted" {
 		return fmt.Errorf("invalid desired state")
 	}
+	return c.Store.Update(id, func(i *Instance) error { return setDesired(i, desired) })
+}
+
+// RequestStart records acceptance with intent so a retried request cannot undo a later stop.
+func (c *Controller) RequestStart(id, requestID string) error {
+	c.intentMu.Lock()
+	defer c.intentMu.Unlock()
+	if c.shuttingDown {
+		return ErrShuttingDown
+	}
+	if requestID == "" {
+		return fmt.Errorf("start request ID is required")
+	}
 	return c.Store.Update(id, func(i *Instance) error {
-		if i.Desired == "deleted" {
-			if desired != "deleted" {
-				return fmt.Errorf("instance has been deleted")
-			}
-			if i.Phase != "deleted" && i.Error != "" {
-				i.Generation++
-				i.Error = ""
-			}
+		if i.StartRequestID == requestID {
 			return nil
 		}
-		if i.Desired == desired {
-			return nil
+		if err := setDesired(i, "running"); err != nil {
+			return err
 		}
-		i.Generation++
-		i.Desired = desired
-		i.Error = ""
-		i.StopReason = ""
-		i.EmptySince = time.Time{}
-		if desired == "running" {
-			i.StartedAt = time.Now().UTC()
-			i.Phase = "queued"
-		}
+		i.StartRequestID = requestID
 		return nil
 	})
 }
+func setDesired(i *Instance, desired string) error {
+	if i.Desired == "deleted" {
+		if desired != "deleted" {
+			return fmt.Errorf("instance has been deleted")
+		}
+		if i.Phase != "deleted" && i.Error != "" {
+			i.Generation++
+			i.Error = ""
+		}
+		return nil
+	}
+	if i.Desired == desired {
+		return nil
+	}
+	i.Generation++
+	i.Desired = desired
+	i.Error = ""
+	i.StopReason = ""
+	i.EmptySince = time.Time{}
+	if desired == "running" {
+		i.StartedAt = time.Now().UTC()
+		i.Phase = "queued"
+	}
+	return nil
+}
+
 func InstancesIdle(instances []Instance) bool {
 	for _, instance := range instances {
 		stopped := instance.Desired == "stopped" && instance.Phase == "stopped"

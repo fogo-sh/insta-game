@@ -13,7 +13,7 @@
     }
   },
   "gameCmd": "./fteqw.sv",
-  "gameArgs": "-dedicated 12 -nohome -basedir /opt -game id1 -game frikbot -port 26000 +exec server.cfg",
+  "gameArgs": "-dedicated 12 -nohome -basedir /opt -game id1 -game frikbot -port {port} +set pr_ssqc_memsize 64m +exec server.cfg",
   "gameQuitCmd": "quit",
   "gameQuitTimeout": 15,
   "configPath": "/opt/id1/server.cfg",
