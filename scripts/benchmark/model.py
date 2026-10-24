@@ -142,3 +142,107 @@ output = {
 path = a.database.with_name("capacity-model.json")
 path.write_text(json.dumps(output, indent=2))
 print(path)
+
+
+names = {
+    "fteqw": "Quake I",
+    "ioquake3": "Quake III",
+    "openarena": "OpenArena",
+    "ut99": "UT99",
+    "xonotic": "Xonotic",
+}
+bot_rows = []
+for game, name in names.items():
+    cells = []
+    for tier in ["t4g.micro", "t4g.small", "t4g.medium"]:
+        bound = next(
+            (
+                b
+                for b in bounds
+                if b["tier"] == tier
+                and b["game"] == game
+                and b["engine_bots_per_server"] == 8
+                and b["network_players_per_server"] == 0
+            ),
+            None,
+        )
+        cells.append(
+            ("≥" if not bound["upper_boundary_reached"] else "")
+            + str(bound["largest_consistently_passing_count"])
+            if bound
+            else "—"
+        )
+    bot_rows.append(
+        "<tr><th>"
+        + name
+        + "</th>"
+        + "".join("<td>" + cell + "</td>" for cell in cells)
+        + "</tr>"
+    )
+
+network_rows = []
+q2 = [
+    b
+    for b in bounds
+    if b["game"] == "q2repro"
+    and b["engine_bots_per_server"] == 0
+    and b["network_players_per_server"] > 0
+]
+if q2:
+    layouts = sorted(
+        {
+            (b["largest_consistently_passing_count"], b["network_players_per_server"])
+            for b in q2
+        }
+    )
+    network_rows.append(
+        "<li><strong>Quake II:</strong> "
+        + ", ".join(f"{n} × {int(players)} clients" for n, players in layouts)
+        + " passed on t4g.small; the ceiling was not reached.</li>"
+    )
+real_eight = [
+    names[g]
+    for g in ["ioquake3", "openarena", "ut99"]
+    if any(
+        r["games"] == [g]
+        and r["passes"]
+        and r["server_count"] == 1
+        and r["network_clients"] == 8
+        and r["bots_per_server"] == 0
+        for r in runs
+    )
+]
+if real_eight:
+    network_rows.append(
+        "<li><strong>"
+        + ", ".join(real_eight)
+        + ":</strong> eight real clients per game passed in single-server tests. Full human-lobby density was not established.</li>"
+    )
+bz = [
+    r
+    for r in runs
+    if r["games"] == ["bzflag"] and r["passes"] and r["server_count"] == 1
+]
+if bz:
+    network_rows.append(
+        f"<li><strong>BZFlag:</strong> {max(r['network_clients'] for r in bz)} network players on one server passed, including client-side robots. Multi-server probe latency was inconsistent, so its packing ceiling remains unresolved.</li>"
+    )
+if "xonotic" in costs and not any(
+    r["games"] == ["xonotic"] and r["passes"] and r["network_clients"] > 0 for r in runs
+):
+    network_rows.append(
+        "<li><strong>Xonotic:</strong> bot capacity measured; real-client result inconclusive.</li>"
+    )
+
+margin = ""
+if any(r["label"] == "soak-frik-6x8-10min" and r["passes"] for r in runs):
+    margin = "<strong>For a micro, choose six Quake servers rather than eight:</strong> six left about 31% RAM free in the soak; eight only about 20%."
+page = pathlib.Path(__file__).with_name("summary.html").read_text()
+for key, value in {
+    "__BOT_ROWS__": "".join(bot_rows),
+    "__NETWORK_ROWS__": "".join(network_rows),
+    "__QUAKE_MARGIN__": margin,
+    "__RUN_COUNT__": str(len(runs)),
+}.items():
+    page = page.replace(key, value)
+a.database.with_name("index.html").write_text(page)

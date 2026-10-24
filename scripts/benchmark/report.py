@@ -319,7 +319,7 @@ html = html.replace(
     if experiment.exists()
     else "",
 )
-(a.out / "index.html").write_text(
+(a.out / "explorer.html").write_text(
     html.replace("__PLOTLY__", get_plotlyjs()).replace("__DATA__", data)
 )
 print(

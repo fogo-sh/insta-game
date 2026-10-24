@@ -35,7 +35,8 @@ user's desktop. Client binaries/assets are not downloaded or distributed by
 these scripts. BZFlag robots run in its client. Quake II's shipped server has no
 implemented bot movement API, so its load must be supplied by network clients.
 
-Generate provisional CPU/RAM requests after building the database:
+Generate the short summary page and provisional CPU/RAM requests after building
+the database (the full report is in `explorer.html`):
 
 ```sh
 uv run --no-project --with duckdb==2.0.0 \
