@@ -325,6 +325,10 @@ try:
             }
         )
     )
+    if a.game == "fteqw":
+        # Quake has a short command-line buffer; keep argv[0] small.
+        (a.out / "quake-client").symlink_to(cmd[0])
+        cmd[0] = "./quake-client"
     (a.out / "launch.json").write_text(json.dumps(cmd))
     (a.out / "display").write_text(env["DISPLAY"])
     client = subprocess.Popen(

@@ -145,81 +145,101 @@ Keep the original until you have copied its assets/config and tested the replace
 
 ## AWS launch page
 
-The optional launch page stays accessible while EC2 sleeps. Friends enter a
-separate invitation key, choose a game, and start a named server. Multiple servers
-can use the same game. Copy an address once the server is ready.
-Gameplay goes directly to EC2. Joining a sleeping address from a game client
-still requires the separate wake gateway.
+One Lambda page manages a fleet of sleeping EC2 hosts. Choose a game and name;
+placement handles the host. The full deployed catalog stays visible with zero
+hosts. Games connect directly to EC2 once ready.
 
-Add these flags to the initial `aws plan` above, keeping the other host options:
+```mermaid
+flowchart LR
+  Browser --> Lambda[Go binary in Lambda]
+  Lambda <--> State[DynamoDB requests and placement]
+  Lambda -->|launch, wake, retire| Hosts[EC2 host pool]
+  Hosts <--> State
+  Hosts -->|fetch on demand| Assets[Private S3 binaries and game data]
+  Players -->|play directly| Hosts
+```
+
+Create a fleet with an explicit host limit. The default fleet host is
+`t4g.small`, with a 32 GiB encrypted disk:
 
 ```sh
---lobby-instances arena,quake --lobby-token-file ./invitation
+bin/insta-game aws plan --stack insta-game-fleet --max-hosts 2 \
+  --operator-cidr YOUR_PUBLIC_IP/32 --public-key ./game-host-key.pub \
+  --lobby-token-file ./invitation
+# Review, then apply the exact printed change set:
+bin/insta-game aws apply --stack insta-game-fleet \
+  --change-set REVIEWED_ARN --out ./fleet.json
 ```
 
-The IDs identify saved instances used as launch presets. Create those through
-the controller; each new server copies its preset configuration and lifecycle
-limits, with separate ports, data, and credentials. Prepare game assets for new
-containers through the image seed or the catalog’s data URL environment variable;
-files copied into one existing container are not shared with new servers.
-The first apply provisions request storage and the private code bucket. Package the same
-static Linux binary for Lambda, review the printed change set, and apply it:
+This creates the network, request table, private artifact bucket, and launch
+permissions. It creates no EC2 instance. Build a static Linux ARM64 binary, then
+publish the catalog and assets:
 
 ```sh
-bin/insta-game aws lobby --config ./aws.json --binary ./bin/insta-game-linux-arm64
-bin/insta-game aws apply --config ./aws.json --change-set REVIEWED_ARN --out ./aws.json
-bin/insta-game aws install --config ./aws.json \
-  --binary ./bin/insta-game-linux-arm64 --catalog ./docker-containers --pull-images
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/insta-game-linux-arm64 ./cmd/insta-game
+bin/insta-game aws lobby --config ./fleet.json \
+  --binary ./bin/insta-game-linux-arm64 --catalog ./docker-containers --assets ./game-assets
+bin/insta-game aws apply --config ./fleet.json \
+  --change-set REVIEWED_ARN --out ./fleet.json
 ```
 
-`LobbyURL` in `aws.json` is the HTTPS page. Share that URL and `./invitation` with
-friends; keep the controller token private. Each host can offer up to 16 presets.
-Friends can create multiple servers, stop and restart them, or remove them and
-their saved data. Presets, configuration, console, and logs remain administrative.
-Each host shares its CPU, memory, and disk among its servers. Game assets still
-need installing; placement is explicit and hosts do not scale automatically.
+`game-assets` contains `fteqw.zip`, `q2repro.zip`, `ioquake3.zip`, and `ut99.zip`.
+Supply your own licensed data. ZIP paths start at `/opt`: Quake data lives under
+`id1/`, Quake II under `baseq2/`, Quake III under `baseq3/`, and UT99 includes its
+engine and data directories. Use maps and configs matching those assets. Other
+games ship their data in their images. A smaller operator catalog may omit games
+you don't own. Missing required archives fail deployment before hosts launch.
 
-For one website across several owned host stacks, give `aws lobby` a host list:
+Share `LobbyURL` from `fleet.json` and the invitation key. No operator machine,
+SSH session, or wake gateway is needed to keep the page accessible. The same Go
+binary runs Lambda, the host controller, and each game agent. Hosts fetch images
+and private assets when first needed, then reuse their caches. Bootstrap retries
+failed downloads. Nothing needs to run once per game before it appears in the menu.
 
-```json
-[
-  {"id": "north", "name": "North", "stack": "insta-game-north"},
-  {"id": "south", "name": "South", "stack": "insta-game-south"}
-]
-```
+Placement uses reserved CPU, RAM, and disk. It fills fitting awake hosts, then
+wakes a fitting sleeping host, then creates another up to `--max-hosts`. Duplicate
+requests share one durable assignment. **Stop keeps data and its reservation;
+Remove frees it.** Stopped servers stay on their original disks. Empty hosts
+sleep after two minutes. Hosts without saved servers are terminated and their
+disks deleted. See [capacity defaults](capacity.md) before changing player counts
+or mods; reservations are estimates, not container resource limits.
+
+Use `--fleet-config ./limits.json` with `aws lobby` to override game reservations,
+idle minutes, or maximum runtime. It is a JSON object using the fields in
+`internal/fleet.Config`; omitted fields keep defaults. Overrides cannot exceed
+reviewed host limits or capacity budgets. The default game idle timeout is
+15 minutes; maximum runtime is six hours. A six-hour host boot timer also stops
+failed startup loops. Unacknowledged requests time out after 20 minutes and can
+be retried from the page. Closing the page does not cancel a saved request.
+
+For a temporary deployment, `aws lobby --expires-after 2h` sets an absolute end
+time. The scheduled reconciler then deletes its hosts and saved games; the small
+Lambda/table/bucket remain until `aws destroy`. This is destructive, unlike Stop.
 
 ```sh
-bin/insta-game aws lobby --config ./aws.json \
-  --binary ./bin/insta-game-linux-arm64 --lobby-hosts ./hosts.json
-bin/insta-game aws apply --config ./aws.json --change-set REVIEWED_ARN --out ./aws.json
+bin/insta-game aws status --config ./fleet.json
+bin/insta-game aws stop --config ./fleet.json       # stop games, keep data
+bin/insta-game aws destroy --config ./fleet.json    # remove the entire deployment
 ```
 
-The page groups servers by game. Choose a game and a name; the page assigns a
-host, preferring awake hosts with fewer requested servers. Saved presets provide the configuration. Assignments persist
-across retries, stops, and restarts. Start, stop, and remove stay with the owner.
-This balances server counts; it does not enforce CPU/RAM limits or add EC2 hosts. The planner verifies stack and
-instance ownership and grants access only to the listed instances and tables.
-Host stacks must share an account and region. To remove a redundant host’s own
-page while keeping its games and request table, review and apply
-`aws lobby --config ./other-host.json --disable`.
+For code-only updates, `aws lobby --config ./fleet.json --binary ./new-binary`
+reuses the deployed catalog, assets, and limits. Repeat the reviewed apply. Pass
+`--catalog` or `--assets` only to change them. An explicit `--expires-after 0`
+clears a temporary deadline; omitted flags preserve it.
 
-Starts are saved before EC2 wakes. Closing the page does not cancel a start.
-Requests expire after ten minutes, duplicate clicks coalesce, and a scheduled
-Lambda retries interrupted wakes once a minute. Status older than 45 seconds
-cannot advertise a ready address. Idle shutdown retains games and their files.
-The page reports failures; administrators can inspect detailed controller logs.
-
-The host uses an instance role restricted to its request table. Lambda can start
-only the EC2 instances configured for its page. No operator credentials are installed on the host.
-To replace the invitation key, repeat the original host plan/apply with the new
-key file and the same host settings. Reinstall after changing the allowlist.
-Use `aws lobby` and its reviewed apply again to update the Lambda executable.
+Releases pin image digests, assets, and host launch versions. Existing hosts and
+saved games keep their release. UI-only updates reuse compatible hosts; engine,
+asset, or lifecycle changes use new host slots within the same limit. Remove old
+saved servers when no longer needed. Hardware changes require
+a separate fleet to avoid changing saved-data and capacity assumptions. Review
+all plans; no source migration replaces an existing host.
 
 There is no always-on gateway, NAT gateway, load balancer, or reserved public IP.
-The retained game disk is the main sleeping cost; Lambda, table requests, code
-storage, short-retention logs, and the retry schedule also incur usage charges.
-`aws destroy` empties this stack's code bucket before deleting all its resources,
-including saved games. It never searches for or wipes unrelated infrastructure.
+Sleeping hosts cost retained disk storage; Lambda, table operations, private game
+assets, short-lived logs, and transfer also incur usage charges. Standard CPU
+credits avoid surplus CPU charges but can throttle sustained load. `aws destroy`
+closes admission, verifies owned host and disk deletion, empties the private
+bucket, and deletes the stack. It leaves unrelated infrastructure alone.
 
 ## Stable game addresses
 

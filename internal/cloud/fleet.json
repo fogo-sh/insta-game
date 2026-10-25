@@ -1,0 +1,818 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Catalog-first game fleet; no EC2 hosts until requested",
+  "Parameters": {
+    "OperatorCIDR": {
+      "Type": "String",
+      "Description": "Operator public IPv4 CIDR for SSH and controller HTTPS"
+    },
+    "GameCIDR": {
+      "Type": "String",
+      "Default": "0.0.0.0/0",
+      "Description": "Allowed player or gateway public IPv4 CIDR for game TCP and UDP"
+    },
+    "PublicKey": {
+      "Type": "String",
+      "Description": "Existing SSH public key (private key stays on operator machine)"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Default": "t3a.micro",
+      "AllowedPattern": "t(3a?|4g)\\.(micro|small|medium|large|xlarge|2xlarge)"
+    },
+    "DiskGiB": {
+      "Type": "Number",
+      "Default": 8,
+      "MinValue": 8,
+      "MaxValue": 256
+    },
+    "UDPFrom": {
+      "Type": "Number",
+      "Default": 32768,
+      "MinValue": 1,
+      "MaxValue": 65535
+    },
+    "UDPTo": {
+      "Type": "Number",
+      "Default": 60999,
+      "MinValue": 1,
+      "MaxValue": 65535
+    },
+    "UbuntuImage": {
+      "Type": "AWS::EC2::Image::Id",
+      "Description": "Pinned Ubuntu AMI; resolved once when the host is created"
+    },
+    "LobbyTokenHash": {
+      "Type": "String",
+      "Default": "",
+      "NoEcho": true,
+      "Description": "SHA-256 of the separate lobby invitation key"
+    },
+    "LobbyCodeKey": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Uploaded bootstrap ZIP key; set by aws lobby after initial provisioning"
+    },
+    "LobbyArchitecture": {
+      "Type": "String",
+      "Default": "arm64",
+      "AllowedValues": [
+        "arm64",
+        "x86_64"
+      ]
+    },
+    "Release": {
+      "Type": "String",
+      "Default": ""
+    },
+    "MaxHosts": {
+      "Type": "Number",
+      "MinValue": 1,
+      "MaxValue": 16,
+      "Description": "Maximum retained host slots; sleeping hosts count toward this limit"
+    }
+  },
+  "Conditions": {
+    "HasCode": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LobbyCodeKey"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Network": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.73.0.0/24",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true
+      }
+    },
+    "Subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Network"
+        },
+        "CidrBlock": "10.73.0.0/24"
+      }
+    },
+    "Internet": {
+      "Type": "AWS::EC2::InternetGateway"
+    },
+    "InternetAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Network"
+        },
+        "InternetGatewayId": {
+          "Ref": "Internet"
+        }
+      }
+    },
+    "Routes": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Network"
+        }
+      }
+    },
+    "SubnetRoutes": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "Subnet"
+        },
+        "RouteTableId": {
+          "Ref": "Routes"
+        }
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": "InternetAttachment",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "Routes"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "Internet"
+        }
+      }
+    },
+    "SecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Game host SSH and HTTPS from operator; game UDP",
+        "VpcId": {
+          "Ref": "Network"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "CidrIp": {
+              "Ref": "OperatorCIDR"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3000,
+            "ToPort": 3000,
+            "CidrIp": {
+              "Ref": "OperatorCIDR"
+            }
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": {
+              "Ref": "UDPFrom"
+            },
+            "ToPort": {
+              "Ref": "UDPTo"
+            },
+            "CidrIp": {
+              "Ref": "GameCIDR"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": {
+              "Ref": "UDPFrom"
+            },
+            "ToPort": {
+              "Ref": "UDPTo"
+            },
+            "CidrIp": {
+              "Ref": "GameCIDR"
+            }
+          }
+        ]
+      }
+    },
+    "LobbyCode": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "AbandonedUploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    "LobbyTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "id",
+            "KeyType": "HASH"
+          }
+        ]
+      }
+    },
+    "HostRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "Fleet",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::${LobbyCode}/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LobbyTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:PutItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LobbyTable",
+                      "Arn"
+                    ]
+                  },
+                  "Condition": {
+                    "ForAllValues:StringLike": {
+                      "dynamodb:LeadingKeys": [
+                        "report/*"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:ConditionCheckItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LobbyTable",
+                      "Arn"
+                    ]
+                  },
+                  "Condition": {
+                    "ForAllValues:StringLike": {
+                      "dynamodb:LeadingKeys": [
+                        "tombstone/*"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeInstances"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "HostProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "HostRole"
+          }
+        ]
+      }
+    },
+    "Key": {
+      "Type": "AWS::EC2::KeyPair",
+      "Properties": {
+        "KeyName": {
+          "Fn::Sub": "${AWS::StackName}-operator"
+        },
+        "PublicKeyMaterial": {
+          "Ref": "PublicKey"
+        }
+      }
+    },
+    "LaunchTemplate": {
+      "Type": "AWS::EC2::LaunchTemplate",
+      "Properties": {
+        "LaunchTemplateData": {
+          "ImageId": {
+            "Ref": "UbuntuImage"
+          },
+          "InstanceType": {
+            "Ref": "InstanceType"
+          },
+          "KeyName": {
+            "Ref": "Key"
+          },
+          "IamInstanceProfile": {
+            "Arn": {
+              "Fn::GetAtt": [
+                "HostProfile",
+                "Arn"
+              ]
+            }
+          },
+          "InstanceInitiatedShutdownBehavior": "stop",
+          "MetadataOptions": {
+            "HttpTokens": "required",
+            "HttpPutResponseHopLimit": 1
+          },
+          "CreditSpecification": {
+            "CpuCredits": "standard"
+          },
+          "NetworkInterfaces": [
+            {
+              "DeviceIndex": 0,
+              "AssociatePublicIpAddress": true,
+              "SubnetId": {
+                "Ref": "Subnet"
+              },
+              "Groups": [
+                {
+                  "Ref": "SecurityGroup"
+                }
+              ]
+            }
+          ],
+          "BlockDeviceMappings": [
+            {
+              "DeviceName": "/dev/sda1",
+              "Ebs": {
+                "VolumeSize": {
+                  "Ref": "DiskGiB"
+                },
+                "VolumeType": "gp3",
+                "Encrypted": true,
+                "DeleteOnTermination": true
+              }
+            }
+          ],
+          "UserData": {
+            "Fn::Base64": {
+              "Fn::Sub": "#!/bin/bash\nset -euo pipefail\nprintf 'INSTA_GAME_SSH_HOST_KEY=%s\\n' \"$(cat /etc/ssh/ssh_host_ed25519_key.pub)\" > /dev/console\ncat > /etc/systemd/system/insta-game-deadline.service <<'SERVICE'\n[Service]\nType=oneshot\nExecStart=/usr/bin/systemctl poweroff\nSERVICE\ncat > /etc/systemd/system/insta-game-deadline.timer <<'TIMER'\n[Timer]\nOnBootSec=6h\nUnit=insta-game-deadline.service\n[Install]\nWantedBy=timers.target\nTIMER\nsystemctl daemon-reload\nsystemctl enable --now insta-game-deadline.timer\ncat > /etc/systemd/system/insta-game.service <<'SERVICE'\n[Unit]\nDescription=Game host\nWants=network-online.target\nAfter=network-online.target docker.service\n[Service]\nEnvironment=AWS_REGION=${AWS::Region}\nEnvironment=INSTA_GAME_FLEET_BUCKET=${LobbyCode}\nEnvironment=INSTA_GAME_FLEET_RELEASE=${Release}\nEnvironment=INSTA_GAME_FLEET_TABLE=${LobbyTable}\nEnvironment=INSTA_GAME_FLEET_STACK=${AWS::StackId}\nExecStart=/usr/local/bin/insta-game fleet-host\nRestart=on-failure\nRestartSec=10\nTimeoutStopSec=45\nKillMode=process\nWorkingDirectory=/var/lib/insta-game\nUMask=0077\n[Install]\nWantedBy=multi-user.target\nSERVICE\nsystemctl daemon-reload\ncat > /usr/local/sbin/insta-game-bootstrap <<'BOOTSTRAP'\n#!/bin/bash\nset -euo pipefail\nif [ ! -f /var/lib/insta-game/bootstrap-ready ]; then\nexport DEBIAN_FRONTEND=noninteractive\napt-get update -qq\napt-get install -y -qq --no-install-recommends ca-certificates curl unzip docker.io\nif ! command -v aws >/dev/null; then\n    install -d -m 700 /var/lib/insta-game/bootstrap\n    curl --fail --silent --show-error --retry 3 --max-time 180 \"https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip\" -o /var/lib/insta-game/bootstrap/aws.zip\n    unzip -q -o /var/lib/insta-game/bootstrap/aws.zip -d /var/lib/insta-game/bootstrap\n    /var/lib/insta-game/bootstrap/aws/install --update\n    rm -rf /var/lib/insta-game/bootstrap\nfi\nsystemctl enable --now docker\ninstall -d -m 700 /var/lib/insta-game\naws s3 cp 's3://${LobbyCode}/${Release}/insta-game' /usr/local/bin/insta-game.new --region '${AWS::Region}' --only-show-errors\nchmod 755 /usr/local/bin/insta-game.new\nmv /usr/local/bin/insta-game.new /usr/local/bin/insta-game\n\ntouch /var/lib/insta-game/bootstrap-ready\nfi\nsystemctl enable --now insta-game.service\nBOOTSTRAP\nchmod 755 /usr/local/sbin/insta-game-bootstrap\ncat > /etc/systemd/system/insta-game-bootstrap.service <<'BOOTSTRAPSERVICE'\n[Unit]\nDescription=Prepare the game host\nWants=network-online.target\nAfter=network-online.target\nStartLimitIntervalSec=0\n[Service]\nType=oneshot\nExecStart=/usr/local/sbin/insta-game-bootstrap\nRestart=on-failure\nRestartSec=30\nTimeoutStartSec=20min\nRemainAfterExit=yes\n[Install]\nWantedBy=multi-user.target\nBOOTSTRAPSERVICE\nsystemctl daemon-reload\nsystemctl enable --now insta-game-bootstrap.service\n"
+            }
+          }
+        }
+      }
+    },
+    "LobbyRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "Fleet",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:Scan",
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:ConditionCheckItem",
+                    "dynamodb:BatchGetItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LobbyTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::${LobbyCode}/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeVolumes"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:StartInstances",
+                    "ec2:StopInstances",
+                    "ec2:TerminateInstances"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "ec2:ResourceTag/insta-game:fleet": {
+                        "Ref": "AWS::StackId"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:RunInstances"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/${LaunchTemplate}"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}::image/${UbuntuImage}"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/${SecurityGroup}"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${Subnet}"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:key-pair/${Key}"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:RunInstances"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+                    }
+                  ],
+                  "Condition": {
+                    "ArnEquals": {
+                      "ec2:LaunchTemplate": {
+                        "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/${LaunchTemplate}"
+                      }
+                    },
+                    "StringEquals": {
+                      "ec2:InstanceType": {
+                        "Ref": "InstanceType"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:RunInstances"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+                    }
+                  ],
+                  "Condition": {
+                    "ArnEquals": {
+                      "ec2:LaunchTemplate": {
+                        "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/${LaunchTemplate}"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateTags"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"
+                    }
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "ec2:CreateAction": "RunInstances",
+                      "aws:RequestTag/insta-game:fleet": {
+                        "Ref": "AWS::StackId"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:PassRole"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "HostRole",
+                      "Arn"
+                    ]
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "ec2.amazonaws.com"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-lobby:*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "LobbyFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Condition": "HasCode",
+      "DependsOn": [
+        "LobbyLogs"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-lobby"
+        },
+        "Runtime": "provided.al2023",
+        "Handler": "bootstrap",
+        "Architectures": [
+          {
+            "Ref": "LobbyArchitecture"
+          }
+        ],
+        "MemorySize": 256,
+        "Timeout": 30,
+        "ReservedConcurrentExecutions": 4,
+        "Role": {
+          "Fn::GetAtt": [
+            "LobbyRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "LobbyCode"
+          },
+          "S3Key": {
+            "Ref": "LobbyCodeKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "INSTA_GAME_FLEET_BUCKET": {
+              "Ref": "LobbyCode"
+            },
+            "INSTA_GAME_FLEET_RELEASE": {
+              "Ref": "Release"
+            },
+            "INSTA_GAME_FLEET_TABLE": {
+              "Ref": "LobbyTable"
+            },
+            "INSTA_GAME_FLEET_STACK": {
+              "Ref": "AWS::StackId"
+            },
+            "INSTA_GAME_FLEET_TEMPLATE": {
+              "Ref": "LaunchTemplate"
+            },
+            "INSTA_GAME_FLEET_VERSION": {
+              "Fn::GetAtt": [
+                "LaunchTemplate",
+                "LatestVersionNumber"
+              ]
+            },
+            "INSTA_GAME_LOBBY_TOKEN_HASH": {
+              "Ref": "LobbyTokenHash"
+            },
+            "INSTA_GAME_FLEET_MAX_HOSTS": {
+              "Ref": "MaxHosts"
+            }
+          }
+        }
+      }
+    },
+    "LobbyLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Condition": "HasCode",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-lobby"
+        },
+        "RetentionInDays": 3
+      }
+    },
+    "LobbyURL": {
+      "Type": "AWS::Lambda::Url",
+      "Condition": "HasCode",
+      "Properties": {
+        "AuthType": "NONE",
+        "TargetFunctionArn": {
+          "Ref": "LobbyFunction"
+        },
+        "InvokeMode": "RESPONSE_STREAM"
+      }
+    },
+    "LobbyURLPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Condition": "HasCode",
+      "Properties": {
+        "Action": "lambda:InvokeFunctionUrl",
+        "FunctionName": {
+          "Ref": "LobbyFunction"
+        },
+        "Principal": "*",
+        "FunctionUrlAuthType": "NONE"
+      }
+    },
+    "LobbyInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Condition": "HasCode",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "LobbyFunction"
+        },
+        "Principal": "*",
+        "InvokedViaFunctionUrl": true
+      }
+    },
+    "LobbyRetry": {
+      "Type": "AWS::Events::Rule",
+      "Condition": "HasCode",
+      "Properties": {
+        "ScheduleExpression": "rate(1 minute)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Id": "RetryPendingStarts",
+            "Arn": {
+              "Fn::GetAtt": [
+                "LobbyFunction",
+                "Arn"
+              ]
+            },
+            "RetryPolicy": {
+              "MaximumEventAgeInSeconds": 120,
+              "MaximumRetryAttempts": 1
+            }
+          }
+        ]
+      }
+    },
+    "LobbyRetryPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Condition": "HasCode",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "LobbyFunction"
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "LobbyRetry",
+            "Arn"
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "Fleet": {
+      "Value": "true"
+    },
+    "FleetBucket": {
+      "Value": {
+        "Ref": "LobbyCode"
+      }
+    },
+    "LobbyCodeBucket": {
+      "Value": {
+        "Ref": "LobbyCode"
+      }
+    },
+    "LobbyTable": {
+      "Value": {
+        "Ref": "LobbyTable"
+      }
+    },
+    "LaunchTemplate": {
+      "Value": {
+        "Ref": "LaunchTemplate"
+      }
+    },
+    "LobbyURL": {
+      "Condition": "HasCode",
+      "Value": {
+        "Fn::GetAtt": [
+          "LobbyURL",
+          "FunctionUrl"
+        ]
+      }
+    },
+    "MaxHosts": {
+      "Value": {
+        "Ref": "MaxHosts"
+      }
+    }
+  }
+}

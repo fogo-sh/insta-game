@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	cf "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+
 	"github.com/fogo-sh/insta-game/internal/lobby"
 )
 
@@ -26,6 +27,7 @@ type PlanOptions struct {
 	PublicKey                      string
 	InstanceType                   string
 	DiskGiB                        int
+	MaxHosts                       int
 	UDPFrom                        int
 	UDPTo                          int
 	LobbyInstances, LobbyTokenHash string
@@ -61,6 +63,9 @@ func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions)
 	var previous *cf.Stack
 	if stack, err := describeEnvironment(ctx, client, name); err == nil {
 		previous = stack
+		if Outputs(stack)["Fleet"] == "true" {
+			return "", fmt.Errorf("this is a fleet; use --config and preserve its host limit")
+		}
 		if Outputs(stack)["LobbyTable"] != "" && options.LobbyInstances == "" {
 			return "", fmt.Errorf("lobby is already enabled; preserve --lobby-instances or destroy the deployment")
 		}
@@ -86,9 +91,6 @@ func Plan(ctx context.Context, sdk aws.Config, name string, options PlanOptions)
 			{ParameterKey: aws.String("LobbyInstances"), ParameterValue: aws.String(options.LobbyInstances)},
 			{ParameterKey: aws.String("LobbyTokenHash"), ParameterValue: aws.String(options.LobbyTokenHash)},
 			preserveParameter(previous, "LobbyCodeKey", ""),
-			preserveParameter(previous, "LobbyHosts", ""),
-			preserveParameter(previous, "LobbyHostResources", ""),
-			preserveParameter(previous, "LobbyTableResources", ""),
 			preserveParameter(previous, "LobbyArchitecture", "arm64"),
 			{ParameterKey: aws.String("UbuntuImage"), ParameterValue: aws.String(image)},
 			{ParameterKey: aws.String("GameCIDR"), ParameterValue: aws.String(options.GameCIDR)},
@@ -171,7 +173,7 @@ func ReadConfig(ctx context.Context, sdk aws.Config, name string) (Config, error
 		return Config{}, fmt.Errorf("environment is %s", stack.StackStatus)
 	}
 	o := Outputs(stack)
-	return Config{Region: sdk.Region, Stack: aws.ToString(stack.StackId), InstanceID: o["InstanceID"], LobbyTable: o["LobbyTable"], LobbyInstances: o["LobbyInstances"], LobbyURL: o["LobbyURL"]}, nil
+	return Config{Fleet: o["Fleet"] == "true", FleetBucket: o["FleetBucket"], Region: sdk.Region, Stack: aws.ToString(stack.StackId), InstanceID: o["InstanceID"], LobbyTable: o["LobbyTable"], LobbyInstances: o["LobbyInstances"], LobbyURL: o["LobbyURL"]}, nil
 }
 
 func Destroy(ctx context.Context, sdk aws.Config, name string) error {
@@ -182,6 +184,11 @@ func Destroy(ctx context.Context, sdk aws.Config, name string) error {
 	}
 	if err != nil {
 		return err
+	}
+	if Outputs(stack)["Fleet"] == "true" {
+		if err := destroyFleetHosts(ctx, sdk, stack); err != nil {
+			return err
+		}
 	}
 	if err := emptyLobbyCode(ctx, sdk, stack); err != nil {
 		return err

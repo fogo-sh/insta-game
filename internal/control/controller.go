@@ -146,6 +146,12 @@ func setDesired(i *Instance, desired string) error {
 		return nil
 	}
 	if i.Desired == desired {
+		if desired == "running" && i.Phase == "failed" {
+			i.Generation++
+			i.Error = ""
+			i.Phase = "queued"
+			i.StartedAt = time.Now().UTC()
+		}
 		return nil
 	}
 	i.Generation++
@@ -288,6 +294,20 @@ func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, st
 	}
 
 	if !observation.Exists {
+		if i.Phase == "failed" {
+			return Observation{Failure: i.Error}, "failed", nil
+		}
+		if preparer, ok := provider.(interface {
+			Prepare(context.Context, Instance) (bool, error)
+		}); ok {
+			ready, e := preparer.Prepare(ctx, i)
+			if e != nil {
+				return Observation{Failure: e.Error()}, "failed", nil
+			}
+			if !ready {
+				return Observation{}, "preparing", nil
+			}
+		}
 		observation, err = provider.Ensure(ctx, i)
 		if err != nil {
 			return observation, "queued", err

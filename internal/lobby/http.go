@@ -4,22 +4,19 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
-	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"net/http"
 	"slices"
 	"strings"
 	"time"
-)
 
-//go:embed web/*
-var web embed.FS
+	"github.com/fogo-sh/insta-game/internal/launchui"
+)
 
 type HostControl interface {
 	State(context.Context) (string, error)
@@ -65,8 +62,7 @@ func (s *Service) Handler() http.Handler { return protect(s.routes(), s.TokenHas
 
 func (s *Service) routes() http.Handler {
 	mux := http.NewServeMux()
-	files, _ := fs.Sub(web, "web")
-	mux.Handle("GET /", http.FileServer(http.FS(files)))
+	mux.Handle("GET /", launchui.Handler())
 	mux.HandleFunc("GET /api/games", func(w http.ResponseWriter, r *http.Request) {
 		result, err := s.view(r.Context())
 		if err != nil {

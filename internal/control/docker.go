@@ -18,17 +18,22 @@ import (
 )
 
 type Docker struct {
-	client     *http.Client
-	PublicHost string
-	BindIP     string
-	bootedAt   time.Time
+	client        *http.Client
+	PublicHost    string
+	BindIP        string
+	bootedAt      time.Time
+	preparation   *dockerPreparation
+	PrepareAssets func(context.Context, Game) (string, error)
+	Binary        string
+	AssetVersion  string
 }
 
 func NewDocker(socket, publicHost, bindIP string) *Docker {
 	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}
-	return &Docker{client: &http.Client{Transport: transport}, PublicHost: publicHost, BindIP: bindIP, bootedAt: hostBootTime()}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Docker{preparation: &dockerPreparation{ctx: ctx, cancel: cancel, jobs: map[string]*imagePreparation{}, slot: make(chan struct{}, 1)}, client: &http.Client{Transport: transport}, PublicHost: publicHost, BindIP: bindIP, bootedAt: hostBootTime()}
 }
 
 type dockerError struct {
@@ -217,6 +222,15 @@ func (d *Docker) Ensure(ctx context.Context, i Instance) (Observation, error) {
 		}
 	}
 	body := map[string]any{"Image": i.Game.Image, "Env": env, "ExposedPorts": exposed, "Labels": map[string]string{"gg.insta-game.instance": i.ID, "gg.insta-game.owner": owner(i), "gg.insta-game.game-port": runtimePort}, "HostConfig": map[string]any{"PortBindings": ports, "Init": true, "RestartPolicy": map[string]string{"Name": "no"}, "LogConfig": map[string]any{"Type": "json-file", "Config": map[string]string{"max-size": "10m", "max-file": "2"}}}}
+	mounts := []map[string]any{}
+	if assets := d.assetDirectory(i.Game); assets != "" {
+		mounts = append(mounts, map[string]any{"Type": "bind", "Source": assets, "Target": "/insta-game-assets", "ReadOnly": true})
+		body["Env"] = append(env, "ASSET_SEED=/insta-game-assets")
+	}
+	if d.Binary != "" {
+		mounts = append(mounts, map[string]any{"Type": "bind", "Source": d.Binary, "Target": "/usr/local/bin/insta-game", "ReadOnly": true})
+	}
+	body["HostConfig"].(map[string]any)["Mounts"] = mounts
 	err = d.request(ctx, "POST", "/containers/create?name="+url.QueryEscape(containerName(i)), body, nil)
 	if e, ok := err.(*dockerError); ok && e.status == 404 {
 		return Observation{}, fmt.Errorf("image %s is not installed; build or pull it before creating a server", i.Game.Image)

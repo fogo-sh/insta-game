@@ -6,6 +6,8 @@ require (
 	github.com/aws/aws-lambda-go v1.55.1
 	github.com/aws/aws-sdk-go-v2 v1.47.4
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.9
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.3
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.82.1
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.72.1
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.340.0
@@ -18,8 +20,6 @@ require (
 
 require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.24 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.9 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.7 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.7 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.7 // indirect

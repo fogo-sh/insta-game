@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+
 	"github.com/fogo-sh/insta-game/internal/agent"
 	"github.com/fogo-sh/insta-game/internal/cloud"
 	"github.com/fogo-sh/insta-game/internal/control"
@@ -29,7 +30,7 @@ import (
 const help = `insta-game — on-demand dedicated servers
 
   discord  Print or register the Go controller's Discord commands
-	aws      Manage an AWS game host
+	aws      Manage AWS hosts and the launch page
   wake     Relay game connections and start stopped servers
   serve    Run the controller and embedded web UI
   agent    Supervise one game (configured through GAME_* environment variables)
@@ -53,6 +54,8 @@ func Run(ctx context.Context, args []string, out io.Writer) error {
 		return nil
 	}
 	switch args[0] {
+	case "fleet-host":
+		return fleetHost(ctx)
 	case "lambda":
 		return lambdaCommand(ctx)
 	case "discord":
@@ -146,7 +149,9 @@ func serve(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	controller := control.NewController(store, games, map[string]control.Provider{"docker": control.NewDocker(*socket, *publicHost, *bindIP)}, *defaultProvider)
+	docker := control.NewDocker(*socket, *publicHost, *bindIP)
+	defer docker.Close()
+	controller := control.NewController(store, games, map[string]control.Provider{"docker": docker}, *defaultProvider)
 	if *nativeConfig != "" {
 		if runtime.GOOS != "linux" {
 			return fmt.Errorf("native process supervision currently requires Linux")

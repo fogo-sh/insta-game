@@ -1,24 +1,22 @@
 # insta-game
 
 Run dedicated game servers with one Go binary. Use native Linux processes,
-Docker, or a shared AWS host. Manage instances through the web UI, CLI, or
+Docker, or an AWS fleet. Manage instances through the web UI, CLI, or
 Discord. Each instance has its own settings, ports, credentials, and saved data.
 
 ## Start with Docker
 
-You need Go 1.26, Docker Compose, and an ARM64 host (or emulation) for the
-supplied game images. From the repository root:
+You need Go 1.26, Docker, and an ARM64 host (or emulation) for the supplied
+game images. From the repository root:
 
 ```sh
 make build
-make -C docker-containers/xonotic download
-make -C docker-containers/xonotic clean
-docker compose --profile images build xonotic
 bin/insta-game serve
 ```
 
 Open http://localhost:3000 and enter the token from `.insta-game/token`.
-The UI is embedded and needs no frontend build. Create a server there, or use
+The UI is embedded and needs no frontend build. Missing images pull on first
+use. Create a server there, or use
 another terminal:
 
 ```sh
@@ -48,9 +46,9 @@ Supply commercial game assets yourself. Native games need an installed engine
 and a profile; Docker images contain the runtime. See [running servers](docs/running.md)
 for native setup, AWS, stable wake addresses, storage, access, and Discord.
 
-AWS can also serve an always-accessible launch page through Lambda while the
-game host sleeps. Friends choose games, create servers, and manage them there.
-Multiple servers can use the same game. Players connect directly once ready. See
+AWS has an always-accessible Lambda page. Friends choose any deployed game and
+start a named server. Hosts fetch games on demand, share capacity, and scale up
+to your host limit. Empty hosts sleep; stopping keeps data. See
 [the AWS launch page](docs/running.md#aws-launch-page) and its
 [screenshot](docs/images/aws-launch-page.png).
 

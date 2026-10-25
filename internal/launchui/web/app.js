@@ -48,8 +48,8 @@ function serverRow(game, member, isPreset) {
   if (member.name) title.append(element('p', member.name, 'host-meta'));
   const ready = game.phase === 'running' && game.desired === 'running' && game.players !== undefined && game.address;
   const connection = element('div', undefined, 'connection');
-  let status = ({ sleeping: 'Asleep', stopped: 'Stopped', unknown: 'Checking...', unavailable: 'Unavailable', failed: 'Failed', queued: 'Starting...', starting: 'Starting...' })[game.phase] || game.phase;
-  if (game.pending) status = member.state === 'running' ? ({ stop: 'Stopping...', remove: 'Removing...' }[game.action] || 'Starting...') : 'Starting host...';
+  let status = ({ sleeping: 'Asleep', stopped: 'Stopped', unknown: 'Checking...', unavailable: 'Unavailable', failed: 'Failed', queued: 'Starting...', preparing: 'Downloading game...', starting: 'Starting...' })[game.phase] || game.phase;
+  if (game.pending && game.phase !== 'preparing') status = member.state === 'running' ? ({ stop: 'Stopping...', remove: 'Removing...' }[game.action] || 'Starting...') : 'Starting host...';
   if (ready && !game.pending) {
     status = `${game.players} player${game.players === 1 ? '' : 's'}`;
     const copy = element('button', undefined, 'address');
@@ -68,7 +68,7 @@ function serverRow(game, member, isPreset) {
   const actionButton = (action, label) => {
     const button = element('button', label, 'quiet');
     button.type = 'button';
-    button.disabled = game.pending;
+    button.disabled = game.pending && action !== 'stop' && action !== 'remove';
     button.addEventListener('click', async () => {
       if (action === 'remove' && !confirm(`Remove "${game.name}" and its saved data?`)) return;
       button.disabled = true;
@@ -78,9 +78,14 @@ function serverRow(game, member, isPreset) {
     });
     return button;
   };
-  if (game.desired === 'running' && !game.pending) actions.append(actionButton('stop', 'Stop'));
+  if (game.desired === 'running') {
+ actions.append(actionButton('stop', 'Stop'));
+ if (game.error && !game.pending) actions.append(actionButton('start', 'Retry'));
+ }
   else if (game.desired !== 'deleted') actions.append(actionButton('start', game.pending ? ({ stop: 'Stopping...', remove: 'Removing...' }[game.action] || 'Starting...') : 'Start'));
-  if (game.desired !== 'running' && !game.pending && !isPreset) actions.append(actionButton('remove', 'Remove'));
+  if (game.desired === 'deleted' && game.error && !game.pending) actions.append(actionButton('remove', 'Retry remove'));
+ if (game.desired === 'stopped' && game.action === 'stop' && game.error && !game.pending) actions.append(actionButton('stop', 'Retry stop'));
+ if (game.desired !== 'running' && game.desired !== 'deleted' && !isPreset) actions.append(actionButton('remove', 'Remove'));
   article.append(title, connection, actions);
   if (game.requestError || game.error) article.append(element('p', game.requestError || game.error, 'error'));
   return article;

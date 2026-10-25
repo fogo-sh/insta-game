@@ -10,10 +10,13 @@ import (
 )
 
 func seedData(ctx context.Context, source, destination string) error {
+	return seedFiles(ctx, source, destination, ".insta-game-seeded")
+}
+func seedFiles(ctx context.Context, source, destination, markerName string) error {
 	if source == "" {
 		return nil
 	}
-	marker := filepath.Join(destination, ".insta-game-seeded")
+	marker := filepath.Join(destination, markerName)
 	if _, err := os.Stat(marker); err == nil {
 		return nil
 	} else if !os.IsNotExist(err) {

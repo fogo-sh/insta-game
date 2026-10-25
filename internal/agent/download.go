@@ -1,7 +1,7 @@
 package agent
 
 import (
-	"archive/zip"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/fogo-sh/insta-game/internal/gamefiles"
 )
 
 func downloadData(dataURL, defaultConfigPath, configPath, userAgent string) error {
@@ -234,45 +236,8 @@ func isZip(path string) (bool, error) {
 	return magic[0] == 'P' && magic[1] == 'K' && magic[2] == 0x03 && magic[3] == 0x04, nil
 }
 
-func extractZip(zipPath, dest string) error {
-	r, err := zip.OpenReader(zipPath)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	for _, f := range r.File {
-		target := filepath.Join(dest, f.Name)
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(target, 0755)
-			continue
-		}
-		os.MkdirAll(filepath.Dir(target), 0755)
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-		out, err := os.Create(target)
-		if err != nil {
-			rc.Close()
-			return err
-		}
-		_, err = io.Copy(out, rc)
-		rc.Close()
-		mode := f.Mode()
-		if mode == 0 {
-			mode = 0644
-		}
-		if chmodErr := out.Chmod(mode); chmodErr != nil {
-			out.Close()
-			return chmodErr
-		}
-		out.Close()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+func extractZip(path, destination string) error {
+	return gamefiles.ExtractZip(context.Background(), path, destination)
 }
 
 func copyFile(src, dst string) error {

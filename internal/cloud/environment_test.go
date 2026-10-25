@@ -19,15 +19,19 @@ func TestCloudFormationTemplates(t *testing.T) {
 	if os.Getenv("INSTA_GAME_LINT_TEMPLATES") != "1" {
 		t.Skip("run make lint-templates for the CloudFormation schema check")
 	}
-	path := filepath.Join(t.TempDir(), "host.json")
-	if err := os.WriteFile(path, []byte(EnvironmentTemplate), 0600); err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	output, err := exec.CommandContext(ctx, "cfn-lint", "--template", path).CombinedOutput()
-	if err != nil {
-		t.Fatalf("CloudFormation template does not validate: %v\n%s", err, output)
+	for name, template := range map[string]string{"host": EnvironmentTemplate, "fleet": FleetTemplate} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), name+".json")
+			if err := os.WriteFile(path, []byte(template), 0600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			output, err := exec.CommandContext(ctx, "cfn-lint", "--template", path).CombinedOutput()
+			if err != nil {
+				t.Fatalf("CloudFormation does not validate: %v\n%s", err, output)
+			}
+		})
 	}
 }
 
