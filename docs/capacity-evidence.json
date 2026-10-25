@@ -1,0 +1,52 @@
+{
+  "measured_dates_utc": [
+    "2026-10-24",
+    "2026-10-25"
+  ],
+  "source": "capacity.duckdb run_summary; passing single-game runs; per-server p95 maxima across runs",
+  "limits": "Includes engine bots and synthetic graphical clients. Not a hardware isolation guarantee or a benchmark for arbitrary maps/mods/player counts.",
+  "profiles": [
+    {
+      "game": "bzflag",
+      "passing_runs": 3,
+      "observed_max_run_p95_millicores": 9.15,
+      "observed_max_run_p95_memory_mib": 25.18
+    },
+    {
+      "game": "fteqw",
+      "passing_runs": 17,
+      "observed_max_run_p95_millicores": 40.57,
+      "observed_max_run_p95_memory_mib": 44.36
+    },
+    {
+      "game": "ioquake3",
+      "passing_runs": 15,
+      "observed_max_run_p95_millicores": 110.74,
+      "observed_max_run_p95_memory_mib": 80.61
+    },
+    {
+      "game": "openarena",
+      "passing_runs": 15,
+      "observed_max_run_p95_millicores": 112.74,
+      "observed_max_run_p95_memory_mib": 79.86
+    },
+    {
+      "game": "q2repro",
+      "passing_runs": 2,
+      "observed_max_run_p95_millicores": 27.73,
+      "observed_max_run_p95_memory_mib": 49.12
+    },
+    {
+      "game": "ut99",
+      "passing_runs": 17,
+      "observed_max_run_p95_millicores": 244.91,
+      "observed_max_run_p95_memory_mib": 71.0
+    },
+    {
+      "game": "xonotic",
+      "passing_runs": 4,
+      "observed_max_run_p95_millicores": 92.26,
+      "observed_max_run_p95_memory_mib": 448.2
+    }
+  ]
+}

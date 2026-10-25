@@ -2,7 +2,11 @@
 
 `make test` runs Go race tests and UI settings tests. `make check` runs
 CloudFormation lint, vet, and Compose freshness. CI validates Compose and packages
-Linux AMD64/ARM64 and macOS ARM64 binaries.
+Linux AMD64/ARM64 and macOS ARM64 binaries. A Chromium check covers launch-page
+retry limits, duplicate-safe creation, independent server controls, mobile layout,
+and sign-out. Run it with
+`make test-browser`; install Chromium first with
+`uv run --no-project --with playwright==1.64.1 playwright install --with-deps --only-shell chromium`.
 
 Socket tests cover loading, handshake replay, reliable sequence translation,
 independent clients, admission limits, cancellation, idle expiry, failure, and
@@ -48,6 +52,39 @@ changes. Native/Docker lifecycle checks cover independent instances, retained
 files, controller restart, stop/start, ownership, and deletion. AWS Docker BZFlag
 also passed host reboot recovery and retained-data checks.
 
+## AWS fleet
+
+Run the opt-in live acceptance test:
+
+```sh
+python3 scripts/test-fleet.py --config ./fleet.json --key-file ./invitation \
+  --out ./fleet-check --clients
+```
+
+Use an empty
+`insta-game-capacity-*` fleet with all seven games, zero-bot test configs, and a
+two-host limit. Real clients use the local fixtures expected by
+`scripts/benchmark/client.py`; omit `--clients` for engine/lifecycle checks only.
+This test provisions billable hosts and removes every server it creates.
+
+On October 25, 2026, all seven games downloaded and booted in turn on one fresh
+`t4g.small` host, and each accepted a real graphical client. Five concurrent
+Xonotic requests admitted four servers across exactly two hosts and refused the
+fifth at the host limit. The original host then slept and woke with the same
+container and a separately checked saved file; its client rejoined. Final
+cleanup left no hosts or game rows. Direct AWS inventory checks verified that
+the instances and their root volumes were gone.
+
+Separate failure checks blocked the host's private S3 binary download, observed
+bootstrap retries, and restored access without an SSH repair. Removing a host
+that never completed bootstrap also terminated it and deleted its disk. The
+ordinary suite covers allocation races, stale observations, retained capacity,
+missing launch responses, foreign ownership, timeouts, and delayed deletion.
+
+These checks validate creation, preparation, joins, and lifecycle. They do not
+establish a new player-capacity ceiling; sizing evidence and limits are in
+[capacity defaults](capacity.md).
+
 ## Limits
 
 These runs check startup and basic gameplay, not long matches, every mod, or
@@ -66,3 +103,44 @@ Run the Docker lifecycle check with a catalog containing a built Xonotic image:
 INSTA_GAME_DOCKER_CATALOG=/path/to/catalog go test -v ./internal/control \
   -run TestDockerTwoServersSurviveControllerRestart -count=1 -timeout=4m
 ```
+
+## AWS launch page
+
+All seven games also passed web-triggered cold starts and direct graphical-client
+joins against AWS. The requesting browser closed after acceptance. Hosts and
+games became ready in about 22 to 27 seconds; client launch, screenshots, and
+input checks completed in about 37 to 49 seconds. Quake used vkQuake 1.37.0;
+the other clients match the table above. The direct Quake run verified the
+matching engine/public port required by NetQuake sign-on.
+
+
+Two servers created through the deployed page also accepted simultaneous vkQuake
+clients on separate ports. Stopping and removing one left the other running. New
+servers from all seven presets reached ready and were removed after testing.
+
+Use an isolated stack named `insta-game-lambda-check`, with the launch page
+installed and a stopped, allowlisted `bzflag` instance. All other instances must
+also be stopped or deleted. Start with the host running and its controller
+reachable; the test stops it before the cold start. It checks unauthorized requests, cold
+startup, the public BZFlag connection, retained configuration, automatic idle
+shutdown, and recovery of a saved request through the scheduled Lambda.
+
+```sh
+INSTA_GAME_AWS_LOBBY_CONFIG=/absolute/path/to/aws.json \
+INSTA_GAME_AWS_LOBBY_KEY_FILE=/absolute/path/to/invitation \
+go test -v ./internal/command -run '^TestAWSLobbyColdStart$' -count=1 -timeout=15m
+```
+
+These additional checks use operator credentials and the selected AWS region:
+
+```sh
+AWS_REGION=ca-central-1 INSTA_GAME_LOBBY_TEST_TABLE=YOUR_ISOLATED_TABLE \
+  go test -v ./internal/lobby -run '^TestDynamoDB' -count=1
+AWS_REGION=ca-central-1 INSTA_GAME_AWS_CLEANUP_TEST=1 \
+  go test -v ./internal/cloud -run '^TestAWSDestroyLobbyArtifacts$' -count=1 -timeout=12m
+```
+
+The DynamoDB checks require a table from the isolated check stack. They cover
+concurrent starts, duplicate creation, server discovery, and request ordering. Cleanup
+checks create their own tagged bucket/table stacks, refuse occupied fixture
+names, and verify deletion with both nonempty and already-missing code buckets.

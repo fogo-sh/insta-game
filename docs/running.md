@@ -67,7 +67,8 @@ game bind addresses are controlled by engine arguments/configuration;
 
 One EC2 host runs the controller and games. Size it for your games and players.
 Encrypted gp3 retains the database and game files while EC2 is stopped.
-Destroying the stack deletes that disk and all saved games.
+Destroying the stack deletes that disk and all saved games. The AMI is pinned
+at creation; updating the launch page keeps the game host and disk.
 
 The supplied Docker images target ARM64. For those images, provision a `t4g`
 host and build an ARM64 controller. Native AMD64 deployments can use `t3` or
@@ -95,7 +96,9 @@ controller. `--env-file ./host.env` installs a private systemd environment file
 for asset URLs such as `FTEQW_DATA_URL`, `Q2REPRO_DATA_URL`, `IOQUAKE3_DATA_URL`,
 and `UT99_DATA_URL`, or Discord settings. Keep those URLs and credentials out of
 the catalog. Limit a custom catalog to the games you want installed. An 8 GiB
-root disk can be too small for several games and their assets.
+root disk can be too small for several games and their assets. FTE defaults to
+a 64 MiB QuakeC arena for small hosts; larger mods can set `pr_ssqc_memsize` in
+their game configuration.
 
 Native engines are optional. Upload a directory containing any number of engines
 and runtime files with `--engines`, an asset directory with `--assets`, and
@@ -119,8 +122,8 @@ bin/insta-game aws destroy --config ./aws.json
 
 SSH and the controller API accept only `--operator-cidr`. Game TCP and UDP use
 `--game-cidr`: restrict it to your gateway public IP when proxying, or to player
-networks for direct hosting. Its default is `0.0.0.0/0`. The VM needs no AWS
-credentials. The operator binary uses reviewed CloudFormation changes, verified
+networks for direct hosting. Its default is `0.0.0.0/0`. Without the launch page,
+the VM receives no AWS role. The operator binary uses reviewed CloudFormation changes, verified
 SSH installation, and token-pinned controller TLS.
 
 The controller stops empty games according to their idle policies, then powers
@@ -133,6 +136,110 @@ credit charges but can throttle sustained workloads.
 You pay for the retained disk, running hours, public IPv4 hours, and transfer.
 Games share one VM. Count startup and idle grace periods in running hours;
 compute and public IPv4 charges end when EC2 reaches `stopped`.
+
+Catalog `gameArgs` can use `{port}` to keep the engine's UDP port equal to its
+public Docker port. FTE uses this because NetQuake embeds the port in sign-on.
+Existing instances keep their saved engine arguments and container mappings;
+create a new instance with the updated catalog for this direct-connection fix.
+Keep the original until you have copied its assets/config and tested the replacement.
+
+## AWS launch page
+
+One Lambda page manages a fleet of sleeping EC2 hosts. Choose a game and name;
+placement handles the host. The full deployed catalog stays visible with zero
+hosts. Games connect directly to EC2 once ready.
+
+```mermaid
+flowchart LR
+  Browser --> Lambda[Go binary in Lambda]
+  Lambda <--> State[DynamoDB requests and placement]
+  Lambda -->|launch, wake, retire| Hosts[EC2 host pool]
+  Hosts <--> State
+  Hosts -->|fetch on demand| Assets[Private S3 binaries and game data]
+  Players -->|play directly| Hosts
+```
+
+Create a fleet with an explicit host limit. The default fleet host is
+`t4g.small`, with a 32 GiB encrypted disk:
+
+```sh
+bin/insta-game aws plan --stack insta-game-fleet --max-hosts 2 \
+  --operator-cidr YOUR_PUBLIC_IP/32 --public-key ./game-host-key.pub \
+  --lobby-token-file ./invitation
+# Review, then apply the exact printed change set:
+bin/insta-game aws apply --stack insta-game-fleet \
+  --change-set REVIEWED_ARN --out ./fleet.json
+```
+
+This creates the network, request table, private artifact bucket, and launch
+permissions. It creates no EC2 instance. Build a static Linux ARM64 binary, then
+publish the catalog and assets:
+
+```sh
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/insta-game-linux-arm64 ./cmd/insta-game
+bin/insta-game aws lobby --config ./fleet.json \
+  --binary ./bin/insta-game-linux-arm64 --catalog ./docker-containers --assets ./game-assets
+bin/insta-game aws apply --config ./fleet.json \
+  --change-set REVIEWED_ARN --out ./fleet.json
+```
+
+`game-assets` contains `fteqw.zip`, `q2repro.zip`, `ioquake3.zip`, and `ut99.zip`.
+Supply your own licensed data. ZIP paths start at `/opt`: Quake data lives under
+`id1/`, Quake II under `baseq2/`, Quake III under `baseq3/`, and UT99 includes its
+engine and data directories. Use maps and configs matching those assets. Other
+games ship their data in their images. A smaller operator catalog may omit games
+you don't own. Missing required archives fail deployment before hosts launch.
+
+Share `LobbyURL` from `fleet.json` and the invitation key. No operator machine,
+SSH session, or wake gateway is needed to keep the page accessible. The same Go
+binary runs Lambda, the host controller, and each game agent. Hosts fetch images
+and private assets when first needed, then reuse their caches. Bootstrap retries
+failed downloads. Nothing needs to run once per game before it appears in the menu.
+
+Placement uses reserved CPU, RAM, and disk. It fills fitting awake hosts, then
+wakes a fitting sleeping host, then creates another up to `--max-hosts`. Duplicate
+requests share one durable assignment. **Stop keeps data and its reservation;
+Remove frees it.** Stopped servers stay on their original disks. Empty hosts
+sleep after two minutes. Hosts without saved servers are terminated and their
+disks deleted. See [capacity defaults](capacity.md) before changing player counts
+or mods; reservations are estimates, not container resource limits.
+
+Use `--fleet-config ./limits.json` with `aws lobby` to override game reservations,
+idle minutes, or maximum runtime. It is a JSON object using the fields in
+`internal/fleet.Config`; omitted fields keep defaults. Overrides cannot exceed
+reviewed host limits or capacity budgets. The default game idle timeout is
+15 minutes; maximum runtime is six hours. A six-hour host boot timer also stops
+failed startup loops. Unacknowledged requests time out after 20 minutes and can
+be retried from the page. Closing the page does not cancel a saved request.
+
+For a temporary deployment, `aws lobby --expires-after 2h` sets an absolute end
+time. The scheduled reconciler then deletes its hosts and saved games; the small
+Lambda/table/bucket remain until `aws destroy`. This is destructive, unlike Stop.
+
+```sh
+bin/insta-game aws status --config ./fleet.json
+bin/insta-game aws stop --config ./fleet.json       # stop games, keep data
+bin/insta-game aws destroy --config ./fleet.json    # remove the entire deployment
+```
+
+For code-only updates, `aws lobby --config ./fleet.json --binary ./new-binary`
+reuses the deployed catalog, assets, and limits. Repeat the reviewed apply. Pass
+`--catalog` or `--assets` only to change them. An explicit `--expires-after 0`
+clears a temporary deadline; omitted flags preserve it.
+
+Releases pin image digests, assets, and host launch versions. Existing hosts and
+saved games keep their release. UI-only updates reuse compatible hosts; engine,
+asset, or lifecycle changes use new host slots within the same limit. Remove old
+saved servers when no longer needed. Hardware changes require
+a separate fleet to avoid changing saved-data and capacity assumptions. Review
+all plans; no source migration replaces an existing host.
+
+There is no always-on gateway, NAT gateway, load balancer, or reserved public IP.
+Sleeping hosts cost retained disk storage; Lambda, table operations, private game
+assets, short-lived logs, and transfer also incur usage charges. Standard CPU
+credits avoid surplus CPU charges but can throttle sustained load. `aws destroy`
+closes admission, verifies owned host and disk deletion, empties the private
+bucket, and deletes the stack. It leaves unrelated infrastructure alone.
 
 ## Stable game addresses
 

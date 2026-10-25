@@ -25,6 +25,10 @@ jobs:
           go vet ./...
           python3 generate-compose.py --check
           docker compose config --quiet
+      - name: Check launch page in Chromium
+        run: |
+          uv run --no-project --with playwright==1.64.1 playwright install --with-deps --only-shell chromium
+          make test-browser
       - name: Package supported targets
         run: python3 scripts/package-release.py --output /tmp/insta-game-dist
       - uses: actions/upload-artifact@v4

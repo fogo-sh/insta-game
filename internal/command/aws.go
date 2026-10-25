@@ -1,26 +1,32 @@
 package command
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	"golang.org/x/crypto/ssh"
+
 	"github.com/fogo-sh/insta-game/internal/cloud"
 	"github.com/fogo-sh/insta-game/internal/control"
-	"golang.org/x/crypto/ssh"
 )
 
 func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("aws requires plan, apply, config, install, status, wake, stop, or destroy")
+		return fmt.Errorf("aws requires plan, apply, config, install, lobby, status, wake, stop, or destroy")
 	}
 	action := args[0]
 	flags := flag.NewFlagSet("aws "+action, flag.ContinueOnError)
@@ -39,6 +45,7 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	output := flags.String("out", "", "Write host config here")
 	key := flags.String("key", "", "Local SSH private key path (saved in config)")
 	token := flags.String("token-file", "", "Local controller token path (created if missing)")
+	disableLobby := flags.Bool("disable", false, "Disable this stack’s launch page, retaining its host and lobby data")
 	binary := flags.String("binary", "", "Linux insta-game binary matching the host architecture")
 	engines := flags.String("engines", "", "Optional directory of native engines and runtime files")
 	assets := flags.String("assets", "", "Optional directory of native game assets")
@@ -46,6 +53,11 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	nativeConfig := flags.String("native-config", "", "Native engine definitions using remote /opt/insta-game paths")
 	hostMaxRuntime := flags.Duration("host-max-runtime", 6*time.Hour, "Maximum boot lifetime (0 disables the independent poweroff timer)")
 	pullImages := flags.Bool("pull-images", false, "Pull the catalog Docker images during installation")
+	lobbyIDs := flags.String("lobby-instances", "", "Saved instance IDs used as AWS launch presets (comma-separated)")
+	lobbyToken := flags.String("lobby-token-file", "", "Separate invitation key file for the launch page (created if missing)")
+	maxHosts := flags.Int("max-hosts", 0, "Use a catalog-first fleet with this maximum number of cheap hosts")
+	fleetConfig := flags.String("fleet-config", "", "Optional fleet resource requirements and runtime limits (JSON)")
+	deadline := flags.Duration("expires-after", 0, "Fleet test lifetime, including setup (0 keeps the deployment available)")
 	catalog := flags.String("catalog", "", "Game catalog directory to install")
 	if err := flags.Parse(args[1:]); err != nil {
 		return flagError(err)
@@ -53,6 +65,12 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
 	}
+	specified := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { specified[f.Name] = true })
+	if *maxHosts > 0 && !specified["instance-type"] {
+		*instanceType = "t4g.small"
+	}
+
 	var c cloud.Config
 	if *configFile != "" {
 		loaded, err := cloud.Load(*configFile)
@@ -78,8 +96,99 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if *configFile == "" && (action == "lobby" || action == "status" || action == "wake" || action == "stop") {
+		c, err = cloud.ReadConfig(ctx, sdk, *name)
+		if err != nil {
+			return err
+		}
+	}
+	if c.Fleet && action == "plan" {
+		previous, err := cloud.DescribeStack(ctx, cloudformation.NewFromConfig(sdk), *name)
+		if err != nil {
+			return err
+		}
+		for _, p := range previous.Parameters {
+			switch aws.ToString(p.ParameterKey) {
+			case "InstanceType":
+				if !specified["instance-type"] {
+					*instanceType = aws.ToString(p.ParameterValue)
+				}
+			case "DiskGiB":
+				if !specified["disk-gib"] {
+					*disk, err = strconv.Atoi(aws.ToString(p.ParameterValue))
+					if err != nil {
+						return err
+					}
+				}
+			case "MaxHosts":
+				if !specified["max-hosts"] {
+					*maxHosts, err = strconv.Atoi(aws.ToString(p.ParameterValue))
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
 	switch action {
+	case "lobby":
+		if c.Fleet {
+			if *disableLobby {
+				return fmt.Errorf("use aws destroy to remove a fleet deployment")
+			}
+			cfg, err := cloud.FleetDefaults(ctx, sdk, *name)
+			if err != nil {
+				return err
+			}
+			if *maxHosts > 0 {
+				cfg.MaxHosts = *maxHosts
+			}
+			if *fleetConfig != "" {
+				data, err := os.ReadFile(*fleetConfig)
+				if err != nil {
+					return err
+				}
+				decoder := json.NewDecoder(bytes.NewReader(data))
+				decoder.DisallowUnknownFields()
+				if err = decoder.Decode(&cfg); err != nil {
+					return err
+				}
+				if decoder.Decode(new(any)) != io.EOF {
+					return fmt.Errorf("fleet config must contain one JSON object")
+				}
+			}
+			if specified["expires-after"] {
+				if *deadline < 0 {
+					return fmt.Errorf("expires-after must not be negative")
+				}
+				cfg.Deadline = 0
+				if *deadline > 0 {
+					cfg.Deadline = time.Now().Add(*deadline).Unix()
+				}
+			}
+			id, err := cloud.PlanFleetRelease(ctx, sdk, *name, cloud.FleetReleaseOptions{Binary: *binary, Catalog: *catalog, Assets: *assets, Config: cfg})
+			if errors.Is(err, cloud.ErrLobbyCurrent) {
+				fmt.Fprintln(out, "Fleet release is already current.")
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			return printChangeSet(ctx, sdk, id, out)
+		}
+		id, err := cloud.PlanLobby(ctx, sdk, *name, cloud.LobbyOptions{Binary: *binary, Disable: *disableLobby})
+		if errors.Is(err, cloud.ErrLobbyCurrent) {
+			fmt.Fprintln(out, "Launch page already uses this binary.")
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		return printChangeSet(ctx, sdk, id, out)
 	case "plan":
+		if *lobbyIDs == "" {
+			*lobbyIDs = c.LobbyInstances
+		}
 		material, err := os.ReadFile(*publicKey)
 		if err != nil {
 			return fmt.Errorf("read --public-key: %w", err)
@@ -91,21 +200,35 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 		if parsed.Type() != ssh.KeyAlgoED25519 && parsed.Type() != ssh.KeyAlgoRSA {
 			return fmt.Errorf("EC2 requires an ED25519 or RSA SSH key")
 		}
-		id, err := cloud.Plan(ctx, sdk, stackShortName(*name), cloud.PlanOptions{GameCIDR: *gameCIDR, OperatorCIDR: *cidr, PublicKey: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(parsed))), InstanceType: *instanceType, DiskGiB: *disk, UDPFrom: *udpFrom, UDPTo: *udpTo})
-		if err != nil {
-			return err
-		}
-		changes, err := cloudformation.NewFromConfig(sdk).DescribeChangeSet(ctx, &cloudformation.DescribeChangeSetInput{ChangeSetName: aws.String(id)})
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(out, id)
-		for _, change := range changes.Changes {
-			if r := change.ResourceChange; r != nil {
-				fmt.Fprintf(out, "%s %s (%s), replacement=%s\n", r.Action, aws.ToString(r.LogicalResourceId), aws.ToString(r.ResourceType), r.Replacement)
+		hash := ""
+		if *lobbyIDs != "" || *maxHosts > 0 {
+			if *lobbyToken == "" {
+				return fmt.Errorf("launch page requires --lobby-token-file")
 			}
+			if err := ensureHostToken(*lobbyToken); err != nil {
+				return err
+			}
+			data, err := os.ReadFile(*lobbyToken)
+			if err != nil {
+				return err
+			}
+			sum := sha256.Sum256([]byte(strings.TrimSpace(string(data))))
+			hash = hex.EncodeToString(sum[:])
 		}
-		return nil
+		options := cloud.PlanOptions{MaxHosts: *maxHosts, LobbyInstances: *lobbyIDs, LobbyTokenHash: hash, GameCIDR: *gameCIDR, OperatorCIDR: *cidr, PublicKey: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(parsed))), InstanceType: *instanceType, DiskGiB: *disk, UDPFrom: *udpFrom, UDPTo: *udpTo}
+		var id string
+		if *maxHosts > 0 {
+			if *disk < 24 {
+				options.DiskGiB = 32
+			}
+			id, err = cloud.PlanFleet(ctx, sdk, stackShortName(*name), options)
+		} else {
+			id, err = cloud.Plan(ctx, sdk, stackShortName(*name), options)
+		}
+		if err != nil {
+			return err
+		}
+		return printChangeSet(ctx, sdk, id, out)
 	case "apply":
 		if *changeSet == "" {
 			return fmt.Errorf("apply requires --change-set from aws plan")
@@ -147,6 +270,24 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	case "destroy":
 		return cloud.Destroy(ctx, sdk, *name)
 	case "install", "status", "wake", "stop":
+		if c.Fleet {
+			fresh, err := cloud.ReadConfig(ctx, sdk, c.Stack)
+			if err != nil {
+				return err
+			}
+			if !fresh.Fleet || fresh.LobbyTable != c.LobbyTable {
+				return fmt.Errorf("fleet config does not match the owned stack")
+			}
+			c = fresh
+			switch action {
+			case "status":
+				return fleetStatus(ctx, sdk, c, out)
+			case "stop":
+				return fleetStop(ctx, sdk, c)
+			default:
+				return fmt.Errorf("fleet hosts install and wake automatically; create or start a server in the launch page")
+			}
+		}
 		if c.InstanceID == "" {
 			return fmt.Errorf("%s requires --config", action)
 		}
@@ -210,4 +351,18 @@ func ensureHostToken(path string) error {
 		return writeErr
 	}
 	return closeErr
+}
+
+func printChangeSet(ctx context.Context, sdk aws.Config, id string, out io.Writer) error {
+	changes, err := cloudformation.NewFromConfig(sdk).DescribeChangeSet(ctx, &cloudformation.DescribeChangeSetInput{ChangeSetName: aws.String(id)})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, id)
+	for _, change := range changes.Changes {
+		if r := change.ResourceChange; r != nil {
+			fmt.Fprintf(out, "%s %s (%s), replacement=%s\n", r.Action, aws.ToString(r.LogicalResourceId), aws.ToString(r.ResourceType), r.Replacement)
+		}
+	}
+	return nil
 }

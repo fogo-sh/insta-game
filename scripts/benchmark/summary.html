@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>insta-game · capacity summary</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font: 16px/1.55 system-ui;
+      background: #151817;
+      color: #e5e9e3;
+    }
+    body {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+    h1 {
+      font-size: 30px;
+      letter-spacing: -1px;
+      margin: 0 0 12px;
+    }
+    h2 {
+      font-size: 20px;
+      margin: 26px 0 8px;
+    }
+    p {
+      margin: 10px 0;
+      color: #bac4bb;
+    }
+    strong,
+    th {
+      color: #e5e9e3;
+    }
+    a {
+      color: #c5eaa8;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+    }
+    td,
+    th {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid #374037;
+    }
+    .table {
+      overflow: auto;
+    }
+    ul {
+      padding-left: 22px;
+    }
+    li {
+      margin: 8px 0;
+    }
+    small {
+      font-size: 13px;
+      color: #bac4bb;
+    }
+    @media (max-width: 550px) {
+      body {
+        padding: 22px 12px;
+      }
+      td,
+      th {
+        padding: 8px 5px;
+        font-size: 13px;
+      }
+    }
+  </style>
+  <h1>Game server capacity</h1>
+  <p>
+    <strong
+      >A small shared host is the sensible starting point for a modest
+      fleet.</strong
+    >
+    Use micro for lean Quake hosting, and medium when Xonotic or memory demand
+    warrants it. Keep CPU and RAM as separate placement budgets.
+  </p>
+
+  __HISTORY__ __MIXED__
+
+  <h2>Eight server-side bots per game server</h2>
+  <p>
+    Largest counts that passed our screening policy. These are bot workloads,
+    not promises about full human lobbies.
+  </p>
+  <div class="table">
+    <table>
+      <thead>
+        <tr>
+          <th>Game</th>
+          <th>Micro · 1 GiB</th>
+          <th>Small · 2 GiB</th>
+          <th>Medium · 4 GiB</th>
+        </tr>
+      </thead>
+      <tbody>
+        __BOT_ROWS__
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <small
+      >≥ means we tested that many successfully without finding the ceiling. —
+      means no qualifying result. All hosts had two vCPUs; results keep 25% CPU
+      and 20% RAM headroom.</small
+    >
+  </p>
+  <p>__QUAKE_MARGIN__</p>
+
+  <h2>What real networking proved</h2>
+  <ul>
+    __NETWORK_ROWS__
+  </ul>
+
+  <p>
+    <small
+      >__RUN_COUNT__ recorded scenarios. Map-specific results; demo maps were
+      used for Quake II and III. Most density runs were short. Real players can
+      use much more CPU than bots.</small
+    >
+  </p>
+  <p><a href="explorer.html">Full measurements and packing estimator →</a></p>
+  <p>
+    <a href="capacity.duckdb" download>DuckDB data</a> ·
+    <a href="capacity-model.json" download>CPU/RAM model</a> ·
+    <a href="raw-measurements.tar.gz" download>Raw records</a>
+  </p>
+</html>

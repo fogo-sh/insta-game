@@ -37,6 +37,9 @@ func Run(ctx context.Context, c Config) error {
 	if err := seedData(ctx, c.SeedPath, root); err != nil {
 		return err
 	}
+	if err := seedFiles(ctx, c.AssetSeed, root, ".insta-game-assets-seeded"); err != nil {
+		return err
+	}
 	if err := downloadData(c.DataURL, c.DefaultConfig, c.ConfigPath, c.UserAgent); err != nil {
 		return err
 	}

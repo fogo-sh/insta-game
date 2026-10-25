@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>insta-game · capacity lab</title
+  ><style>
+    :root {
+      color-scheme: dark;
+      font: 15px/1.5 system-ui;
+      background: #151817;
+      color: #e5e9e3;
+    }
+    body {
+      margin: 0;
+    }
+    main {
+      max-width: 1400px;
+      margin: auto;
+      padding: 36px 24px;
+    }
+    h1 {
+      font-size: 32px;
+      letter-spacing: -1px;
+      margin: 0;
+    }
+    h2 {
+      font-size: 20px;
+    }
+    p {
+      color: #b4beb5;
+      max-width: 1000px;
+    }
+    a {
+      color: #c5eaa8;
+    }
+    .controls {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: end;
+      margin: 24px 0;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    select,
+    input,
+    button {
+      font: inherit;
+      background: #242a25;
+      color: inherit;
+      border: 1px solid #64715f;
+      border-radius: 4px;
+      padding: 8px;
+    }
+    button {
+      cursor: pointer;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .plot {
+      min-height: 350px;
+      border: 1px solid #374037;
+    }
+    table {
+      border-collapse: collapse;
+      font-size: 13px;
+      width: 100%;
+    }
+    td,
+    th {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid #374037;
+    }
+    th {
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .table {
+      overflow: auto;
+    }
+    .pass {
+      color: #c5eaa8;
+    }
+    .fail {
+      color: #ffb3a5;
+    }
+    .stats {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      margin: 24px 0;
+    }
+    .stats strong {
+      font-size: 28px;
+      display: block;
+    }
+    small {
+      color: #b4beb5;
+    }
+    .planner {
+      border-top: 1px solid #64715f;
+      padding-top: 20px;
+      margin-top: 32px;
+    }
+    .counts {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .counts input {
+      width: 65px;
+    }
+    .notice {
+      border-left: 3px solid #d8c28b;
+      padding-left: 16px;
+    }
+    details {
+      margin: 18px 0;
+    }
+    code {
+      color: #c5eaa8;
+    }
+    @media (max-width: 800px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      main {
+        padding: 24px 14px;
+      }
+    }
+  </style>
+  <main>
+    <p><a href="index.html">← Summary</a></p>
+    <h1>Full measurements</h1>
+    <p>
+      Real AWS game servers. Engine bots, network clients, and mixed loads.
+      Filter the measurements, inspect a run, then try a packing estimate.
+    </p>
+    <p>
+      <a href="capacity.duckdb" download>DuckDB database</a> ·
+      <a href="summary.json" download>Run summaries</a> ·
+      <a href="analysis.sql" download>SQL</a> ·
+      <a href="capacity-model.json" download>Packing model</a>
+      __EXPERIMENT_LINK__
+    </p>
+    <div class="notice">
+      <strong>Measured envelope, not a player guarantee.</strong>
+      <p>
+        Bot AI is not equivalent to a human client. Query latency does not
+        measure every simulation frame. Quake II uses demo1 and Quake III uses
+        q3dm1 from the available demo assets. Results do not establish limits
+        for every map. Short runs on burstable hosts can spend CPU credits;
+        “credit neutral” below is a model based on measured average CPU. Failed
+        and partial runs remain in the data. Several later client cohorts
+        stopped on generator memory guards; those do not establish EC2 capacity
+        limits. Probe-validation rows retain earlier query mistakes; corrected
+        reruns supply the capacity results.
+      </p>
+    </div>
+    <div class="controls">
+      <label
+        >Host<select id="tier">
+          <option value="">All host sizes</option>
+        </select></label
+      ><label
+        >Game<select id="game">
+          <option value="">All games / mixed</option>
+        </select></label
+      ><label
+        >Load<select id="load">
+          <option value="">All loads</option>
+        </select></label
+      ><label
+        >CPU headroom (%)<input
+          id="cpu"
+          type="number"
+          min="10"
+          max="90"
+          value="25" /></label
+      ><label
+        >Free memory (%)<input
+          id="memory"
+          type="number"
+          min="5"
+          max="80"
+          value="20" /></label
+      ><label
+        >p95 query limit (ms)<input
+          id="latency"
+          type="number"
+          min="1"
+          value="150" /></label
+      ><label
+        ><span>Credit-neutral CPU only</span
+        ><input id="credits" type="checkbox" /></label
+      ><label
+        ><span>Show validation checks</span
+        ><input id="validation" type="checkbox"
+      /></label>
+    </div>
+    <div id="stats" class="stats"></div>
+    <h2>Tested capacity by workload</h2>
+    <p>
+      Largest passing count for each observed workload under your selected
+      limits. “At least” means no higher failing count was tested. These are
+      measured cases, not extrapolated maxima. Memory guards can stop a request
+      before all its servers are created; DuckDB retains the created count.
+    </p>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Host</th>
+            <th>Game</th>
+            <th>Bots / server</th>
+            <th>Network / server</th>
+            <th>Passing servers</th>
+            <th>Next unsuccessful request</th>
+            <th>Longest passing run</th>
+          </tr>
+        </thead>
+        <tbody id="findings"></tbody>
+      </table>
+    </div>
+    <div class="grid">
+      <div id="capacity" class="plot"></div>
+      <div id="resources" class="plot"></div>
+    </div>
+    <h2>Measured runs</h2>
+    <p>
+      Click a row to inspect CPU and memory over time. Click a heading to sort.
+      Passing means the selected thresholds, ≤1% query loss, no OOM kill, and at
+      least 20 host samples.
+    </p>
+    <div class="table">
+      <table>
+        <thead>
+          <tr id="thead"></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <h2 id="selected">Select a run</h2>
+    <div id="timeline" class="plot"></div>
+    <h2>CPU credits</h2>
+    <p>
+      Host-wide AWS samples at five-minute resolution. These show credit
+      history, not per-run CPU measurements.
+    </p>
+    <div class="grid">
+      <div id="credit-balance" class="plot"></div>
+      <div id="credit-surplus" class="plot"></div>
+    </div>
+    <section class="planner">
+      <h2>Try a packing estimate</h2>
+      <p>
+        Uses the worst single-server p95 across the measured hosts, with eight
+        participants: engine bots, scripted network clients, or a hybrid. It
+        adds an observed idle-host allowance and your headroom. Estimates are
+        additive; mixed-game tests above are stronger evidence. A blank game
+        means there is no qualifying measurement, not zero resource cost.
+        Planner CPU-credit cost assumes that estimated p95 demand stays
+        constant.
+      </p>
+      <div class="controls">
+        <label>Host<select id="planhost"></select></label>
+        <div id="counts" class="counts"></div>
+      </div>
+      <p id="estimate"></p>
+    </section>
+    <details>
+      <summary>Method and limits</summary>
+      <p>
+        Hosts: T4g micro / small / medium, Canada Central, two vCPUs, Unlimited
+        credit mode. A .q2 host label identifies the fresh small-host Quake II
+        rerun. Engine, map, configuration, exact timing, workload, and observed
+        player counts are retained in each run’s metadata in DuckDB. Engine-only
+        runs normally warm for 20 seconds and measure 60 seconds; longer runs
+        are explicitly recorded. Network probes originate on the operator’s
+        Linux system.
+      </p>
+      <p>
+        Defaults target 25% CPU and 20% memory headroom. Query failure rate ≤1%
+        and p95 ≤150ms are screening thresholds, not a published game SLO.
+        FrikBots are QuakeC entities, so their population is verified from
+        distinct join logs; ordinary Quake player queries count network clients.
+        Earlier shared-Wine-display runs are retained but excluded from
+        active-input recommendations. Synthetic clients request 30 FPS where
+        supported; achieved frame rates were not instrumented. Local generator
+        counters are retained separately from EC2 counters. The largest passing
+        tested count is a lower bound when no failing boundary was reached.
+        Persistent RAM and CPU are separate budgets; one universal weight can
+        hide those differences.
+      </p>
+      <p>
+        Base prices exclude discounts/free tiers, public IPv4, retained EBS, and
+        traffic. Host TX includes telemetry and probes as well as game traffic;
+        bandwidth is a separate cost from CPU and RAM. Modeled surplus is max(0,
+        average cores − baseline cores) × $0.04/core-hour; actual charging
+        depends on credit history. See
+        <a
+          href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/burstable-credits-baseline-concepts.html"
+          >AWS credit baselines</a
+        >
+        and <a href="https://aws.amazon.com/ec2/pricing/on-demand/">pricing</a>.
+      </p>
+    </details>
+    <p id="generated"></p>
+  </main>
+  <script>
+    __PLOTLY__;
+  </script>
+  <script>
+    const data = __DATA__;
+    const $ = (id) => document.getElementById(id);
+    let order = "started_at",
+      descending = false;
+    const colors = ["#c5eaa8", "#8bcad5", "#e2b878"];
+    for (const h of data.hosts) {
+      $("tier").add(new Option(h.tier, h.tier));
+      $("planhost").add(new Option(h.tier, h.tier));
+    }
+    for (const game of [...new Set(data.runs.flatMap((r) => r.games))].sort())
+      $("game").add(new Option(game, game));
+    for (const kind of [...new Set(data.runs.map((r) => r.load_kind))])
+      $("load").add(new Option(kind, kind));
+    const layout = (title) => ({
+      title: { text: title, font: { size: 16 } },
+      paper_bgcolor: "#151817",
+      plot_bgcolor: "#151817",
+      font: { color: "#dce3d8" },
+      margin: { t: 55, l: 65, r: 30, b: 60 },
+      colorway: colors,
+      legend: { orientation: "h" },
+      xaxis: { gridcolor: "#303b32" },
+      yaxis: { gridcolor: "#303b32" },
+    });
+    const opts = { responsive: true, displaylogo: false };
+    function passing(r) {
+      return (
+        r.status === "measured" &&
+        r.population_ok !== false &&
+        r.input_isolated !== false &&
+        r.probe_n > 0 &&
+        r.latency_p95 != null &&
+        r.host_n >= 20 &&
+        r.loss <= 0.01 &&
+        r.latency_p95 <= $("latency").value &&
+        r.cpu_p95 <= 2 * (1 - $("cpu").value / 100) &&
+        r.memory_free_p05 >= $("memory").value / 100 &&
+        !r.oom_kill &&
+        !r.host_oom_kills &&
+        (!$("credits").checked || r.cpu_mean <= r.baseline_cores)
+      );
+    }
+    function filtered() {
+      return data.runs.filter(
+        (r) =>
+          ($("validation").checked ||
+            (!/^(smoke|pilot)/.test(r.label) &&
+              r.status !== "setup-error" &&
+              r.status !== "probe-validation")) &&
+          (!$("tier").value || r.tier === $("tier").value) &&
+          (!$("game").value || r.games.includes($("game").value)) &&
+          (!$("load").value || r.load_kind === $("load").value),
+      );
+    }
+    const columns = [
+      ["tier", "Host"],
+      ["label", "Workload"],
+      ["server_count", "Servers"],
+      ["bots_per_server", "Bots / server"],
+      ["network_clients", "Network clients"],
+      ["cpu_p95", "p95 cores"],
+      ["memory_free_p05", "Free RAM p05"],
+      ["latency_p95", "Query p95 ms"],
+      ["loss", "Query loss"],
+      ["tx_bytes_sec", "Host TX KiB/s"],
+      ["status", "Result"],
+    ];
+    for (const [key, title] of columns) {
+      const th = document.createElement("th");
+      th.textContent = title;
+      th.onclick = () => {
+        descending = order === key ? !descending : false;
+        order = key;
+        render();
+      };
+      $("thead").appendChild(th);
+    }
+    function number(x, d = 2) {
+      return x == null ? "—" : Number(x).toFixed(d);
+    }
+    function render() {
+      const rows = filtered();
+      const pass = rows.filter(passing);
+      $("stats").replaceChildren();
+      for (const [label, value] of [
+        ["runs", rows.length],
+        ["passing", pass.length],
+        ["host samples", rows.reduce((n, r) => n + (r.host_n || 0), 0)],
+        ["query probes", rows.reduce((n, r) => n + (r.probe_n || 0), 0)],
+      ]) {
+        const el = document.createElement("div"),
+          big = document.createElement("strong");
+        big.textContent = value;
+        el.append(big, label);
+        $("stats").append(el);
+      }
+      const groups = data.hosts.map((h) => ({
+        x: rows.filter((r) => r.tier === h.tier).map((r) => r.label),
+        y: rows.filter((r) => r.tier === h.tier).map((r) => r.server_count),
+        name: h.tier,
+        type: "bar",
+        marker: {
+          color: rows
+            .filter((r) => r.tier === h.tier)
+            .map((r) => (passing(r) ? "#c5eaa8" : "#b7796c")),
+        },
+        customdata: rows.filter((r) => r.tier === h.tier).map((r) => r.run_id),
+        hovertemplate: "%{x}<br>%{y} servers<extra>%{fullData.name}</extra>",
+      }));
+      Plotly.react(
+        "capacity",
+        groups,
+        {
+          ...layout("Tested server counts · green passes your thresholds"),
+          xaxis: { visible: false },
+          yaxis: { title: { text: "Servers" } },
+        },
+        opts,
+      );
+      Plotly.react(
+        "resources",
+        data.hosts.map((h) => ({
+          x: rows.filter((r) => r.tier === h.tier).map((r) => r.cpu_p95),
+          y: rows
+            .filter((r) => r.tier === h.tier)
+            .map((r) => 100 * (1 - r.memory_free_p05)),
+          text: rows.filter((r) => r.tier === h.tier).map((r) => r.label),
+          name: h.tier,
+          mode: "markers",
+          marker: { size: 10 },
+          hovertemplate:
+            "%{text}<br>%{x:.2f} cores<br>%{y:.1f}% RAM used<extra>%{fullData.name}</extra>",
+        })),
+        {
+          ...layout("CPU and memory pressure"),
+          xaxis: { title: { text: "p95 CPU cores" }, range: [0, 2.1] },
+          yaxis: {
+            title: { text: "RAM used at p05 free (%)" },
+            range: [0, 100],
+          },
+        },
+        opts,
+      );
+      $("findings").replaceChildren();
+      const profiles = new Map();
+      for (const r of rows) {
+        if (
+          r.games.length !== 1 ||
+          r.bots_per_server + r.network_clients / r.server_count <= 0
+        )
+          continue;
+        const key = JSON.stringify([
+          r.tier,
+          r.games[0],
+          r.bots_per_server,
+          r.network_clients / r.server_count,
+        ]);
+        if (!profiles.has(key)) profiles.set(key, []);
+        profiles.get(key).push(r);
+      }
+      for (const [key, cases] of profiles) {
+        const capacityFailure = (r) =>
+          !passing(r) &&
+          ((r.status === "measured" &&
+            r.population_ok &&
+            r.input_isolated &&
+            r.host_n >= 20) ||
+            ((r.error || "").includes("memory safety guard") &&
+              r.created_count > 0));
+        const ok = cases.filter(
+          (r) =>
+            passing(r) &&
+            !cases.some(
+              (other) =>
+                other.server_count === r.server_count && capacityFailure(other),
+            ),
+        );
+        if (!ok.length) continue;
+        const max = Math.max(...ok.map((r) => r.server_count));
+        const fail = cases
+          .filter(
+            (r) =>
+              !passing(r) &&
+              r.server_count > max &&
+              ((r.status === "measured" &&
+                r.population_ok &&
+                r.input_isolated) ||
+                ((r.error || "").includes("memory safety guard") &&
+                  r.created_count > 0)),
+          )
+          .map((r) => r.server_count);
+        const longest = Math.max(
+          ...ok
+            .filter((r) => r.server_count === max)
+            .map((r) => r.measured_until - r.measured_at),
+        );
+        const tr = document.createElement("tr");
+        for (const value of [
+          ...JSON.parse(key),
+          fail.length ? String(max) : "At least " + max,
+          fail.length ? Math.min(...fail) : "Not reached",
+          number(longest / 60, 1) + " min",
+        ]) {
+          const td = document.createElement("td");
+          td.textContent = value;
+          tr.append(td);
+        }
+        $("findings").append(tr);
+      }
+      $("rows").replaceChildren();
+      rows.sort((a, b) => {
+        let n =
+          typeof a[order] === "number"
+            ? a[order] - b[order]
+            : String(a[order]).localeCompare(String(b[order]));
+        return descending ? -n : n;
+      });
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+        tr.title = r.error || r.run_id;
+        tr.onclick = () => select(r);
+        for (const [key] of columns) {
+          const td = document.createElement("td");
+          let value = r[key];
+          if (["cpu_p95", "latency_p95"].includes(key)) value = number(value);
+          if (["memory_free_p05", "loss"].includes(key))
+            value = value == null ? "—" : number(value * 100, 1) + "%";
+          if (key === "tx_bytes_sec")
+            value = value == null ? "—" : number(value / 1024, 1);
+          if (key === "status") {
+            value =
+              r.input_isolated === false
+                ? "Client validation only"
+                : passing(r)
+                  ? "Pass"
+                  : r.status === "measured"
+                    ? "Outside limits"
+                    : r.status;
+            td.className = passing(r) ? "pass" : "fail";
+          }
+          td.textContent = value ?? "—";
+          tr.append(td);
+        }
+        $("rows").append(tr);
+      }
+      for (const [id, metric, title] of [
+        ["credit-balance", "CPUCreditBalance", "Earned credit balance"],
+        ["credit-surplus", "CPUSurplusCreditBalance", "Surplus credit balance"],
+      ]) {
+        Plotly.react(
+          id,
+          data.hosts
+            .filter((h) => !$("tier").value || h.tier === $("tier").value)
+            .map((h) => {
+              const values = (data.credits || []).filter(
+                (row) => row.tier === h.tier && row.metric === metric,
+              );
+              return {
+                x: values.map((row) => new Date(row.time * 1000)),
+                y: values.map((row) => row.value),
+                name: h.tier,
+                mode: "lines+markers",
+              };
+            }),
+          { ...layout(title), yaxis: { title: { text: "CPU credits" } } },
+          opts,
+        );
+      }
+      planner();
+    }
+    function select(r) {
+      $("selected").textContent =
+        r.tier + " · " + r.label + (r.error ? " · " + r.error : "");
+      const s = data.samples.filter((s) => s.run_id === r.run_id);
+      Plotly.react(
+        "timeline",
+        [
+          {
+            x: s.map((s) => s.time - r.measured_at),
+            y: s.map((s) => s.cpu_cores),
+            name: "CPU cores",
+            mode: "lines",
+          },
+          {
+            x: s.map((s) => s.time - r.measured_at),
+            y: s.map((s) => s.memory_free_mib),
+            name: "Free RAM MiB",
+            yaxis: "y2",
+            mode: "lines",
+          },
+        ],
+        {
+          ...layout("Measured interval"),
+          xaxis: { title: { text: "Seconds after warmup" } },
+          yaxis: { title: { text: "CPU cores" }, range: [0, 2.1] },
+          yaxis2: {
+            title: { text: "Free RAM MiB" },
+            overlaying: "y",
+            side: "right",
+          },
+          margin: { t: 55, l: 65, r: 80, b: 60 },
+        },
+        opts,
+      );
+    }
+    for (const game of [...new Set(data.runs.flatMap((r) => r.games))].sort()) {
+      const label = document.createElement("label");
+      label.textContent = game;
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "0";
+      input.max = "32";
+      input.value = "0";
+      input.dataset.game = game;
+      input.oninput = planner;
+      label.append(input);
+      $("counts").append(label);
+    }
+    function planner() {
+      const h = data.hosts.find((h) => h.tier === $("planhost").value);
+      if (!h) return;
+      let cpu = h.idle_cpu_cores ?? 0.05,
+        ram = h.idle_memory_mib ?? 220,
+        unknown = [];
+      for (const input of $("counts").querySelectorAll("input")) {
+        const count = Number(input.value);
+        if (!count) continue;
+        const game = input.dataset.game;
+        const cases = data.runs.filter(
+          (r) =>
+            r.games.length === 1 &&
+            r.games[0] === game &&
+            r.server_count === 1 &&
+            r.bots_per_server + r.network_clients === 8 &&
+            r.status === "measured" &&
+            r.population_ok &&
+            r.input_isolated &&
+            r.host_n >= 20 &&
+            r.server_cpu_p95 != null,
+        );
+        if (!cases.length) {
+          unknown.push(game);
+          continue;
+        }
+        cpu += Math.max(...cases.map((r) => r.server_cpu_p95)) * count;
+        ram +=
+          (Math.max(...cases.map((r) => r.server_memory_p95)) / 1048576) *
+          count;
+      }
+      const cpuLimit = $("credits").checked
+          ? h.baseline_cores
+          : 2 * (1 - $("cpu").value / 100),
+        ramLimit =
+          (h.memory_usable_mib ?? h.memory_gib * 1024) *
+          (1 - $("memory").value / 100);
+      $("estimate").textContent = unknown.length
+        ? "No eight-participant measurement for: " + unknown.join(", ")
+        : `Estimate: ${number(cpu)} / ${number(cpuLimit)} cores, ${number(ram, 0)} / ${number(ramLimit, 0)} MiB. ${cpu <= cpuLimit && ram <= ramLimit ? "Fits the selected resource budgets." : "Exceeds a resource budget."} Base host $${number(h.hourly_usd, 4)}/hour; modeled CPU surplus $${number(Math.max(0, cpu - h.baseline_cores) * 0.04, 4)}/hour.`;
+    }
+    for (const id of [
+      "tier",
+      "game",
+      "load",
+      "cpu",
+      "memory",
+      "latency",
+      "credits",
+      "validation",
+    ])
+      $(id).onchange = render;
+    $("planhost").onchange = planner;
+    $("generated").textContent =
+      "Generated " +
+      new Date().toLocaleString() +
+      " · raw measurements and SQL retained in capacity.duckdb";
+    render();
+    if (data.runs.length)
+      select(data.runs.find((r) => r.status === "measured") || data.runs[0]);
+  </script>
+</html>

@@ -1,4 +1,4 @@
-.PHONY: build test check lint-templates dist
+.PHONY: build test test-browser check lint-templates dist
 
 build:
 	go build -o bin/insta-game ./cmd/insta-game
@@ -6,6 +6,9 @@ build:
 test:
 	go test -race ./...
 	node --test internal/control/settings_test.mjs
+
+test-browser:
+	uv run --no-project --with playwright==1.64.1 python scripts/test-lobby-browser.py
 
 check: lint-templates
 	go vet ./...

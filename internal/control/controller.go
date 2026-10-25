@@ -44,6 +44,10 @@ func NewToken() string {
 }
 
 func (c *Controller) Create(req CreateRequest) (Instance, error) {
+	return c.CreateRequested(req, "")
+}
+
+func (c *Controller) CreateRequested(req CreateRequest, requestID string) (Instance, error) {
 	c.intentMu.Lock()
 	defer c.intentMu.Unlock()
 	if c.shuttingDown {
@@ -87,7 +91,7 @@ func (c *Controller) Create(req CreateRequest) (Instance, error) {
 	}
 
 	now := time.Now().UTC()
-	instance := Instance{Generation: 1, ID: req.ID, Name: req.Name, Game: game, Provider: req.Provider, Desired: "running", Phase: "queued", Config: config, IdleMinutes: req.IdleMinutes, MaxMinutes: req.MaxMinutes, CreatedAt: now, StartedAt: now, UpdatedAt: now, AgentToken: NewToken(), RconPassword: NewToken()}
+	instance := Instance{StartRequestID: requestID, Generation: 1, ID: req.ID, Name: req.Name, Game: game, Provider: req.Provider, Desired: "running", Phase: "queued", Config: config, IdleMinutes: req.IdleMinutes, MaxMinutes: req.MaxMinutes, CreatedAt: now, StartedAt: now, UpdatedAt: now, AgentToken: NewToken(), RconPassword: NewToken()}
 	return c.Store.Create(instance)
 }
 
@@ -100,32 +104,68 @@ func (c *Controller) SetDesired(id, desired string) error {
 	if desired != "running" && desired != "stopped" && desired != "deleted" {
 		return fmt.Errorf("invalid desired state")
 	}
+	return c.Store.Update(id, func(i *Instance) error { return setDesired(i, desired) })
+}
+
+// RequestStart records acceptance with intent so a retried request cannot undo a later stop.
+func (c *Controller) RequestStart(id, requestID string) error {
+	return c.RequestDesired(id, requestID, "running")
+}
+func (c *Controller) RequestDesired(id, requestID, desired string) error {
+	if desired != "running" && desired != "stopped" && desired != "deleted" {
+		return fmt.Errorf("invalid desired state")
+	}
+	c.intentMu.Lock()
+	defer c.intentMu.Unlock()
+	if c.shuttingDown {
+		return ErrShuttingDown
+	}
+	if requestID == "" {
+		return fmt.Errorf("start request ID is required")
+	}
 	return c.Store.Update(id, func(i *Instance) error {
-		if i.Desired == "deleted" {
-			if desired != "deleted" {
-				return fmt.Errorf("instance has been deleted")
-			}
-			if i.Phase != "deleted" && i.Error != "" {
-				i.Generation++
-				i.Error = ""
-			}
+		if i.StartRequestID == requestID {
 			return nil
 		}
-		if i.Desired == desired {
-			return nil
+		if err := setDesired(i, desired); err != nil {
+			return err
 		}
-		i.Generation++
-		i.Desired = desired
-		i.Error = ""
-		i.StopReason = ""
-		i.EmptySince = time.Time{}
-		if desired == "running" {
-			i.StartedAt = time.Now().UTC()
-			i.Phase = "queued"
-		}
+		i.StartRequestID = requestID
 		return nil
 	})
 }
+func setDesired(i *Instance, desired string) error {
+	if i.Desired == "deleted" {
+		if desired != "deleted" {
+			return fmt.Errorf("instance has been deleted")
+		}
+		if i.Phase != "deleted" && i.Error != "" {
+			i.Generation++
+			i.Error = ""
+		}
+		return nil
+	}
+	if i.Desired == desired {
+		if desired == "running" && i.Phase == "failed" {
+			i.Generation++
+			i.Error = ""
+			i.Phase = "queued"
+			i.StartedAt = time.Now().UTC()
+		}
+		return nil
+	}
+	i.Generation++
+	i.Desired = desired
+	i.Error = ""
+	i.StopReason = ""
+	i.EmptySince = time.Time{}
+	if desired == "running" {
+		i.StartedAt = time.Now().UTC()
+		i.Phase = "queued"
+	}
+	return nil
+}
+
 func InstancesIdle(instances []Instance) bool {
 	for _, instance := range instances {
 		stopped := instance.Desired == "stopped" && instance.Phase == "stopped"
@@ -254,6 +294,20 @@ func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, st
 	}
 
 	if !observation.Exists {
+		if i.Phase == "failed" {
+			return Observation{Failure: i.Error}, "failed", nil
+		}
+		if preparer, ok := provider.(interface {
+			Prepare(context.Context, Instance) (bool, error)
+		}); ok {
+			ready, e := preparer.Prepare(ctx, i)
+			if e != nil {
+				return Observation{Failure: e.Error()}, "failed", nil
+			}
+			if !ready {
+				return Observation{}, "preparing", nil
+			}
+		}
 		observation, err = provider.Ensure(ctx, i)
 		if err != nil {
 			return observation, "queued", err

@@ -42,34 +42,36 @@ type Endpoint struct {
 }
 
 type Instance struct {
-	Generation   int64      `json:"generation"`
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	Game         Game       `json:"game"`
-	Provider     string     `json:"provider"`
-	Desired      string     `json:"desired"`
-	Phase        string     `json:"phase"`
-	Config       string     `json:"config"`
-	IdleMinutes  int        `json:"idleMinutes"`
-	MaxMinutes   int        `json:"maxMinutes"`
-	CreatedAt    time.Time  `json:"createdAt"`
-	StartedAt    time.Time  `json:"startedAt"`
-	EmptySince   time.Time  `json:"emptySince"`
-	Endpoints    []Endpoint `json:"endpoints"`
-	Players      *int       `json:"players"`
-	Map          string     `json:"map"`
-	Error        string     `json:"error,omitempty"`
-	StopReason   string     `json:"stopReason,omitempty"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
-	AgentToken   string     `json:"-"`
-	RconPassword string     `json:"-"`
+	Generation     int64      `json:"generation"`
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	Game           Game       `json:"game"`
+	Provider       string     `json:"provider"`
+	Desired        string     `json:"desired"`
+	Phase          string     `json:"phase"`
+	Config         string     `json:"config"`
+	IdleMinutes    int        `json:"idleMinutes"`
+	MaxMinutes     int        `json:"maxMinutes"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	StartedAt      time.Time  `json:"startedAt"`
+	EmptySince     time.Time  `json:"emptySince"`
+	Endpoints      []Endpoint `json:"endpoints"`
+	Players        *int       `json:"players"`
+	Map            string     `json:"map"`
+	Error          string     `json:"error,omitempty"`
+	StopReason     string     `json:"stopReason,omitempty"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
+	StartRequestID string     `json:"-"`
+	AgentToken     string     `json:"-"`
+	RconPassword   string     `json:"-"`
 }
 
 // Credentials stay in the private database and never enter API responses.
 type record struct {
 	Instance
-	AgentToken   string
-	RconPassword string
+	AgentToken     string
+	StartRequestID string
+	RconPassword   string
 }
 
 func (i Instance) Connect() string {

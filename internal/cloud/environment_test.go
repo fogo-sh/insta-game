@@ -19,15 +19,19 @@ func TestCloudFormationTemplates(t *testing.T) {
 	if os.Getenv("INSTA_GAME_LINT_TEMPLATES") != "1" {
 		t.Skip("run make lint-templates for the CloudFormation schema check")
 	}
-	path := filepath.Join(t.TempDir(), "host.json")
-	if err := os.WriteFile(path, []byte(EnvironmentTemplate), 0600); err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	output, err := exec.CommandContext(ctx, "cfn-lint", "--template", path).CombinedOutput()
-	if err != nil {
-		t.Fatalf("CloudFormation template does not validate: %v\n%s", err, output)
+	for name, template := range map[string]string{"host": EnvironmentTemplate, "fleet": FleetTemplate} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), name+".json")
+			if err := os.WriteFile(path, []byte(template), 0600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			output, err := exec.CommandContext(ctx, "cfn-lint", "--template", path).CombinedOutput()
+			if err != nil {
+				t.Fatalf("CloudFormation does not validate: %v\n%s", err, output)
+			}
+		})
 	}
 }
 
@@ -46,6 +50,8 @@ func TestSharedHostCostAndAccessBoundaries(t *testing.T) {
 		"AWS::EC2::Subnet": true, "AWS::EC2::RouteTable": true, "AWS::EC2::Route": true,
 		"AWS::EC2::SubnetRouteTableAssociation": true, "AWS::EC2::SecurityGroup": true,
 		"AWS::EC2::KeyPair": true, "AWS::EC2::Instance": true,
+		"AWS::DynamoDB::Table": true, "AWS::S3::Bucket": true, "AWS::IAM::Role": true, "AWS::IAM::InstanceProfile": true,
+		"AWS::Logs::LogGroup": true, "AWS::Lambda::Function": true, "AWS::Lambda::Url": true, "AWS::Lambda::Permission": true, "AWS::Events::Rule": true,
 	}
 	hosts := 0
 	for id, resource := range template.Resources {
@@ -54,8 +60,8 @@ func TestSharedHostCostAndAccessBoundaries(t *testing.T) {
 		}
 		if resource.Type == "AWS::EC2::Instance" {
 			hosts++
-			if _, ok := resource.Properties["IamInstanceProfile"]; ok {
-				t.Error("game host must not receive cloud credentials")
+			if !strings.Contains(string(resource.Properties["IamInstanceProfile"]), `"HasLobby"`) {
+				t.Error("host credentials must be conditional on the AWS lobby")
 			}
 			if !strings.Contains(string(resource.Properties["CreditSpecification"]), `"standard"`) {
 				t.Error("surplus CPU billing must be disabled")
@@ -132,5 +138,23 @@ func TestConsoleHostKeyRejectsAmbiguousIdentity(t *testing.T) {
 				t.Fatalf("key present=%v err=%v", found != nil, err)
 			}
 		})
+	}
+}
+
+func TestDeploymentCanUpdateWhileHostSleeps(t *testing.T) {
+	var template struct {
+		Parameters map[string]struct{ Type string }
+		Outputs    map[string]json.RawMessage
+	}
+	if err := json.Unmarshal([]byte(EnvironmentTemplate), &template); err != nil {
+		t.Fatal(err)
+	}
+	if template.Parameters["UbuntuImage"].Type != "AWS::EC2::Image::Id" {
+		t.Fatal("host image must stay pinned across deployment updates")
+	}
+	for name, value := range template.Outputs {
+		if strings.Contains(string(value), "PublicIp") {
+			t.Fatalf("output %s requires a running host", name)
+		}
 	}
 }

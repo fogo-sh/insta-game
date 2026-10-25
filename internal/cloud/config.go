@@ -17,11 +17,16 @@ import (
 )
 
 type Config struct {
-	Region     string
-	Stack      string
-	InstanceID string
-	KeyPath    string
-	TokenPath  string
+	Fleet          bool   `json:",omitempty"`
+	FleetBucket    string `json:",omitempty"`
+	Region         string
+	Stack          string
+	InstanceID     string
+	KeyPath        string
+	TokenPath      string
+	LobbyTable     string `json:",omitempty"`
+	LobbyInstances string `json:",omitempty"`
+	LobbyURL       string `json:",omitempty"`
 }
 
 func LoadSDK(ctx context.Context, region string) (aws.Config, error) {
@@ -37,7 +42,7 @@ func Load(path string) (Config, error) {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return c, err
 	}
-	if c.Region == "" || c.Stack == "" || c.InstanceID == "" {
+	if c.Region == "" || c.Stack == "" || (c.InstanceID == "" && !c.Fleet) {
 		return c, fmt.Errorf("incomplete shared EC2 host config")
 	}
 	for _, p := range []*string{&c.KeyPath, &c.TokenPath} {
