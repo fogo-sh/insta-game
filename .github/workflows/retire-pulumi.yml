@@ -66,8 +66,8 @@ jobs:
           test -n "$EXPECTED_ACCOUNT"
           test "$(jq -r .Account identity.json)" = "$EXPECTED_ACCOUNT"
           jq -e '[.deployment.resources[] | select(.protect == true or .retainOnDelete == true)] | length == 0' before.json
-          aws s3 cp before.json "s3://insta-game-pulumi-state-fogo-sh/retirement-backups/$GITHUB_RUN_ID-before.json" --sse AES256 --only-show-errors
+          aws s3 cp before.json "s3://insta-game-pulumi-state-fogo-sh/.pulumi/backups/insta-game/retirement-$GITHUB_RUN_ID-before.json" --sse AES256 --only-show-errors
           pulumi destroy --stack "$PULUMI_STACK" --yes --non-interactive --suppress-outputs
           pulumi stack export --file after.json
           jq -e '[.deployment.resources[] | select(.custom == true and (.type | startswith("pulumi:providers:") | not))] | length == 0' after.json
-          aws s3 cp after.json "s3://insta-game-pulumi-state-fogo-sh/retirement-backups/$GITHUB_RUN_ID-after.json" --sse AES256 --only-show-errors
+          aws s3 cp after.json "s3://insta-game-pulumi-state-fogo-sh/.pulumi/backups/insta-game/retirement-$GITHUB_RUN_ID-after.json" --sse AES256 --only-show-errors
