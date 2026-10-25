@@ -65,6 +65,18 @@
         "arm64",
         "x86_64"
       ]
+    },
+    "LobbyHosts": {
+      "Type": "String",
+      "Default": ""
+    },
+    "LobbyHostResources": {
+      "Type": "String",
+      "Default": "arn:aws:ec2:us-east-1:000000000000:instance/not-configured"
+    },
+    "LobbyTableResources": {
+      "Type": "String",
+      "Default": "arn:aws:dynamodb:us-east-1:000000000000:table/not-configured"
     }
   },
   "Resources": {
@@ -410,9 +422,22 @@
                     "dynamodb:UpdateItem"
                   ],
                   "Resource": {
-                    "Fn::GetAtt": [
-                      "LobbyTable",
-                      "Arn"
+                    "Fn::If": [
+                      "HasFleet",
+                      {
+                        "Fn::Split": [
+                          ",",
+                          {
+                            "Ref": "LobbyTableResources"
+                          }
+                        ]
+                      },
+                      {
+                        "Fn::GetAtt": [
+                          "LobbyTable",
+                          "Arn"
+                        ]
+                      }
                     ]
                   }
                 },
@@ -429,7 +454,20 @@
                     "ec2:StartInstances"
                   ],
                   "Resource": {
-                    "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${Host}"
+                    "Fn::If": [
+                      "HasFleet",
+                      {
+                        "Fn::Split": [
+                          ",",
+                          {
+                            "Ref": "LobbyHostResources"
+                          }
+                        ]
+                      },
+                      {
+                        "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${Host}"
+                      }
+                    ]
                   }
                 },
                 {
@@ -508,6 +546,9 @@
             },
             "INSTA_GAME_STACK_ID": {
               "Ref": "AWS::StackId"
+            },
+            "INSTA_GAME_LOBBY_HOSTS": {
+              "Ref": "LobbyHosts"
             }
           }
         }
@@ -651,6 +692,18 @@
                 ""
               ]
             }
+          ]
+        }
+      ]
+    },
+    "HasFleet": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LobbyHosts"
+            },
+            ""
           ]
         }
       ]

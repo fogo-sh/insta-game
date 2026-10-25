@@ -31,28 +31,40 @@ function element(tag, text, className) {
   if (className) node.className = className;
   return node;
 }
+function route(hostId, path = '/games') {
+  return hostId ? `/api/hosts/${encodeURIComponent(hostId)}${path}` : `/api${path}`;
+}
+function choiceId(choice) { return choice.hostId ? `${choice.hostId}/${choice.id}` : choice.id; }
 function render(body) {
+  const hosts = body.hosts || [{ id: '', name: 'Host server', state: body.host }];
+  const hostStates = new Map(hosts.map(h => [h.id, h.state]));
   host.hidden = false;
-  host.textContent = `Host server: ${{ stopped: 'asleep', pending: 'starting', running: 'online', stopping: 'shutting down', 'shutting-down': 'shutting down', terminated: 'removed' }[body.host] || 'status unavailable'}`;
+  host.textContent = hosts.length > 1 ? `${hosts.length} host servers · ${body.games.filter(g => g.phase === 'running' && g.desired === 'running').length} game servers running` : `Host server: ${{ stopped: 'asleep', pending: 'starting', running: 'online', stopping: 'shutting down', 'shutting-down': 'shutting down', terminated: 'removed' }[hosts[0].state] || 'status unavailable'}`;
   const choices = body.presets || [];
   const previous = preset.value;
   if (JSON.stringify(choices) !== preset.dataset.choices) {
-    preset.replaceChildren(...choices.map(choice => { const option = element('option', choice.name); option.value = choice.id; return option; }));
-    if (choices.some(choice => choice.id === previous)) preset.value = previous;
+    preset.replaceChildren(...choices.map(choice => { const option = element('option', choice.name); option.value = choiceId(choice); return option; }));
+    if (choices.some(choice => choiceId(choice) === previous)) preset.value = previous;
     preset.dataset.choices = JSON.stringify(choices);
   }
   create.hidden = choices.length === 0;
-  const signature = JSON.stringify([body.host, body.games.map(({ observedAt, ...game }) => game)]);
+  const signature = JSON.stringify([hosts, body.games.map(({ observedAt, ...game }) => game)]);
   if (signature === rendered) return;
   rendered = signature;
   const fragment = document.createDocumentFragment();
-  for (const game of body.games) {
+  for (const member of hosts) {
+    const group = element('section', undefined, 'host-group');
+    if (hosts.length > 1) {
+      group.append(element('h2', member.name));
+      group.append(element('p', member.error || ({ running: 'Host online', stopped: 'Host asleep', pending: 'Host starting', stopping: 'Host shutting down', unknown: 'Checking host…' }[member.state] || member.state)));
+    }
+  for (const game of body.games.filter(g => (g.hostId || '') === member.id)) {
     if (game.phase === 'deleted' && !game.pending) continue;
-    if (choices.some(choice => choice.id === game.id) && game.desired === 'stopped' && !game.pending) continue;
+    if (choices.some(choice => choice.id === game.id && (choice.hostId || '') === (game.hostId || '')) && game.desired === 'stopped' && !game.pending) continue;
     const article = element('article');
     const heading = element('div', undefined, 'game-heading');
     const title = element('div');
-    title.append(element('h2', game.name));
+    title.append(element('h3', game.name));
     if (game.game && game.game !== game.name) title.append(element('p', game.game));
     const ready = game.phase === 'running' && game.desired === 'running' && game.players !== undefined && game.address;
     const actions = element('div', undefined, 'actions');
@@ -62,7 +74,7 @@ function render(body) {
       button.addEventListener('click', async () => {
         if (action === 'remove' && !confirm(`Remove “${game.name}” and its saved data?`)) return;
         button.disabled = true;
-        try { const result = await api(`/api/games/${encodeURIComponent(game.id)}/${action}`, 'POST'); message.textContent = result.message; }
+        try { const result = await api(route(game.hostId, `/games/${encodeURIComponent(game.id)}/${action}`), 'POST'); message.textContent = result.message; }
         catch (error) { message.textContent = error.message; button.disabled = false; }
         await refresh();
       });
@@ -70,10 +82,10 @@ function render(body) {
     };
     if (game.desired === 'running' && !game.pending) actions.append(requestAction('stop', 'Stop', true));
     else if (game.desired !== 'deleted') actions.append(requestAction('start', game.pending ? ({ stop: 'Stopping…', remove: 'Removing…' }[game.action] || 'Starting…') : 'Start'));
-    if (game.desired !== 'running' && !game.pending && !choices.some(choice => choice.id === game.id)) actions.append(requestAction('remove', 'Remove', true));
+    if (game.desired !== 'running' && !game.pending && !choices.some(choice => choice.id === game.id && (choice.hostId || '') === (game.hostId || ''))) actions.append(requestAction('remove', 'Remove', true));
     heading.append(title, actions);
     let status = ({ sleeping: 'Asleep', stopped: 'Stopped', unknown: 'Checking status…', unavailable: 'Not available', failed: 'Game failed', queued: 'Starting game…', starting: 'Starting game…' })[game.phase] || game.phase;
-    if (game.pending) status = body.host === 'running' ? ({ stop: 'Stopping…', remove: 'Removing…' }[game.action] || 'Starting game…') : 'Starting host…';
+    if (game.pending) status = hostStates.get(game.hostId || '') === 'running' ? ({ stop: 'Stopping…', remove: 'Removing…' }[game.action] || 'Starting game…') : 'Starting host…';
     if (ready && !game.pending) status = `Ready · ${game.players} player${game.players === 1 ? '' : 's'}`;
     article.append(heading, element('p', status));
     if (game.requestError || game.error) article.append(element('p', game.requestError || game.error, 'error'));
@@ -87,7 +99,9 @@ function render(body) {
       address.append(element('code', game.address), copy);
       article.append(address);
     }
-    fragment.append(article);
+    group.append(article);
+  }
+    if (group.childNodes.length) fragment.append(group);
   }
   if (!fragment.childNodes.length) fragment.append(element('p', 'No servers yet. Choose a game above to start one.'));
   games.replaceChildren(fragment);
@@ -138,14 +152,16 @@ create.addEventListener('submit', async event => {
   event.preventDefault();
   const button = create.querySelector('button');
   const name = document.querySelector('#name').value.trim();
-  if (!submission || submission.template !== preset.value || submission.name !== name) {
+  const choice = JSON.parse(preset.dataset.choices || '[]').find(c => choiceId(c) === preset.value);
+  if (!choice) return;
+  if (!submission || submission.template !== choice.id || submission.hostId !== (choice.hostId || '') || submission.name !== name) {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
-    submission = { id: `server-${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`, template: preset.value, name };
+    submission = { id: `server-${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`, template: choice.id, name, hostId: choice.hostId || '' };
   }
   button.disabled = true;
   const current = revision;
   try {
-    const result = await api('/api/games', 'POST', submission);
+    const result = await api(route(submission.hostId), 'POST', { id: submission.id, template: submission.template, name: submission.name });
     if (current !== revision) return;
     message.textContent = result.message;
     submission = undefined;

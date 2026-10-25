@@ -33,6 +33,7 @@ type Service struct {
 }
 
 type View struct {
+	HostID string `json:"hostId,omitempty"`
 	Snapshot
 	Action       string `json:"action,omitempty"`
 	Pending      bool   `json:"pending"`
@@ -60,60 +61,19 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 	return nil
 }
-func (s *Service) Handler() http.Handler {
+func (s *Service) Handler() http.Handler { return protect(s.routes(), s.TokenHash) }
+
+func (s *Service) routes() http.Handler {
 	mux := http.NewServeMux()
 	files, _ := fs.Sub(web, "web")
 	mux.Handle("GET /", http.FileServer(http.FS(files)))
 	mux.HandleFunc("GET /api/games", func(w http.ResponseWriter, r *http.Request) {
-		state, err := s.Host.State(r.Context())
+		result, err := s.view(r.Context())
 		if err != nil {
 			s.fail(w, err)
 			return
 		}
-		rows, err := s.Table.List(r.Context())
-		if err != nil {
-			s.fail(w, err)
-			return
-		}
-		presets := []map[string]string{}
-		for _, id := range s.IDs {
-			row, err := s.Table.Read(r.Context(), id)
-			if err != nil {
-				s.fail(w, err)
-				return
-			}
-			if row.Snapshot.ID != "" && row.Snapshot.Phase != "unavailable" {
-				presets = append(presets, map[string]string{"id": id, "name": row.Snapshot.Name})
-			}
-		}
-		views := []View{}
-		for _, id := range managedIDs(rows, s.IDs) {
-			row, err := s.Table.Read(r.Context(), id)
-			if err != nil {
-				s.fail(w, err)
-				return
-			}
-			snapshot := row.Snapshot
-			if snapshot.ID == "" {
-				snapshot = Snapshot{ID: id, Name: id, Phase: "unavailable", Error: "Waiting for initial host setup"}
-			}
-			pending := row.Pending(time.Now())
-			failure := row.Failure
-			if row.RequestID != "" && row.RequestID != row.CompletedID && !pending {
-				failure = "Request expired; try again"
-			}
-			// A historical running snapshot never proves that a sleeping or unreachable game is ready.
-			if snapshot.Phase != "unavailable" && snapshot.Phase != "deleted" && (state != "running" || time.Since(snapshot.ObservedAt) > 45*time.Second) {
-				snapshot.Address = ""
-				snapshot.Players = nil
-				snapshot.Phase = "unknown"
-				if state == "stopped" {
-					snapshot.Phase = "sleeping"
-				}
-			}
-			views = append(views, View{Snapshot: snapshot, Action: row.Action, Pending: pending, RequestError: failure})
-		}
-		respond(w, 200, map[string]any{"host": state, "games": views, "presets": presets})
+		respond(w, 200, result)
 	})
 	mux.HandleFunc("POST /api/games/{id}/{action}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -218,6 +178,63 @@ func (s *Service) Handler() http.Handler {
 		}
 		respond(w, 202, map[string]string{"id": input.ID, "message": "Server requested"})
 	})
+	return mux
+}
+
+type listing struct {
+	Host    string              `json:"host"`
+	Games   []View              `json:"games"`
+	Presets []map[string]string `json:"presets"`
+}
+
+func (s *Service) view(ctx context.Context) (listing, error) {
+	state, err := s.Host.State(ctx)
+	if err != nil {
+		return listing{}, err
+	}
+	rows, err := s.Table.List(ctx)
+	if err != nil {
+		return listing{}, err
+	}
+	byID := map[string]Row{}
+	for _, row := range rows {
+		byID[row.Snapshot.ID] = row
+	}
+	presets := []map[string]string{}
+	for _, id := range s.IDs {
+		row := byID[id]
+		if row.Snapshot.ID != "" && row.Snapshot.Phase != "unavailable" {
+			presets = append(presets, map[string]string{"id": id, "name": row.Snapshot.Name})
+		}
+	}
+	views := []View{}
+	for _, id := range managedIDs(rows, s.IDs) {
+		row := byID[id]
+		snapshot := row.Snapshot
+		if snapshot.ID == "" {
+			snapshot = Snapshot{ID: id, Name: id, Phase: "unavailable", Error: "Waiting for initial host setup"}
+		}
+		pending := row.Pending(time.Now())
+		failure := row.Failure
+		if row.RequestID != "" && row.RequestID != row.CompletedID && !pending {
+			failure = "Request expired; try again"
+		}
+		// A historical running snapshot never proves that a sleeping or unreachable game is ready.
+		if snapshot.Phase != "unavailable" && snapshot.Phase != "deleted" && (state != "running" || time.Since(snapshot.ObservedAt) > 45*time.Second) {
+			snapshot.Address = ""
+			snapshot.Players = nil
+			snapshot.Phase = "unknown"
+			if state == "stopped" {
+				snapshot.Phase = "sleeping"
+			}
+		}
+		views = append(views, View{Snapshot: snapshot, Action: row.Action, Pending: pending, RequestError: failure})
+	}
+	return listing{Host: state, Games: views, Presets: presets}, nil
+
+}
+
+func protect(next http.Handler, hash string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -225,13 +242,13 @@ func (s *Service) Handler() http.Handler {
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			supplied := sha256.Sum256([]byte(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")))
-			expected, err := hex.DecodeString(s.TokenHash)
+			expected, err := hex.DecodeString(hash)
 			if err != nil || len(expected) != 32 || subtle.ConstantTimeCompare(supplied[:], expected) != 1 {
 				respond(w, 401, map[string]string{"error": "Invitation key required"})
 				return
 			}
 		}
-		mux.ServeHTTP(w, r)
+		next.ServeHTTP(w, r)
 	})
 }
 func (s *Service) fail(w http.ResponseWriter, err error) {

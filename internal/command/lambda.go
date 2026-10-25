@@ -3,6 +3,8 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -28,7 +30,20 @@ func lambdaCommand(ctx context.Context) error {
 		return err
 	}
 	service := &lobby.Service{IDs: ids, TokenHash: hash, Table: &lobby.Table{Client: dynamodb.NewFromConfig(sdk), Name: os.Getenv("INSTA_GAME_LOBBY_TABLE")}, Host: &lobby.Host{Client: ec2.NewFromConfig(sdk), InstanceID: os.Getenv("INSTA_GAME_HOST_ID"), StackID: os.Getenv("INSTA_GAME_STACK_ID")}}
-	handler := lambdaurl.Wrap(service.Handler())
+	var page http.Handler = service.Handler()
+	reconcile := service.Reconcile
+	if value := os.Getenv("INSTA_GAME_LOBBY_HOSTS"); value != "" {
+		bindings, err := lobby.ParseBindings(value)
+		if err != nil {
+			return fmt.Errorf("lobby hosts: %w", err)
+		}
+		fleet := &lobby.Fleet{TokenHash: hash}
+		for _, b := range bindings {
+			fleet.Members = append(fleet.Members, lobby.Member{ID: b.ID, Name: b.Name, Service: &lobby.Service{IDs: b.IDs, TokenHash: hash, Table: &lobby.Table{Client: dynamodb.NewFromConfig(sdk), Name: b.Table}, Host: &lobby.Host{Client: ec2.NewFromConfig(sdk), InstanceID: b.InstanceID, StackID: b.StackID}}})
+		}
+		page, reconcile = fleet.Handler(), fleet.Reconcile
+	}
+	handler := lambdaurl.Wrap(page)
 	lambda.StartWithOptions(func(ctx context.Context, raw json.RawMessage) (any, error) {
 		var source struct {
 			Source string `json:"source"`
@@ -37,7 +52,7 @@ func lambdaCommand(ctx context.Context) error {
 			return nil, err
 		}
 		if source.Source == "aws.events" {
-			return nil, service.Reconcile(ctx)
+			return nil, reconcile(ctx)
 		}
 		var event events.LambdaFunctionURLRequest
 		if err := json.Unmarshal(raw, &event); err != nil {

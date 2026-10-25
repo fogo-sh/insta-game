@@ -42,6 +42,8 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	output := flags.String("out", "", "Write host config here")
 	key := flags.String("key", "", "Local SSH private key path (saved in config)")
 	token := flags.String("token-file", "", "Local controller token path (created if missing)")
+	lobbyHosts := flags.String("lobby-hosts", "", "JSON file of owned host stacks for one shared launch page")
+	disableLobby := flags.Bool("disable", false, "Disable this stack’s launch page, retaining its host and lobby data")
 	binary := flags.String("binary", "", "Linux insta-game binary matching the host architecture")
 	engines := flags.String("engines", "", "Optional directory of native engines and runtime files")
 	assets := flags.String("assets", "", "Optional directory of native game assets")
@@ -85,7 +87,7 @@ func awsCommand(ctx context.Context, args []string, out io.Writer) error {
 	}
 	switch action {
 	case "lobby":
-		id, err := cloud.PlanLobby(ctx, sdk, *name, *binary)
+		id, err := cloud.PlanLobby(ctx, sdk, *name, cloud.LobbyOptions{Binary: *binary, HostsFile: *lobbyHosts, Disable: *disableLobby})
 		if errors.Is(err, cloud.ErrLobbyCurrent) {
 			fmt.Fprintln(out, "Launch page already uses this binary.")
 			return nil

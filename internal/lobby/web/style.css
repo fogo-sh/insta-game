@@ -4,7 +4,9 @@ body { margin: 0; }
 main { max-width: 720px; margin: 48px auto; padding: 0 24px; }
 header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 h1 { font-size: 24px; letter-spacing: -.6px; margin: 0; }
-h2 { font-size: 18px; margin: 0; }
+h2 { font-size: 20px; margin: 0; }
+h3 { font-size: 18px; margin: 0; }
+.host-group { margin-top: 28px; }
 p { color: #b3b9b1; }
 label { display: block; margin-bottom: 8px; }
 button, input, select { font: inherit; border: 1px solid #596056; border-radius: 4px; padding: 8px 12px; }

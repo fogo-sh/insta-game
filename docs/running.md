@@ -173,11 +173,33 @@ bin/insta-game aws install --config ./aws.json \
 ```
 
 `LobbyURL` in `aws.json` is the HTTPS page. Share that URL and `./invitation` with
-friends; keep the controller token private. The dropdown offers up to 16 presets.
+friends; keep the controller token private. Each host can offer up to 16 presets.
 Friends can create multiple servers, stop and restart them, or remove them and
 their saved data. Presets, configuration, console, and logs remain administrative.
-All servers share the host’s CPU, memory, and disk; there is no automatic scaling.
-Game assets still need installing.
+Each host shares its CPU, memory, and disk among its servers. Game assets still
+need installing; placement is explicit and hosts do not scale automatically.
+
+For one website across several owned host stacks, give `aws lobby` a host list:
+
+```json
+[
+  {"id": "north", "name": "North", "stack": "insta-game-north"},
+  {"id": "south", "name": "South", "stack": "insta-game-south"}
+]
+```
+
+```sh
+bin/insta-game aws lobby --config ./aws.json \
+  --binary ./bin/insta-game-linux-arm64 --lobby-hosts ./hosts.json
+bin/insta-game aws apply --config ./aws.json --change-set REVIEWED_ARN --out ./aws.json
+```
+
+The page lists every host and its servers. Presets select the destination host;
+start, stop, and remove stay scoped to that host. The planner verifies stack and
+instance ownership and grants access only to the listed instances and tables.
+Host stacks must share an account and region. To remove a redundant host’s own
+page while keeping its games and request table, review and apply
+`aws lobby --config ./other-host.json --disable`.
 
 Starts are saved before EC2 wakes. Closing the page does not cancel a start.
 Requests expire after ten minutes, duplicate clicks coalesce, and a scheduled
@@ -186,7 +208,7 @@ cannot advertise a ready address. Idle shutdown retains games and their files.
 The page reports failures; administrators can inspect detailed controller logs.
 
 The host uses an instance role restricted to its request table. Lambda can start
-only its stack's EC2 instance. No operator credentials are installed on the host.
+only the EC2 instances configured for its page. No operator credentials are installed on the host.
 To replace the invitation key, repeat the original host plan/apply with the new
 key file and the same host settings. Reinstall after changing the allowlist.
 Use `aws lobby` and its reviewed apply again to update the Lambda executable.
