@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.27.3-bookworm AS go-builder
 ARG TARGETARCH
 WORKDIR /build
 COPY go.mod go.sum ./
