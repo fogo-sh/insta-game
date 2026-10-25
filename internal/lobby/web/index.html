@@ -9,20 +9,22 @@
 </head>
 <body>
 <main>
-<header><h1>insta-game</h1><button id="leave" hidden>Sign out</button></header>
-<p>Start a server, then connect from your game.</p>
+<header><h1>insta-game</h1><button id="leave" class="quiet" hidden>Sign out</button></header>
+<p class="intro">Choose a game to start a server.</p>
 <form id="login">
 <label for="key">Invitation key</label>
-<div class="login-row"><input id="key" type="password" autocomplete="current-password" required><button>Continue</button></div>
+<div class="login-row"><input id="key" type="password" autocomplete="current-password" required><button>Open</button></div>
 </form>
 <p id="message" role="status" aria-live="polite"></p>
-<p id="host" role="status" hidden></p>
 <form id="create" hidden>
-<label for="preset">Game</label>
-<div class="login-row"><select id="preset" required aria-label="Game"></select><input id="name" placeholder="Server name (optional)" aria-label="Server name" maxlength="80"><button>Start server</button></div>
+<div class="field"><label for="preset">Game</label><select id="preset" required></select></div>
+<div class="field"><label for="name">Name <span class="muted">(optional)</span></label><input id="name" placeholder="Friday night" maxlength="80"></div>
+<button>Start server</button>
 </form>
-<section id="games" aria-label="Game servers"></section>
-<noscript>Enable JavaScript to start a server and check its status.</noscript>
+<p id="host" class="muted" role="status" hidden></p>
+<section id="games" aria-label="Game servers" aria-busy="false"></section>
+<details id="host-details" hidden><summary>Hosts</summary><div id="host-statuses"></div></details>
+<noscript>JavaScript is needed to start and manage servers.</noscript>
 </main>
 </body>
 </html>

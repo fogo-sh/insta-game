@@ -16,7 +16,8 @@ def render(db, runs, hosts, policy, directory):
         if r["passes"]:
             outcome = "pass"
         elif (
-            r["status"] in ("probe-validation", "setup-error", "interrupted")
+            r["status"]
+            in ("probe-validation", "setup-error", "interrupted", "operator-changed")
             or not r["input_isolated"]
             or annotation.get("kind")
             in ("operator-stopped-generator", "generator-memory-pressure")
@@ -30,6 +31,10 @@ def render(db, runs, hosts, policy, directory):
             outcome = "fail"
         finish = meta.get("finished_at") or r["measured_until"]
         reason = annotation.get("reason") or r["error"]
+        if r["status"] == "operator-changed" and not reason:
+            reason = (
+                "Server load changed during the session. See the controller snapshots."
+            )
         if not reason and outcome == "pressure":
             flags = []
             if r["memory_free_p05"] is not None and r["memory_free_p05"] < 0.2:

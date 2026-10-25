@@ -194,8 +194,10 @@ bin/insta-game aws lobby --config ./aws.json \
 bin/insta-game aws apply --config ./aws.json --change-set REVIEWED_ARN --out ./aws.json
 ```
 
-The page lists every host and its servers. Presets select the destination host;
-start, stop, and remove stay scoped to that host. The planner verifies stack and
+The page groups servers by game. Choose a game and a name; the page assigns a
+host, preferring awake hosts with fewer requested servers. Saved presets provide the configuration. Assignments persist
+across retries, stops, and restarts. Start, stop, and remove stay with the owner.
+This balances server counts; it does not enforce CPU/RAM limits or add EC2 hosts. The planner verifies stack and
 instance ownership and grants access only to the listed instances and tables.
 Host stacks must share an account and region. To remove a redundant host’s own
 page while keeping its games and request table, review and apply

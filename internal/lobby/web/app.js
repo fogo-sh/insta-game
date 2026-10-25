@@ -5,7 +5,10 @@ const leave = document.querySelector('#leave');
 const create = document.querySelector('#create');
 const preset = document.querySelector('#preset');
 const host = document.querySelector('#host');
+const hostDetails = document.querySelector('#host-details');
 let submission;
+let choices = [];
+let autoPlace = false;
 let key = sessionStorage.getItem('insta-game-invitation') || '';
 let timer;
 let loading = false;
@@ -21,7 +24,7 @@ async function api(path, method = 'GET', payload) {
     }
     const body = await response.json().catch(() => ({}));
     if (response.status === 401) signOut();
-    if (!response.ok) throw new Error(body.error || 'Service is busy; try again shortly');
+    if (!response.ok) throw new Error(body.error || 'Try again shortly.');
     return body;
   }
 }
@@ -31,94 +34,119 @@ function element(tag, text, className) {
   if (className) node.className = className;
   return node;
 }
-function route(hostId, path = '/games') {
+function gameTitle(name) {
+  return ({ 'FTEQW (Quake 1)': 'Quake I', 'q2repro (Quake 2)': 'Quake II', 'ioquake3 (Quake 3 Arena)': 'Quake III Arena', 'UT99 GOTY': 'Unreal Tournament 99' })[name] || name || 'Other games';
+}
+function route(hostId, path) {
   return hostId ? `/api/hosts/${encodeURIComponent(hostId)}${path}` : `/api${path}`;
 }
-function choiceId(choice) { return choice.hostId ? `${choice.hostId}/${choice.id}` : choice.id; }
+function identity(hostId, id) { return `${hostId || ''}/${id}`; }
+function serverRow(game, member, isPreset) {
+  const article = element('article');
+  const title = element('div', undefined, 'server-main');
+  title.append(element('h3', game.name));
+  if (member.name) title.append(element('p', member.name, 'host-meta'));
+  const ready = game.phase === 'running' && game.desired === 'running' && game.players !== undefined && game.address;
+  const connection = element('div', undefined, 'connection');
+  let status = ({ sleeping: 'Asleep', stopped: 'Stopped', unknown: 'Checking...', unavailable: 'Unavailable', failed: 'Failed', queued: 'Starting...', starting: 'Starting...' })[game.phase] || game.phase;
+  if (game.pending) status = member.state === 'running' ? ({ stop: 'Stopping...', remove: 'Removing...' }[game.action] || 'Starting...') : 'Starting host...';
+  if (ready && !game.pending) {
+    status = `${game.players} player${game.players === 1 ? '' : 's'}`;
+    const copy = element('button', undefined, 'address');
+    copy.type = 'button';
+    copy.title = 'Copy address';
+    copy.setAttribute('aria-label', `Copy ${game.name} address`);
+    copy.append(element('code', game.address));
+    copy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(game.address); message.textContent = 'Address copied.'; }
+      catch { message.textContent = 'Select the address to copy it.'; }
+    });
+    connection.append(copy);
+  }
+  connection.append(element('p', status, 'server-status'));
+  const actions = element('div', undefined, 'actions');
+  const actionButton = (action, label) => {
+    const button = element('button', label, 'quiet');
+    button.type = 'button';
+    button.disabled = game.pending;
+    button.addEventListener('click', async () => {
+      if (action === 'remove' && !confirm(`Remove "${game.name}" and its saved data?`)) return;
+      button.disabled = true;
+      try { const result = await api(route(game.hostId, `/games/${encodeURIComponent(game.id)}/${action}`), 'POST'); message.textContent = result.message; }
+      catch (error) { message.textContent = error.message; button.disabled = false; }
+      await refresh();
+    });
+    return button;
+  };
+  if (game.desired === 'running' && !game.pending) actions.append(actionButton('stop', 'Stop'));
+  else if (game.desired !== 'deleted') actions.append(actionButton('start', game.pending ? ({ stop: 'Stopping...', remove: 'Removing...' }[game.action] || 'Starting...') : 'Start'));
+  if (game.desired !== 'running' && !game.pending && !isPreset) actions.append(actionButton('remove', 'Remove'));
+  article.append(title, connection, actions);
+  if (game.requestError || game.error) article.append(element('p', game.requestError || game.error, 'error'));
+  return article;
+}
 function render(body) {
-  const hosts = body.hosts || [{ id: '', name: 'Host server', state: body.host }];
-  const hostStates = new Map(hosts.map(h => [h.id, h.state]));
-  host.hidden = false;
-  host.textContent = hosts.length > 1 ? `${hosts.length} host servers · ${body.games.filter(g => g.phase === 'running' && g.desired === 'running').length} game servers running` : `Host server: ${{ stopped: 'asleep', pending: 'starting', running: 'online', stopping: 'shutting down', 'shutting-down': 'shutting down', terminated: 'removed' }[hosts[0].state] || 'status unavailable'}`;
-  const choices = body.presets || [];
+  const hosts = body.hosts || [{ id: '', name: '', state: body.host }];
+  const hostById = new Map(hosts.map(h => [h.id, h]));
+  autoPlace = Array.isArray(body.choices);
+  if (autoPlace) choices = body.choices;
+  else {
+    const byGame = new Map();
+    for (const p of body.presets || []) if (!byGame.has(p.game || p.name)) byGame.set(p.game || p.name, { id: p.id, name: p.game || p.name });
+    choices = [...byGame.values()];
+  }
+  choices.sort((a, b) => gameTitle(a.name).localeCompare(gameTitle(b.name)));
   const previous = preset.value;
-  if (JSON.stringify(choices) !== preset.dataset.choices) {
-    preset.replaceChildren(...choices.map(choice => { const option = element('option', choice.name); option.value = choiceId(choice); return option; }));
-    if (choices.some(choice => choiceId(choice) === previous)) preset.value = previous;
-    preset.dataset.choices = JSON.stringify(choices);
+  const signatureChoices = JSON.stringify(choices);
+  if (signatureChoices !== preset.dataset.choices) {
+    preset.replaceChildren(...choices.map(choice => { const option = element('option', gameTitle(choice.name)); option.value = choice.id; return option; }));
+    if (choices.some(choice => choice.id === previous)) preset.value = previous;
+    preset.dataset.choices = signatureChoices;
   }
   create.hidden = choices.length === 0;
-  const signature = JSON.stringify([hosts, body.games.map(({ observedAt, ...game }) => game)]);
+  const presetIds = new Set((body.presets || []).map(p => identity(p.hostId, p.id)));
+  const visible = body.games.filter(g => !(g.phase === 'deleted' && !g.pending) && !(presetIds.has(identity(g.hostId, g.id)) && g.desired === 'stopped' && !g.pending));
+  host.hidden = false;
+  host.textContent = `${visible.length} server${visible.length === 1 ? '' : 's'}${hosts.some(h => h.error) ? ' (some statuses unavailable)' : ''}`;
+  const signature = JSON.stringify([hosts, visible.map(({ observedAt, ...g }) => g)]);
   if (signature === rendered) return;
   rendered = signature;
+  hostDetails.hidden = false;
+  const statuses = document.querySelector('#host-statuses');
+  statuses.replaceChildren(...hosts.map(h => element('p', `${h.name || 'Host'}: ${h.error || ({ running: 'online', stopped: 'asleep', pending: 'starting', stopping: 'stopping', 'shutting-down': 'stopping', terminated: 'removed' }[h.state] || 'status unavailable')}`)));
+  const byGame = new Map();
+  for (const game of visible) {
+    if (!byGame.has(game.game)) byGame.set(game.game, []);
+    byGame.get(game.game).push(game);
+  }
   const fragment = document.createDocumentFragment();
-  for (const member of hosts) {
-    const group = element('section', undefined, 'host-group');
-    if (hosts.length > 1) {
-      group.append(element('h2', member.name));
-      group.append(element('p', member.error || ({ running: 'Host online', stopped: 'Host asleep', pending: 'Host starting', stopping: 'Host shutting down', unknown: 'Checking host…' }[member.state] || member.state)));
-    }
-  for (const game of body.games.filter(g => (g.hostId || '') === member.id)) {
-    if (game.phase === 'deleted' && !game.pending) continue;
-    if (choices.some(choice => choice.id === game.id && (choice.hostId || '') === (game.hostId || '')) && game.desired === 'stopped' && !game.pending) continue;
-    const article = element('article');
-    const heading = element('div', undefined, 'game-heading');
-    const title = element('div');
-    title.append(element('h3', game.name));
-    if (game.game && game.game !== game.name) title.append(element('p', game.game));
-    const ready = game.phase === 'running' && game.desired === 'running' && game.players !== undefined && game.address;
-    const actions = element('div', undefined, 'actions');
-    const requestAction = (action, label, secondary = false) => {
-      const button = element('button', label, secondary ? 'secondary' : '');
-      button.disabled = game.pending;
-      button.addEventListener('click', async () => {
-        if (action === 'remove' && !confirm(`Remove “${game.name}” and its saved data?`)) return;
-        button.disabled = true;
-        try { const result = await api(route(game.hostId, `/games/${encodeURIComponent(game.id)}/${action}`), 'POST'); message.textContent = result.message; }
-        catch (error) { message.textContent = error.message; button.disabled = false; }
-        await refresh();
-      });
-      return button;
-    };
-    if (game.desired === 'running' && !game.pending) actions.append(requestAction('stop', 'Stop', true));
-    else if (game.desired !== 'deleted') actions.append(requestAction('start', game.pending ? ({ stop: 'Stopping…', remove: 'Removing…' }[game.action] || 'Starting…') : 'Start'));
-    if (game.desired !== 'running' && !game.pending && !choices.some(choice => choice.id === game.id && (choice.hostId || '') === (game.hostId || ''))) actions.append(requestAction('remove', 'Remove', true));
-    heading.append(title, actions);
-    let status = ({ sleeping: 'Asleep', stopped: 'Stopped', unknown: 'Checking status…', unavailable: 'Not available', failed: 'Game failed', queued: 'Starting game…', starting: 'Starting game…' })[game.phase] || game.phase;
-    if (game.pending) status = hostStates.get(game.hostId || '') === 'running' ? ({ stop: 'Stopping…', remove: 'Removing…' }[game.action] || 'Starting game…') : 'Starting host…';
-    if (ready && !game.pending) status = `Ready · ${game.players} player${game.players === 1 ? '' : 's'}`;
-    article.append(heading, element('p', status));
-    if (game.requestError || game.error) article.append(element('p', game.requestError || game.error, 'error'));
-    if (ready && !game.pending) {
-      const address = element('div', undefined, 'address');
-      const copy = element('button', 'Copy address');
-      copy.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(game.address); copy.textContent = 'Copied'; }
-        catch { message.textContent = 'Select the address to copy it.'; }
-      });
-      address.append(element('code', game.address), copy);
-      article.append(address);
-    }
-    group.append(article);
+  for (const [name, servers] of [...byGame].sort(([a], [b]) => gameTitle(a).localeCompare(gameTitle(b)))) {
+    const group = element('section', undefined, 'game-group');
+    const heading = element('div', undefined, 'group-heading');
+    heading.append(element('h2', gameTitle(name)), element('span', String(servers.length), 'group-count'));
+    group.append(heading);
+    servers.sort((a, b) => a.name.localeCompare(b.name) || (a.hostId || '').localeCompare(b.hostId || ''));
+    for (const game of servers) group.append(serverRow(game, hostById.get(game.hostId || '') || {}, presetIds.has(identity(game.hostId, game.id))));
+    fragment.append(group);
   }
-    if (group.childNodes.length) fragment.append(group);
-  }
-  if (!fragment.childNodes.length) fragment.append(element('p', 'No servers yet. Choose a game above to start one.'));
+  if (!visible.length) fragment.append(element('p', 'No servers yet.', 'muted'));
   games.replaceChildren(fragment);
 }
 async function refresh() {
   if (!key || loading || document.hidden) return;
   loading = true;
   const current = revision;
+  games.setAttribute('aria-busy', 'true');
   try {
     const body = await api('/api/games');
     if (current !== revision) return;
     login.hidden = true;
     leave.hidden = false;
     render(body);
-  } catch (error) { message.textContent = error.message; if (key) host.textContent = 'Host server: status unavailable'; }
+  } catch (error) { message.textContent = error.message; }
   finally {
     loading = false;
+    games.setAttribute('aria-busy', 'false');
     clearTimeout(timer);
     if (key) timer = setTimeout(refresh, 5000);
   }
@@ -134,34 +162,38 @@ function signOut() {
   leave.hidden = true;
   create.hidden = true;
   host.hidden = true;
+  hostDetails.hidden = true;
   submission = undefined;
   document.querySelector('#key').value = '';
 }
-login.addEventListener('submit', async (event) => {
+login.addEventListener('submit', async event => {
   event.preventDefault();
   key = document.querySelector('#key').value.trim();
   sessionStorage.setItem('insta-game-invitation', key);
-  message.textContent = '';
+  message.textContent = 'Loading servers...';
   await refresh();
+  if (!login.hidden) return;
+  message.textContent = '';
 });
 leave.addEventListener('click', signOut);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 refresh();
-
 create.addEventListener('submit', async event => {
   event.preventDefault();
   const button = create.querySelector('button');
-  const name = document.querySelector('#name').value.trim();
-  const choice = JSON.parse(preset.dataset.choices || '[]').find(c => choiceId(c) === preset.value);
+  const enteredName = document.querySelector('#name').value.trim();
+  const choice = choices.find(c => c.id === preset.value);
   if (!choice) return;
-  if (!submission || submission.template !== choice.id || submission.hostId !== (choice.hostId || '') || submission.name !== name) {
+  const name = enteredName || gameTitle(choice.name);
+  if (!submission || submission.choice !== choice.id || submission.name !== name) {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
-    submission = { id: `server-${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`, template: choice.id, name, hostId: choice.hostId || '' };
+    submission = { id: `server-${Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')}`, choice: choice.id, name };
   }
   button.disabled = true;
   const current = revision;
   try {
-    const result = await api(route(submission.hostId), 'POST', { id: submission.id, template: submission.template, name: submission.name });
+    const field = autoPlace ? 'game' : 'template';
+    const result = await api('/api/games', 'POST', { id: submission.id, [field]: submission.choice, name: submission.name });
     if (current !== revision) return;
     message.textContent = result.message;
     submission = undefined;

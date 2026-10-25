@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -46,8 +47,9 @@ type Member struct {
 	Service  *Service
 }
 type Fleet struct {
-	Members   []Member
-	TokenHash string
+	Members    []Member
+	TokenHash  string
+	Placements PlacementStore
 }
 
 func (f *Fleet) Reconcile(ctx context.Context) error {
@@ -67,6 +69,7 @@ func (f *Fleet) Handler() http.Handler {
 		hosts := []map[string]string{}
 		games := []View{}
 		presets := []map[string]string{}
+		choicesByGame := map[string]bool{}
 		for _, m := range f.Members {
 			result, err := m.Service.view(r.Context())
 			host := map[string]string{"id": m.ID, "name": m.Name, "state": result.Host}
@@ -81,13 +84,26 @@ func (f *Fleet) Handler() http.Handler {
 				}
 				for _, p := range result.Presets {
 					p["hostId"] = m.ID
+					if p["game"] != "" {
+						choicesByGame[p["game"]] = true
+					}
 					presets = append(presets, p)
 				}
 			}
 			hosts = append(hosts, host)
 		}
-		respond(w, 200, map[string]any{"hosts": hosts, "games": games, "presets": presets})
+		choices := []map[string]string{}
+		names := []string{}
+		for name := range choicesByGame {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			choices = append(choices, map[string]string{"id": name, "name": name})
+		}
+		respond(w, 200, map[string]any{"hosts": hosts, "games": games, "presets": presets, "choices": choices})
 	})
+	mux.HandleFunc("POST /api/games", f.create)
 	mux.HandleFunc("POST /api/hosts/", http.NotFound)
 	for _, m := range f.Members {
 		prefix := "/api/hosts/" + m.ID

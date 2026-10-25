@@ -97,7 +97,7 @@ func (s *Service) routes() http.Handler {
 			return
 		}
 		if row.Snapshot.ID == "" || row.Snapshot.Phase == "unavailable" || (row.Snapshot.Desired == "deleted" && action != "remove") {
-			respond(w, 409, map[string]string{"error": "Saved game is not available; ask the host administrator"})
+			respond(w, 409, map[string]string{"error": "This server is unavailable."})
 			return
 		}
 		err = s.Table.Queue(r.Context(), id, action, time.Now().UTC())
@@ -111,10 +111,10 @@ func (s *Service) routes() http.Handler {
 		}
 		if err := s.Host.Wake(r.Context()); err != nil {
 			log.Printf("wake queued; initial attempt failed: %v", err)
-			respond(w, 202, map[string]string{"message": "Request saved; the host wake will be retried"})
+			respond(w, 202, map[string]string{"message": "Queued. Host startup will retry."})
 			return
 		}
-		respond(w, 202, map[string]string{"message": "Request saved"})
+		respond(w, 202, map[string]string{"message": "Queued."})
 	})
 	mux.HandleFunc("POST /api/games", func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
@@ -147,7 +147,7 @@ func (s *Service) routes() http.Handler {
 			return
 		}
 		if preset.Snapshot.ID == "" || preset.Snapshot.Phase == "unavailable" {
-			respond(w, 409, map[string]string{"error": "Game is not available"})
+			respond(w, 409, map[string]string{"error": "This game is unavailable."})
 			return
 		}
 		if input.Name == "" {
@@ -176,7 +176,7 @@ func (s *Service) routes() http.Handler {
 		if err := s.Host.Wake(r.Context()); err != nil {
 			log.Printf("server saved; wake will retry: %v", err)
 		}
-		respond(w, 202, map[string]string{"id": input.ID, "message": "Server requested"})
+		respond(w, 202, map[string]string{"id": input.ID, "message": "Starting server."})
 	})
 	return mux
 }
@@ -204,7 +204,7 @@ func (s *Service) view(ctx context.Context) (listing, error) {
 	for _, id := range s.IDs {
 		row := byID[id]
 		if row.Snapshot.ID != "" && row.Snapshot.Phase != "unavailable" {
-			presets = append(presets, map[string]string{"id": id, "name": row.Snapshot.Name})
+			presets = append(presets, map[string]string{"id": id, "name": row.Snapshot.Name, "game": row.Snapshot.Game})
 		}
 	}
 	views := []View{}
@@ -253,7 +253,7 @@ func protect(next http.Handler, hash string) http.Handler {
 }
 func (s *Service) fail(w http.ResponseWriter, err error) {
 	log.Printf("lobby request: %v", err)
-	respond(w, 503, map[string]string{"error": "Host status is unavailable; try again shortly"})
+	respond(w, 503, map[string]string{"error": "Status unavailable. Try again shortly."})
 }
 func respond(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")

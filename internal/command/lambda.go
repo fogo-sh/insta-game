@@ -29,7 +29,8 @@ func lambdaCommand(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	service := &lobby.Service{IDs: ids, TokenHash: hash, Table: &lobby.Table{Client: dynamodb.NewFromConfig(sdk), Name: os.Getenv("INSTA_GAME_LOBBY_TABLE")}, Host: &lobby.Host{Client: ec2.NewFromConfig(sdk), InstanceID: os.Getenv("INSTA_GAME_HOST_ID"), StackID: os.Getenv("INSTA_GAME_STACK_ID")}}
+	table := &lobby.Table{Client: dynamodb.NewFromConfig(sdk), Name: os.Getenv("INSTA_GAME_LOBBY_TABLE")}
+	service := &lobby.Service{IDs: ids, TokenHash: hash, Table: table, Host: &lobby.Host{Client: ec2.NewFromConfig(sdk), InstanceID: os.Getenv("INSTA_GAME_HOST_ID"), StackID: os.Getenv("INSTA_GAME_STACK_ID")}}
 	var page http.Handler = service.Handler()
 	reconcile := service.Reconcile
 	if value := os.Getenv("INSTA_GAME_LOBBY_HOSTS"); value != "" {
@@ -37,7 +38,7 @@ func lambdaCommand(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("lobby hosts: %w", err)
 		}
-		fleet := &lobby.Fleet{TokenHash: hash}
+		fleet := &lobby.Fleet{TokenHash: hash, Placements: table}
 		for _, b := range bindings {
 			fleet.Members = append(fleet.Members, lobby.Member{ID: b.ID, Name: b.Name, Service: &lobby.Service{IDs: b.IDs, TokenHash: hash, Table: &lobby.Table{Client: dynamodb.NewFromConfig(sdk), Name: b.Table}, Host: &lobby.Host{Client: ec2.NewFromConfig(sdk), InstanceID: b.InstanceID, StackID: b.StackID}}})
 		}
