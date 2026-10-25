@@ -28,7 +28,9 @@
       "t4g.micro": "Micro · 1 GiB",
       "t4g.small": "Small · 2 GiB",
       "t4g.medium": "Medium · 4 GiB",
-    })[h] || "Small · Q2 repeat";
+      "t4g.small.q2": "Small · Q2 repeat",
+      "t4g.small.mix": "Small · mixed games",
+    })[h] || h;
   const time = d3.utcFormat("%H:%M");
   const stamp = (seconds) =>
     d3.utcFormat("%H:%M:%S UTC")(new Date(seconds * 1000));
@@ -65,12 +67,13 @@
     .forEach((g) => el("game").add(new Option(names[g] || g, g)));
   const samples = d3.group(data.samples, (d) => d[0]);
   const state = {
-    session: 0,
+    session: sessions.length - 1,
     host: data.hosts[0].tier,
     game: "",
     window: null,
     selected: null,
   };
+  el("session").value = String(state.session);
   const scope = () => (state.session === "all" ? all : sessions[state.session]);
   const domain = () => state.window || scope();
   const overlaps = (r, d) => r.end >= d[0] && r.start <= d[1];
@@ -113,6 +116,8 @@
     box.append(title);
     const timing = document.createElement("p");
     timing.textContent =
+      r.label +
+      " · " +
       hostName(r.host) +
       " · " +
       stamp(r.start) +

@@ -1,6 +1,8 @@
 """Export provisional CPU/RAM requests and measured capacity bounds from DuckDB."""
 
 import argparse
+import collections
+import html
 import json
 import math
 import pathlib
@@ -140,6 +142,47 @@ output = {
     ],
     "observed_bounds": bounds,
 }
+mixed = [r for r in runs if len(r["games"]) > 1]
+output["mixed_runs"] = []
+for r in mixed:
+    host = next(h for h in hosts if h["tier"] == r["tier"])
+    loads = r["detail"]["loads"]
+    prediction = None
+    if not r["network_clients"] and all(b == 8 and g in costs for g, b in loads):
+        prediction = {
+            "cpu_cores": (host["idle_cpu_cores"] or 0)
+            + sum(costs[g]["cpu_millicores"] for g, b in loads) / 1000,
+            "memory_mib": (host["idle_memory_mib"] or 0)
+            + sum(costs[g]["memory_mib"] for g, b in loads),
+        }
+    output["mixed_runs"].append(
+        {
+            **{
+                k: r[k]
+                for k in [
+                    "run_id",
+                    "tier",
+                    "status",
+                    "error",
+                    "passes",
+                    "cpu_mean",
+                    "cpu_p95",
+                    "memory_free_p05",
+                    "latency_p95",
+                    "loss",
+                ]
+            },
+            "loads": loads,
+            "network_clients": r["network_clients"],
+            "network_targets": r["detail"].get("network_targets", {}),
+            "host_memory_used_p95_mib": (
+                (1 - r["memory_free_p05"]) * host["memory_usable_mib"]
+                if r["memory_free_p05"] is not None and host["memory_usable_mib"]
+                else None
+            ),
+            "additive_host_prediction": prediction,
+        }
+    )
 path = a.database.with_name("capacity-model.json")
 path.write_text(json.dumps(output, indent=2))
 print(path)
@@ -238,6 +281,48 @@ if "xonotic" in costs and not any(
 margin = ""
 if any(r["label"] == "soak-frik-6x8-10min" and r["passes"] for r in runs):
     margin = "<strong>For a micro, choose six Quake servers rather than eight:</strong> six left about 31% RAM free in the soak; eight only about 20%."
+mixed_section = ""
+if mixed:
+    latest_host = max(mixed, key=lambda r: r["started_at"])["tier"]
+    latest_type = next(h["instance_type"] for h in hosts if h["tier"] == latest_host)
+    mixed_rows = []
+    for r in sorted(mixed, key=lambda r: r["started_at"]):
+        if r["tier"] != latest_host:
+            continue
+        counts = collections.Counter(g for g, b in r["detail"]["loads"])
+        mix = ", ".join(f"{n} {names.get(g, g)}" for g, n in counts.items())
+        if r["network_clients"]:
+            mix += f" + {r['network_clients']} clients"
+            target_games = {
+                names.get(i["game"]["id"], i["game"]["id"])
+                for i in r["detail"].get("instances", [])
+                if i["id"] in r["detail"].get("network_targets", {})
+            }
+            if target_games:
+                mix += " on " + ", ".join(sorted(target_games))
+        duration = (
+            f"{(r['measured_until'] - r['measured_at']) / 60:.1f} min"
+            if r["measured_until"] and r["measured_at"]
+            else "—"
+        )
+        cpu = f"{r['cpu_p95']:.2f}" if r["cpu_p95"] is not None else "—"
+        ram = f"{r['memory_free_p05']:.0%}" if r["memory_free_p05"] is not None else "—"
+        result = "Incomplete"
+        if r["passes"]:
+            result = "Passed"
+        elif r["status"] == "measured":
+            result = "Outside screen"
+        mixed_rows.append(
+            f"<tr><td>{html.escape(mix)}</td><td>{duration}</td><td>{cpu}</td><td>{ram}</td><td>{result}</td></tr>"
+        )
+    mixed_section = (
+        "<h2>Mixed-game tests</h2><p>Latest host: "
+        + html.escape(latest_type)
+        + ". Eight bots per server; extra network clients are noted. CPU is host p95; free RAM is p05. Select a test in the timeline for query health or an incomplete run’s reason.</p>"
+        + '<div class="table"><table><thead><tr><th>Mix</th><th>Measured</th><th>CPU cores</th><th>Free RAM</th><th>Result</th></tr></thead><tbody>'
+        + "".join(mixed_rows)
+        + "</tbody></table></div>"
+    )
 page = pathlib.Path(__file__).with_name("summary.html").read_text()
 for key, value in {
     "__BOT_ROWS__": "".join(bot_rows),
@@ -245,6 +330,7 @@ for key, value in {
     "__QUAKE_MARGIN__": margin,
     "__RUN_COUNT__": str(len(runs)),
     "__HISTORY__": render_history(db, runs, hosts, output["policy"], a.database.parent),
+    "__MIXED__": mixed_section,
 }.items():
     page = page.replace(key, value)
 a.database.with_name("index.html").write_text(page)

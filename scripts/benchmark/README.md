@@ -9,6 +9,9 @@ queries owned game endpoints from the load generator. Measurements need verified
 player counts: starting a process does not prove that bots are playing.
 
 The report distinguishes engine bots, real network clients, and idle servers.
+`Bench.scenario` accepts a list of `(game, bot_count)` loads for mixed-game tests.
+Network clients target the first server unless `spread_clients=True`; saved
+target counts let the report verify that clients joined the intended servers.
 Query response latency is a responsiveness proxy, not a measurement of every
 simulation frame. Short burst tests do not establish sustainable T4g capacity.
 

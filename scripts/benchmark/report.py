@@ -7,6 +7,22 @@ import pathlib
 import duckdb
 from plotly.offline import get_plotlyjs
 
+
+def population_ok(run):
+    count = run.get("network_clients", 0)
+    if not count:
+        return True
+    final = run.get("final_players", {})
+    targets = run.get("network_targets")
+    if targets is None:
+        targets = {id: count / len(run["loads"]) for id in final}
+    return (
+        bool(targets)
+        and sum(targets.values()) == count
+        and all((final.get(id) or 0) >= expected for id, expected in targets.items())
+    )
+
+
 p = argparse.ArgumentParser()
 p.add_argument("--data", type=pathlib.Path, required=True)
 p.add_argument("--out", type=pathlib.Path, required=True)
@@ -91,12 +107,7 @@ for path in sorted((a.data / "results").glob("*/run.json")):
             r.get("measured_at"),
             r.get("measured_until"),
             json.dumps(r),
-            not r.get("network_clients", 0)
-            or (
-                bool(r.get("final_players"))
-                and min((value or 0) for value in r["final_players"].values())
-                >= r["network_clients"] / len(loads)
-            ),
+            population_ok(r),
             len(list(path.parent.glob("cap-*.log"))),
             not (r.get("network_clients", 0) > 1 and loads[0][0] == "q2repro")
             or (

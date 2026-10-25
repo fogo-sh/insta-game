@@ -221,6 +221,9 @@ class Bench:
                 )
                 targets = instances if spread_clients else instances[:1]
                 meta["network_clients"] = len(targets) * (network_clients + robots)
+                meta["network_targets"] = {
+                    target["id"]: network_clients + robots for target in targets
+                }
                 for target in targets:
                     address = next(
                         e["address"]
