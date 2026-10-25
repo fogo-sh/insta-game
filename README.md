@@ -6,7 +6,7 @@ Discord. Each instance has its own settings, ports, credentials, and saved data.
 
 ## Start with Docker
 
-You need Go 1.26, Docker, and an ARM64 host (or emulation) for the supplied
+You need Go 1.27.3, Docker, and an ARM64 host (or emulation) for the supplied
 game images. From the repository root:
 
 ```sh

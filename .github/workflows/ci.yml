@@ -10,12 +10,12 @@ jobs:
   go:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10.3.2
       - name: Lint CloudFormation templates
         run: make lint-templates
       - name: Validate
@@ -31,7 +31,7 @@ jobs:
           make test-browser
       - name: Package supported targets
         run: python3 scripts/package-release.py --output /tmp/insta-game-dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: insta-game-packages
           path: /tmp/insta-game-dist/*
