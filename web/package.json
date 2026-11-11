@@ -1,0 +1,18 @@
+{
+  "name": "insta-game-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "vp check --deny-warnings",
+    "build": "vp check --deny-warnings && vp build",
+    "test": "vp test",
+    "format": "vp fmt"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "vite-plus": "1.6.0"
+  },
+  "engines": {
+    "node": "^24.11.0 || >=26.0.0"
+  }
+}

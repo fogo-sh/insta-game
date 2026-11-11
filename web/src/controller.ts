@@ -1,17 +1,33 @@
-import { serverState, stateLabel, serverActions } from "/status.js";
-import { settings } from "./settings.js";
-const $ = (id) => document.getElementById(id);
+import type { Game, Instance } from "./types.ts";
+import { element, required, errorMessage } from "./dom.ts";
+import { serverState, stateLabel, serverActions } from "./status.ts";
+import { settings } from "./settings.ts";
+const controls = {
+  provider: required<HTMLSelectElement>("#provider"),
+  game: required<HTMLSelectElement>("#game"),
+  config: required<HTMLTextAreaElement>("#config"),
+  token: required<HTMLInputElement>("#token"),
+  name: required<HTMLInputElement>("#name"),
+  idle: required<HTMLInputElement>("#idle"),
+  max: required<HTMLInputElement>("#max"),
+  launch: required<HTMLButtonElement>("#launch"),
+  "create-form": required<HTMLFormElement>("#create-form"),
+  "login-form": required<HTMLFormElement>("#login-form"),
+  "create-dialog": required<HTMLDialogElement>("#create-dialog"),
+  "server-template": required<HTMLTemplateElement>("#server-template"),
+};
+const $ = (id: string) => required<HTMLElement>(`#${id}`);
 let token = sessionStorage.getItem("insta-game-token") || "";
-let games = [],
-  instances = [],
-  logAbort,
-  selectedID,
-  createID;
+let games: Game[] = [];
+let instances: Instance[] = [];
+let logAbort: AbortController | null = null;
+let selectedID: string | null = null;
+let createID = "";
 function stopLogs() {
   logAbort?.abort();
   logAbort = null;
 }
-async function api(path, options = {}) {
+async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch("/api" + path, {
     ...options,
     headers: {
@@ -29,7 +45,7 @@ async function api(path, options = {}) {
   }
   return response.json();
 }
-function message(id, text) {
+function message(id: string, text: string) {
   $(id).textContent = text;
   $(id).hidden = !text;
 }
@@ -42,18 +58,17 @@ function lock() {
   $("signout").hidden = true;
   stopLogs();
 }
-function connectAddress(i) {
-  if (serverState(i) !== "running" || i.players == null) return "";
+function connectAddress(i: Instance | undefined) {
+  if (!i || serverState(i) !== "running" || i.players == null) return "";
   return i.endpoints?.find((e) => e.port === i.game.gamePort)?.address || "";
 }
-function statusLabel(i) {
+function statusLabel(i: Instance) {
   return stateLabel(serverState(i));
 }
 function renderList() {
   const list = $("servers");
   list.replaceChildren();
-  $("summary").textContent =
-    `${instances.length} ${instances.length === 1 ? "server" : "servers"}`;
+  $("summary").textContent = `${instances.length} ${instances.length === 1 ? "server" : "servers"}`;
   if (!instances.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
@@ -61,59 +76,44 @@ function renderList() {
     list.append(empty);
     return;
   }
-  for (const i of [...instances].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt),
-  )) {
-    const row = $("server-template").content.cloneNode(true);
-    const name = row.querySelector(".server-name");
+  for (const i of [...instances].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    const row = controls["server-template"].content.cloneNode(true) as DocumentFragment;
+    const name = required<HTMLAnchorElement>(".server-name", row);
     name.textContent = i.name;
     name.href = "#server/" + i.id;
-    row.querySelector(".server-meta").textContent =
-      i.game.displayName + " / " + i.provider;
-    const state = row.querySelector(".phase");
+    required(".server-meta", row).textContent = i.game.displayName + " / " + i.provider;
+    const state = required(".phase", row);
     state.textContent = statusLabel(i);
     state.dataset.phase = serverState(i);
-    row.querySelector("code").textContent =
-      connectAddress(i) || "Address pending";
-    row.querySelector(".players").textContent =
+    required("code", row).textContent = connectAddress(i) || "Address pending";
+    required(".players", row).textContent =
       (i.players === null ? "Players unknown" : `${i.players} players`) +
       (i.map ? " · " + i.map : "");
     list.append(row);
   }
 }
-function element(tag, text, className) {
-  const e = document.createElement(tag);
-  if (text) e.textContent = text;
-  if (className) e.className = className;
-  return e;
+function runtimeNotice(i: Instance) {
+  return (
+    i.stopReason ||
+    `idle timeout: ${i.idleMinutes ? i.idleMinutes + " min" : "off"}; runtime limit: ${i.maxMinutes ? i.maxMinutes + " min" : "off"}`
+  );
 }
-function runtimeNotice(i) {
-  return i.stopReason || `idle timeout: ${i.idleMinutes ? i.idleMinutes + " min" : "off"}; runtime limit: ${i.maxMinutes ? i.maxMinutes + " min" : "off"}`;
-}
-function renderActions(i, actions) {
+function renderActions(i: Instance, actions: HTMLElement) {
   actions.replaceChildren();
   for (const { label, action, disabled } of serverActions(i)) {
-    const button = element(
-      "button",
-      label,
-      action === "remove" ? "danger quiet" : "",
-    );
+    const button = element("button", label, action === "remove" ? "danger quiet" : "");
     button.disabled = Boolean(disabled);
     button.dataset.action = action;
     button.onclick = async () => {
-      if (action === "remove" && !confirm(`Remove ${i.name} and its saved data?`))
-        return;
+      if (action === "remove" && !confirm(`Remove ${i.name} and its saved data?`)) return;
       try {
         button.disabled = true;
-        await api(
-          "/instances/" +
-            i.id +
-            (action === "remove" ? "" : "/" + action),
-          { method: action === "remove" ? "DELETE" : "POST" },
-        );
+        await api("/instances/" + i.id + (action === "remove" ? "" : "/" + action), {
+          method: action === "remove" ? "DELETE" : "POST",
+        });
         await refresh(true);
       } catch (err) {
-        message("detail-error", err.message);
+        message("detail-error", errorMessage(err));
         button.disabled = false;
       }
     };
@@ -121,7 +121,7 @@ function renderActions(i, actions) {
   }
   actions.dataset.state = JSON.stringify(serverActions(i));
 }
-function renderDetail(i) {
+function renderDetail(i: Instance) {
   const detail = $("detail");
   detail.replaceChildren();
   const back = element("a", "servers", "back");
@@ -129,10 +129,7 @@ function renderDetail(i) {
   detail.append(back);
   const heading = element("div", "", "detail-head");
   const title = element("div");
-  title.append(
-    element("p", i.game.displayName, "muted"),
-    element("h2", i.name),
-  );
+  title.append(element("p", i.game.displayName, "muted"), element("h2", i.name));
   const actions = element("div", "", "actions");
   renderActions(i, actions);
   heading.append(title, actions);
@@ -150,11 +147,7 @@ function renderDetail(i) {
     const fact = element("div");
     const valueElement = element("dd", value);
     valueElement.id =
-      name === "status"
-        ? "fact-status"
-        : name === "address"
-          ? "fact-address"
-          : "fact-players";
+      name === "status" ? "fact-status" : name === "address" ? "fact-address" : "fact-players";
     fact.append(element("dt", name), valueElement);
     facts.append(fact);
   }
@@ -169,10 +162,7 @@ function renderDetail(i) {
       );
       copy.textContent = "copied";
     } catch {
-      message(
-        "detail-error",
-        "Could not copy. Select the address to copy it manually.",
-      );
+      message("detail-error", "Could not copy. Select the address to copy it manually.");
     }
   };
   detail.append(copy);
@@ -202,33 +192,30 @@ function renderDetail(i) {
       });
       command.value = "";
     } catch (err) {
-      message("detail-error", err.message);
+      message("detail-error", errorMessage(err));
     }
   };
   panel.append(open, logs, commandForm);
   detail.append(panel);
   const config = element("details");
-  config.append(
-    element("summary", "config"),
-    element("pre", i.config, "config-view"),
-  );
+  config.append(element("summary", "config"), element("pre", i.config, "config-view"));
   detail.append(config);
 }
-function updateDetail(i) {
-  if (!$("fact-status")) return;
+function updateDetail(i: Instance) {
+  if (!document.getElementById("fact-status")) return;
   $("fact-status").textContent = statusLabel(i);
   $("fact-players").textContent = `${i.players ?? "Unknown"} / ${i.map || "-"}`;
   $("fact-address").textContent = connectAddress(i) || "Pending";
-  $("copy-address").disabled = !connectAddress(i);
+  required<HTMLButtonElement>("#copy-address").disabled = !connectAddress(i);
   $("detail-error").textContent = i.error || "";
-  const actions = $("detail").querySelector(".actions");
+  const actions = required("#detail .actions");
   const expected = serverActions(i);
   if (JSON.stringify(expected) !== actions.dataset.state) {
     renderActions(i, actions);
   }
   $("stop-reason").textContent = runtimeNotice(i);
 }
-async function streamLogs(id) {
+async function streamLogs(id: string) {
   stopLogs();
   const stream = new AbortController();
   logAbort = stream;
@@ -237,42 +224,43 @@ async function streamLogs(id) {
       headers: { Authorization: "Bearer " + token },
       signal: stream.signal,
     });
-    if (!response.ok) throw new Error("Could not open logs.");
+    if (!response.ok || !response.body) throw new Error("Could not open logs.");
+    if (logAbort !== stream) return;
+    const logs = required("#log");
     const reader = response.body.getReader(),
       decoder = new TextDecoder();
     let pending = "";
-    $("log").textContent = "";
+    logs.textContent = "";
     while (true) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done || logAbort !== stream) break;
       pending += decoder.decode(value, { stream: true });
       const lines = pending.split("\n");
-      pending = lines.pop();
+      pending = lines.pop() ?? "";
       for (const line of lines)
         if (line.startsWith("data: ")) {
-          $("log").textContent += line.slice(6) + "\n";
+          logs.textContent += line.slice(6) + "\n";
         }
-      $("log").textContent = $("log").textContent.slice(-100000);
-      $("log").scrollTop = $("log").scrollHeight;
+      logs.textContent = logs.textContent.slice(-100000);
+      logs.scrollTop = logs.scrollHeight;
     }
   } catch (err) {
-    if (err.name !== "AbortError" && logAbort === stream && $("log"))
-      $("log").textContent = err.message;
+    const logs = document.getElementById("log");
+    if (!(err instanceof DOMException && err.name === "AbortError") && logAbort === stream && logs)
+      logs.textContent = errorMessage(err);
   } finally {
     if (logAbort === stream) logAbort = null;
   }
 }
 function route(force = false) {
-  const id = location.hash.startsWith("#server/")
-    ? location.hash.slice(8)
-    : null;
+  const id = location.hash.startsWith("#server/") ? location.hash.slice(8) : null;
   if (!token) return;
   $("dashboard").hidden = Boolean(id);
   $("detail").hidden = !id;
   if (id) {
     const i = instances.find((i) => i.id === id);
     if (i) {
-      if (id !== selectedID || force) {
+      if (id !== selectedID || force || !document.getElementById("fact-status")) {
         stopLogs();
         renderDetail(i);
       }
@@ -286,29 +274,32 @@ function route(force = false) {
 async function refresh(force = false) {
   if (!token) return;
   try {
-    instances = await api("/instances");
+    instances = await api<Instance[]>("/instances");
     renderList();
     route(force);
-    $("refresh-status").textContent =
-      "Updated " + new Date().toLocaleTimeString();
+    $("refresh-status").textContent = "Updated " + new Date().toLocaleTimeString();
     message("error", "");
     if (selectedID) {
       const current = instances.find((i) => i.id === selectedID);
       if (current) updateDetail(current);
     }
   } catch (err) {
-    message("error", err.message);
+    message("error", errorMessage(err));
     $("refresh-status").textContent = "Connection interrupted";
   }
 }
 async function unlock() {
-  games = await api("/catalog");
- const targets = await api("/providers");
- $("provider").replaceChildren(...targets.providers.map(name => {
- const option = element("option", name); option.value = name; return option;
- }));
- $("provider").value = targets.default;
-  $("game").replaceChildren(
+  games = await api<Game[]>("/catalog");
+  const targets = await api<{ providers: string[]; default: string }>("/providers");
+  controls["provider"].replaceChildren(
+    ...targets.providers.map((name) => {
+      const option = element("option", name);
+      option.value = name;
+      return option;
+    }),
+  );
+  controls["provider"].value = targets.default;
+  controls["game"].replaceChildren(
     ...games.map((g) => {
       const o = element("option", g.displayName);
       o.value = g.id;
@@ -321,14 +312,14 @@ async function unlock() {
   sessionStorage.setItem("insta-game-token", token);
   await refresh(true);
 }
-$("login-form").onsubmit = async (event) => {
+controls["login-form"].onsubmit = async (event) => {
   event.preventDefault();
-  token = $("token").value;
+  token = controls["token"].value;
   try {
     await unlock();
-    $("token").value = "";
+    controls["token"].value = "";
   } catch (err) {
-    message("login-error", err.message);
+    message("login-error", errorMessage(err));
   }
 };
 $("signout").onclick = lock;
@@ -337,42 +328,42 @@ $("create").onclick = () => {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
   message("create-error", "");
-  $("create-form").reset();
+  controls["create-form"].reset();
   changeGame();
-  $("create-dialog").showModal();
+  controls["create-dialog"].showModal();
 };
-$("close-create").onclick = () => $("create-dialog").close();
+$("close-create").onclick = () => controls["create-dialog"].close();
 function changeGame() {
-  const game = games.find((g) => g.id === $("game").value);
-  $("config").value = game?.defaultConfig || "";
-  if (game) settings(game, $("settings"), $("config"));
+  const game = games.find((g) => g.id === controls["game"].value);
+  controls["config"].value = game?.defaultConfig || "";
+  if (game) settings(game, $("settings"), controls["config"]);
 }
-$("game").onchange = changeGame;
-$("create-form").onsubmit = async (event) => {
+controls["game"].onchange = changeGame;
+controls["create-form"].onsubmit = async (event) => {
   event.preventDefault();
-  $("launch").disabled = true;
+  controls["launch"].disabled = true;
   message("create-error", "");
   const id = createID;
   try {
-    const instance = await api("/instances", {
+    const instance = await api<Instance>("/instances", {
       method: "POST",
       body: JSON.stringify({
         id,
-        provider: $("provider").value,
- game: $("game").value,
-        name: $("name").value,
-        config: $("config").value,
-        idleMinutes: Number($("idle").value),
-        maxMinutes: Number($("max").value),
+        provider: controls["provider"].value,
+        game: controls["game"].value,
+        name: controls["name"].value,
+        config: controls["config"].value,
+        idleMinutes: Number(controls["idle"].value),
+        maxMinutes: Number(controls["max"].value),
       }),
     });
-    $("create-dialog").close();
+    controls["create-dialog"].close();
     location.hash = "server/" + instance.id;
     await refresh(true);
   } catch (err) {
-    message("create-error", err.message);
+    message("create-error", errorMessage(err));
   } finally {
-    $("launch").disabled = false;
+    controls["launch"].disabled = false;
   }
 };
 window.addEventListener("hashchange", () => route(true));

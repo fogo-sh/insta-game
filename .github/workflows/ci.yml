@@ -15,13 +15,24 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Validate and rebuild web assets
+        run: |
+          npm --prefix web ci
+          npm --prefix web run build
+          npm --prefix web audit --audit-level=moderate
+          git diff --exit-code -- internal/serverui/dist
       - uses: astral-sh/setup-uv@v10.3.2
       - name: Lint CloudFormation templates
         run: make lint-templates
       - name: Validate
         run: |
           go test -race ./...
-          node --test internal/control/settings_test.mjs internal/serverui/*_test.mjs
+          npm --prefix web test
           go vet ./...
           python3 generate-compose.py --check
           docker compose config --quiet

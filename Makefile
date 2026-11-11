@@ -1,11 +1,15 @@
-.PHONY: build test test-browser check lint-templates dist
+.PHONY: build test test-browser check lint-templates dist ui
 
 build:
 	go build -o bin/insta-game ./cmd/insta-game
 
 test:
+	npm --prefix web run check
 	go test -race ./...
-	node --test internal/control/settings_test.mjs internal/serverui/*_test.mjs
+	npm --prefix web test
+
+ui:
+	npm --prefix web run build
 
 test-browser:
 	uv run --no-project --with playwright==1.64.1 python scripts/test-lobby-browser.py

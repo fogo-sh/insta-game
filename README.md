@@ -15,7 +15,7 @@ bin/insta-game serve
 ```
 
 Open http://localhost:3000 and enter the token from `.insta-game/token`.
-The UI is embedded and needs no frontend build. Missing images pull on first
+The UI is embedded; building the Go binary uses the committed browser assets. Missing images pull on first
 use. Create a server there, or use
 another terminal:
 
@@ -72,13 +72,20 @@ can use Docker or control a remote host.
 ```sh
 make build
 make dist        # binaries, catalog, docs, and checksums
+make ui          # typecheck and rebuild embedded TypeScript UI
 make test        # race tests and UI tests
 make check       # CloudFormation lint, vet, and Compose freshness
 make images      # build prepared game images
 ```
 
-`make check` needs `uv` for pinned cfn-lint; UI tests need Node 18+. Neither is
-an application runtime dependency. `make lint-templates` runs template checks
+UI source lives in `web/src`. With Node 24.11+ and npm, run `npm --prefix web ci` once,
+then `make ui` after frontend changes. The scripts use the pinned project-local
+Vite+ CLI: `vp check` checks types, lint, and formatting; `vp test` runs tests.
+Commit the generated `internal/serverui/dist` assets with the source; CI checks that they match. `npm --prefix web audit`
+checks the locked frontend dependencies.
+
+`make check` needs `uv` for pinned cfn-lint. Node and uv are development tools;
+neither is an application runtime dependency. `make lint-templates` runs template checks
 without AWS credentials. Regenerate `compose.yml` with `python3 generate-compose.py`
 after editing game metadata. Compose builds images; the controller runs instances.
 

@@ -2,10 +2,14 @@ package serverui
 
 import (
 	"embed"
+	"io/fs"
 	"net/http"
 )
 
-//go:embed status.js
+//go:embed dist/*.js
 var files embed.FS
 
-func Handler() http.Handler { return http.FileServer(http.FS(files)) }
+func Handler() http.Handler {
+	root, _ := fs.Sub(files, "dist")
+	return http.StripPrefix("/assets/", http.FileServer(http.FS(root)))
+}

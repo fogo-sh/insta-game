@@ -1,6 +1,7 @@
 """Check launch-page retries in Chromium without AWS credentials."""
 
 import argparse
+import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -19,12 +20,16 @@ args = parser.parse_args()
 
 class QuietHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/status.js":
-            data = (Path(__file__).resolve().parents[1] / "internal/serverui/status.js").read_bytes()
+        if self.path.startswith("/assets/"):
+            name = self.path.removeprefix("/assets/")
+            directory = Path(__file__).resolve().parents[1] / "internal/serverui/dist"
+            if "/" in name or not (directory / name).is_file():
+                self.send_error(404)
+                return
             self.send_response(200)
             self.send_header("Content-Type", "text/javascript")
             self.end_headers()
-            self.wfile.write(data)
+            self.wfile.write((directory / name).read_bytes())
             return
         super().do_GET()
 
@@ -191,7 +196,7 @@ try:
         controller.on("pageerror", lambda error: errors.append(str(error)))
         root = Path(__file__).resolve().parents[1]
         controller_dir = root / "internal/control/web"
-        assets = {"/": "index.html", "/app.js": "app.js", "/settings.js": "settings.js", "/style.css": "style.css"}
+        assets = {"/": "index.html", "/style.css": "style.css"}
         current = {
             "id": "test", "name": "Friday", "game": {"id": "fteqw", "displayName": "Quake", "gamePort": 26000},
             "provider": "docker", "desired": "running", "phase": "running", "players": 0,
@@ -199,16 +204,17 @@ try:
             "idleMinutes": 0, "maxMinutes": 0,
         }
         operations = []
+        catalog = json.loads((root / "docker-containers/openarena/game.json").read_text())
 
         def controller_route(route):
             path = urlparse(route.request.url).path
             if path in assets:
                 content_type = "text/javascript" if path.endswith(".js") else "text/css" if path.endswith(".css") else "text/html"
                 route.fulfill(body=(controller_dir / assets[path]).read_bytes(), content_type=content_type)
-            elif path == "/status.js":
-                route.fulfill(body=(root / "internal/serverui/status.js").read_bytes(), content_type="text/javascript")
+            elif path.startswith("/assets/"):
+                route.fulfill(body=(root / "internal/serverui/dist" / path.removeprefix("/assets/")).read_bytes(), content_type="text/javascript")
             elif path == "/api/catalog":
-                route.fulfill(json=[])
+                route.fulfill(json=[catalog])
             elif path == "/api/providers":
                 route.fulfill(json={"providers": ["docker"], "default": "docker"})
             elif route.request.method == "GET":
@@ -243,6 +249,22 @@ try:
         for width in [390, 768, 1440]:
             controller.set_viewport_size({"width": width, "height": 900})
             assert controller.evaluate("document.documentElement.scrollWidth <= innerWidth"), width
+        controller.evaluate("location.hash = ''")
+        controller.locator("#create").click()
+        controller.get_by_text("game settings", exact=True).click()
+        controller.get_by_label("Server name", exact=True).fill("Typed arena")
+        controller.get_by_label("Server name", exact=True).dispatch_event("change")
+        controller.get_by_label("Max players", exact=True).fill("8")
+        controller.get_by_label("Max players", exact=True).dispatch_event("change")
+        controller.get_by_label("Instagib", exact=True).uncheck()
+        controller.get_by_label("Game type", exact=True).select_option("4")
+        controller.get_by_label("Map rotation", exact=True).select_option(["oa_dm5"])
+        config = controller.locator("#config").input_value()
+        assert 'set sv_hostname "Typed arena"' in config, config
+        assert 'set sv_maxclients 8' in config, config
+        assert 'set g_instantgib 0' in config, config
+        assert 'set g_gametype 4' in config, config
+        assert 'set d1 "map oa_dm5; set nextmap vstr d1"' in config, config
         controller.close()
         assert not errors, errors
         browser.close()

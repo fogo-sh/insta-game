@@ -21,7 +21,7 @@ var web embed.FS
 
 func (c *Controller) Handler(token string) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /status.js", serverui.Handler())
+	mux.Handle("GET /assets/", serverui.Handler())
 	if len(c.DiscordKey) == 32 && c.DiscordGuild != "" {
 		mux.HandleFunc("POST /discord", c.discord)
 	}
