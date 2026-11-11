@@ -134,37 +134,6 @@ func (c *Controller) RequestDesired(id, requestID, desired string) error {
 		return nil
 	})
 }
-func setDesired(i *Instance, desired string) error {
-	if i.Desired == "deleted" {
-		if desired != "deleted" {
-			return fmt.Errorf("instance has been deleted")
-		}
-		if i.Phase != "deleted" && i.Error != "" {
-			i.Generation++
-			i.Error = ""
-		}
-		return nil
-	}
-	if i.Desired == desired {
-		if desired == "running" && i.Phase == "failed" {
-			i.Generation++
-			i.Error = ""
-			i.Phase = "queued"
-			i.StartedAt = time.Now().UTC()
-		}
-		return nil
-	}
-	i.Generation++
-	i.Desired = desired
-	i.Error = ""
-	i.StopReason = ""
-	i.EmptySince = time.Time{}
-	if desired == "running" {
-		i.StartedAt = time.Now().UTC()
-		i.Phase = "queued"
-	}
-	return nil
-}
 
 func InstancesIdle(instances []Instance) bool {
 	for _, instance := range instances {
@@ -274,8 +243,7 @@ func (c *Controller) reconcile(ctx context.Context, i Instance) (Observation, st
 	if i.Desired == "running" && i.MaxMinutes > 0 && time.Since(i.StartedAt) >= time.Duration(i.MaxMinutes)*time.Minute {
 		err := c.Store.Update(i.ID, func(current *Instance) error {
 			if current.Desired == "running" && current.Generation == i.Generation {
-				current.Desired = "stopped"
-				current.StopReason = "Maximum runtime reached"
+				stopForTimeout(current, "Maximum runtime reached")
 			}
 			return nil
 		})
@@ -344,6 +312,8 @@ func applyAgentStatus(current *Instance, status AgentStatus, err error) {
 		return
 	}
 	if !status.Running {
+		current.EmptySince = time.Time{}
+		current.Players = nil
 		current.Phase = "failed"
 		current.Error = "Game process exited"
 		if status.Error != "" {
@@ -369,8 +339,7 @@ func applyAgentStatus(current *Instance, status AgentStatus, err error) {
 		current.EmptySince = now
 	}
 	if current.IdleMinutes > 0 && now.Sub(current.EmptySince) >= time.Duration(current.IdleMinutes)*time.Minute {
-		current.Desired = "stopped"
-		current.StopReason = "Server empty for idle timeout"
+		stopForTimeout(current, "Server empty for idle timeout")
 	}
 }
 func (c *Controller) agentRequest(ctx context.Context, i Instance, base, method, path string, body io.Reader, result any) error {

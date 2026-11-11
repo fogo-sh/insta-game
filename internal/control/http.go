@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fogo-sh/insta-game/internal/securehttp"
+	"github.com/fogo-sh/insta-game/internal/serverui"
 )
 
 //go:embed web/*
@@ -20,6 +21,7 @@ var web embed.FS
 
 func (c *Controller) Handler(token string) http.Handler {
 	mux := http.NewServeMux()
+	mux.Handle("GET /assets/", serverui.Handler())
 	if len(c.DiscordKey) == 32 && c.DiscordGuild != "" {
 		mux.HandleFunc("POST /discord", c.discord)
 	}

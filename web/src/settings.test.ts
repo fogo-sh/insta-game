@@ -1,18 +1,20 @@
+import type { Game } from "./types.ts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import test from "node:test";
-import { renderControl } from "./web/settings.js";
+import { test } from "vite-plus/test";
+import { renderControl } from "./settings.ts";
 
-const catalog = JSON.parse(
-  await readFile(new URL("../../docker-containers/openarena/game.json", import.meta.url)),
+const catalog: Game = JSON.parse(
+  await readFile(new URL("../../docker-containers/openarena/game.json", import.meta.url), "utf8"),
 );
+assert(catalog.configEditor);
 const controls = catalog.configEditor.controls;
-const rotation = controls.find((control) => control.id === "maps").render;
+const rotationControl = controls.find((control) => control.id === "maps");
+assert(rotationControl);
+const rotation = rotationControl.render;
 
 test("OpenArena settings render a complete cyclic map rotation", () => {
-  const lines = controls.flatMap((control) =>
-    renderControl(control.render, control.defaultValue),
-  );
+  const lines = controls.flatMap((control) => renderControl(control.render, control.defaultValue));
   assert(lines.includes('set sv_hostname "Insta Game OpenArena"'));
   assert(lines.includes('set d1 "map oa_ctf4ish; set nextmap vstr d2"'));
   assert(lines.includes('set d4 "map oa_dm3; set nextmap vstr d1"'));
