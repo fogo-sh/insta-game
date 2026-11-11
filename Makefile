@@ -5,7 +5,7 @@ build:
 
 test:
 	go test -race ./...
-	node --test internal/control/settings_test.mjs
+	node --test internal/control/settings_test.mjs internal/serverui/*_test.mjs
 
 test-browser:
 	uv run --no-project --with playwright==1.64.1 python scripts/test-lobby-browser.py

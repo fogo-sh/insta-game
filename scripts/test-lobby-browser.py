@@ -5,6 +5,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+from urllib.parse import urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -17,6 +18,16 @@ args = parser.parse_args()
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/status.js":
+            data = (Path(__file__).resolve().parents[1] / "internal/serverui/status.js").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript")
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        super().do_GET()
+
     def log_message(self, *_):
         pass
 
@@ -175,10 +186,68 @@ try:
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (
             "mobile page overflows"
         )
+        # Exercise the controller detail with the same embedded status module.
+        controller = browser.new_page()
+        controller.on("pageerror", lambda error: errors.append(str(error)))
+        root = Path(__file__).resolve().parents[1]
+        controller_dir = root / "internal/control/web"
+        assets = {"/": "index.html", "/app.js": "app.js", "/settings.js": "settings.js", "/style.css": "style.css"}
+        current = {
+            "id": "test", "name": "Friday", "game": {"id": "fteqw", "displayName": "Quake", "gamePort": 26000},
+            "provider": "docker", "desired": "running", "phase": "running", "players": 0,
+            "endpoints": [{"port": 26000, "address": "192.0.2.1:26000"}], "createdAt": "2026-11-11T00:00:00Z",
+            "idleMinutes": 0, "maxMinutes": 0,
+        }
+        operations = []
+
+        def controller_route(route):
+            path = urlparse(route.request.url).path
+            if path in assets:
+                content_type = "text/javascript" if path.endswith(".js") else "text/css" if path.endswith(".css") else "text/html"
+                route.fulfill(body=(controller_dir / assets[path]).read_bytes(), content_type=content_type)
+            elif path == "/status.js":
+                route.fulfill(body=(root / "internal/serverui/status.js").read_bytes(), content_type="text/javascript")
+            elif path == "/api/catalog":
+                route.fulfill(json=[])
+            elif path == "/api/providers":
+                route.fulfill(json={"providers": ["docker"], "default": "docker"})
+            elif route.request.method == "GET":
+                route.fulfill(json=[current])
+            else:
+                operations.append((route.request.method, path))
+                route.fulfill(json=current)
+
+        controller.route("**/*", controller_route)
+        controller.add_init_script("sessionStorage.setItem('insta-game-token', 'test-token')")
+        controller.goto(args.url + "/#server/test")
+        expect(controller.locator("#fact-status")).to_have_text("Running")
+        expect(controller.locator("#copy-address")).to_be_enabled()
+        console_input = controller.get_by_role("textbox", name="command", exact=True)
+        console_input.fill("status")
+        current.update(desired="stopped", error="Could not stop", stopReason="Maximum runtime reached")
+        expect(controller.locator("#fact-status")).to_have_text("Failed", timeout=10000)
+        expect(controller.get_by_role("button", name="Retry stop", exact=True)).to_be_visible()
+        expect(controller.locator("#copy-address")).to_be_disabled()
+        expect(console_input).to_have_value("status")
+        expect(controller.locator("#stop-reason")).to_have_text("Maximum runtime reached")
+        current.update(desired="running", phase="failed", error="Game exited", stopReason="")
+        expect(controller.get_by_role("button", name="Retry", exact=True)).to_be_visible(timeout=10000)
+        expect(controller.locator("#stop-reason")).to_have_text("idle timeout: off; runtime limit: off")
+        controller.get_by_role("button", name="Retry", exact=True).click()
+        assert operations[-1] == ("POST", "/api/instances/test/start"), operations
+        current.update(phase="starting", error="")
+        expect(controller.locator("#fact-status")).to_have_text("Starting...", timeout=10000)
+        current.update(desired="deleted", error="Could not remove")
+        expect(controller.get_by_role("button", name="Retry remove", exact=True)).to_be_visible(timeout=10000)
+        expect(controller.locator("#fact-status")).to_have_text("Failed")
+        for width in [390, 768, 1440]:
+            controller.set_viewport_size({"width": width, "height": 900})
+            assert controller.evaluate("document.documentElement.scrollWidth <= innerWidth"), width
+        controller.close()
         assert not errors, errors
         browser.close()
         print(
-            "Launch-page retries, independent servers, stop/remove, mobile layout, and sign-out passed"
+            "Launch and controller lifecycle controls, retries, console retention, responsive layout, and sign-out passed"
         )
 finally:
     if server:

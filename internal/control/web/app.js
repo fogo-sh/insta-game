@@ -1,3 +1,4 @@
+import { serverState, stateLabel, serverActions } from "/status.js";
 import { settings } from "./settings.js";
 const $ = (id) => document.getElementById(id);
 let token = sessionStorage.getItem("insta-game-token") || "";
@@ -42,14 +43,11 @@ function lock() {
   stopLogs();
 }
 function connectAddress(i) {
+  if (serverState(i) !== "running" || i.players == null) return "";
   return i.endpoints?.find((e) => e.port === i.game.gamePort)?.address || "";
 }
-function phase(i) {
-  return i.desired === "deleted"
-    ? "deleting"
-    : i.desired === "stopped" && i.phase !== "stopped"
-      ? "stopping"
-      : i.phase;
+function statusLabel(i) {
+  return stateLabel(serverState(i));
 }
 function renderList() {
   const list = $("servers");
@@ -73,8 +71,8 @@ function renderList() {
     row.querySelector(".server-meta").textContent =
       i.game.displayName + " / " + i.provider;
     const state = row.querySelector(".phase");
-    state.textContent = phase(i);
-    state.dataset.phase = phase(i);
+    state.textContent = statusLabel(i);
+    state.dataset.phase = serverState(i);
     row.querySelector("code").textContent =
       connectAddress(i) || "Address pending";
     row.querySelector(".players").textContent =
@@ -89,6 +87,40 @@ function element(tag, text, className) {
   if (className) e.className = className;
   return e;
 }
+function runtimeNotice(i) {
+  return i.stopReason || `idle timeout: ${i.idleMinutes ? i.idleMinutes + " min" : "off"}; runtime limit: ${i.maxMinutes ? i.maxMinutes + " min" : "off"}`;
+}
+function renderActions(i, actions) {
+  actions.replaceChildren();
+  for (const { label, action, disabled } of serverActions(i)) {
+    const button = element(
+      "button",
+      label,
+      action === "remove" ? "danger quiet" : "",
+    );
+    button.disabled = Boolean(disabled);
+    button.dataset.action = action;
+    button.onclick = async () => {
+      if (action === "remove" && !confirm(`Remove ${i.name} and its saved data?`))
+        return;
+      try {
+        button.disabled = true;
+        await api(
+          "/instances/" +
+            i.id +
+            (action === "remove" ? "" : "/" + action),
+          { method: action === "remove" ? "DELETE" : "POST" },
+        );
+        await refresh(true);
+      } catch (err) {
+        message("detail-error", err.message);
+        button.disabled = false;
+      }
+    };
+    actions.append(button);
+  }
+  actions.dataset.state = JSON.stringify(serverActions(i));
+}
 function renderDetail(i) {
   const detail = $("detail");
   detail.replaceChildren();
@@ -102,43 +134,7 @@ function renderDetail(i) {
     element("h2", i.name),
   );
   const actions = element("div", "", "actions");
-  for (const [label, action] of [
-    [i.desired === "stopped" ? "start" : "stop", "toggle"],
-    ["delete", "delete"],
-  ]) {
-    const button = element(
-      "button",
-      label,
-      action === "delete" ? "danger quiet" : "",
-    );
-    button.disabled = i.desired === "deleted";
-    if (action === "toggle") button.id = "toggle-server";
-    button.onclick = async () => {
-      if (action === "delete" && !confirm(`Delete ${i.name} and all its data?`))
-        return;
-      const current = instances.find((server) => server.id === i.id);
-      const operation =
-        action === "toggle"
-          ? current.desired === "stopped"
-            ? "start"
-            : "stop"
-          : action;
-      try {
-        button.disabled = true;
-        await api(
-          "/instances/" +
-            i.id +
-            (operation === "delete" ? "" : "/" + operation),
-          { method: action === "delete" ? "DELETE" : "POST" },
-        );
-        await refresh(true);
-      } catch (err) {
-        message("detail-error", err.message);
-        button.disabled = false;
-      }
-    };
-    actions.append(button);
-  }
+  renderActions(i, actions);
   heading.append(title, actions);
   detail.append(heading);
   const error = element("p", i.error || "", "error");
@@ -147,7 +143,7 @@ function renderDetail(i) {
   detail.append(error);
   const facts = element("dl", "", "facts");
   for (const [name, value] of [
-    ["status", phase(i)],
+    ["status", statusLabel(i)],
     ["players / map", `${i.players ?? "Unknown"} / ${i.map || "-"}`],
     ["address", connectAddress(i) || "Pending"],
   ]) {
@@ -181,22 +177,9 @@ function renderDetail(i) {
   };
   detail.append(copy);
 
-  const reason = element(
-    "p",
-    i.stopReason ||
-      `idle timeout: ${i.idleMinutes ? i.idleMinutes + " min" : "off"}; runtime limit: ${i.maxMinutes ? i.maxMinutes + " min" : "off"}`,
-    "notice",
-  );
+  const reason = element("p", runtimeNotice(i), "notice");
   reason.id = "stop-reason";
   detail.append(reason);
-  if (i.phase === "failed")
-    detail.append(
-      element(
-        "p",
-        "Stop and start to retry. Check the logs for errors.",
-        "notice",
-      ),
-    );
   const panel = element("section", "", "panel");
   panel.append(element("h2", "console"));
   const logs = element("pre", "Logs are not streaming.", "log");
@@ -233,17 +216,17 @@ function renderDetail(i) {
 }
 function updateDetail(i) {
   if (!$("fact-status")) return;
-  $("fact-status").textContent = phase(i);
+  $("fact-status").textContent = statusLabel(i);
   $("fact-players").textContent = `${i.players ?? "Unknown"} / ${i.map || "-"}`;
   $("fact-address").textContent = connectAddress(i) || "Pending";
   $("copy-address").disabled = !connectAddress(i);
   $("detail-error").textContent = i.error || "";
-  const toggle = $("toggle-server");
-  if (toggle) {
-    toggle.textContent = i.desired === "stopped" ? "start" : "stop";
-    toggle.disabled = i.desired === "deleted";
+  const actions = $("detail").querySelector(".actions");
+  const expected = serverActions(i);
+  if (JSON.stringify(expected) !== actions.dataset.state) {
+    renderActions(i, actions);
   }
-  if (i.stopReason) $("stop-reason").textContent = i.stopReason;
+  $("stop-reason").textContent = runtimeNotice(i);
 }
 async function streamLogs(id) {
   stopLogs();
@@ -294,6 +277,7 @@ function route(force = false) {
         renderDetail(i);
       }
     } else {
+      stopLogs();
       $("detail").replaceChildren(element("p", "Server not found."));
     }
   } else if (selectedID) stopLogs();

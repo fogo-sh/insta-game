@@ -21,7 +21,7 @@ jobs:
       - name: Validate
         run: |
           go test -race ./...
-          node --test internal/control/settings_test.mjs
+          node --test internal/control/settings_test.mjs internal/serverui/*_test.mjs
           go vet ./...
           python3 generate-compose.py --check
           docker compose config --quiet

@@ -22,7 +22,11 @@ func TestSeedCopiesExecutableAndPreservesDataAfterRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0755 {
+	sourceInfo, err := os.Stat(engine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != sourceInfo.Mode().Perm() {
 		t.Fatal("lost engine executable permissions")
 	}
 	if err := os.WriteFile(copied, []byte("saved changes"), 0755); err != nil {
