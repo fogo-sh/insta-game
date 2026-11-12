@@ -46,7 +46,7 @@ or 120 minutes by default; `--idle 0` and `--max-runtime 0` disable those limits
 
 
 The Steam games require AMD64 Linux with 32-bit runtime support and use anonymous
-downloads. Start them in the UI before connecting; in-game wake is unsupported. See [setup](docs/running.md#steam-servers).
+downloads. See [setup](docs/running.md#steam-servers).
 
 Supply commercial game assets yourself. Native games need an installed engine
 and a profile; Docker images contain the runtime. See [running servers](docs/running.md)
@@ -61,7 +61,9 @@ to your host limit. Empty hosts sleep; stopping keeps data. See
 The gateway keeps clients connected while the saved game and optional AWS host
 start. Quake and Xonotic show loading messages; Quake II/III and OpenArena show
 connection progress. UT99 keeps its connecting screen alive, and BZFlag shows
-server messages. Clients continue into the game on the same connection. See [validation](docs/validation.md)
+server messages. The Steam games keep their connecting screen alive with loading
+text in the console, then authenticate with the real server. Clients continue
+into the game without reconnecting. See [validation](docs/validation.md)
 for tested engines and remaining gameplay checks. Fly is not implemented.
 
 ## Downloads

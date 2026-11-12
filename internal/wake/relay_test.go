@@ -18,7 +18,7 @@ func (discardLoadingPackets) WriteTo(packet []byte, _ net.Addr) (int, error) {
 }
 
 func TestIdleHeldClientReleasesAdmissionWithoutCancelingSharedWake(t *testing.T) {
-	for _, protocol := range []string{"quake2", "quake3", "ut99"} {
+	for _, protocol := range []string{"quake2", "quake3", "ut99", "goldsrc"} {
 		t.Run(protocol, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())

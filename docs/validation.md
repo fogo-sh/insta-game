@@ -149,8 +149,14 @@ names, and verify deletion with both nonempty and already-missing code buckets.
 
 Native and Docker lifecycle checks passed for Counter-Strike 1.6, Half-Life
 Deathmatch, and Sven Co-op, including Steam/VAC connectivity, configuration,
-isolated stop/start, retained data, and controller recovery. Authenticated Steam
-player joins remain untested; in-game wake is unsupported.
+isolated stop/start, retained data, and controller recovery.
+
+Current Linux Steam clients for all three games passed local wake tests on
+2026-11-12: 65 seconds with an unavailable controller, followed by a cold server
+start, Steam USERID validation and entry into the game without a retry. Loading
+messages appeared in each client's console. The backend remained VAC-secured;
+client settings and server authentication were unchanged. AWS cold starts and
+Windows clients have not been tested with this flow.
 
 Run the two-server Docker check with a built image. It removes its test containers:
 

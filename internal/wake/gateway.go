@@ -62,7 +62,7 @@ func New(mappings []Mapping, start func(context.Context, string) (string, error)
 			mappings[i].Protocol = m.Protocol
 		}
 		switch m.Protocol {
-		case "quake1", "quake2", "quake3", "xonotic", "ut99", "bzflag":
+		case "quake1", "quake2", "quake3", "xonotic", "ut99", "bzflag", "goldsrc":
 		default:
 			return nil, fmt.Errorf("unsupported wake protocol %q", m.Protocol)
 		}

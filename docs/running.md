@@ -66,7 +66,8 @@ same placeholders as arguments. Keep secrets in the private native profile.
 
 Defaults cap server frames at 100 FPS and client rates at 100 kB/s. Sven uses
 `deathmatch 1` and 50 updates/s; see its [configuration guide](https://wiki.svencoop.com/Running_a_server/Configuration).
-Start servers in the UI before connecting; in-game wake is unsupported.
+For in-game wake, use a `goldsrc://` route to a saved instance. Current Steam
+clients wait on their connecting screen, then authenticate with the real server.
 ARM fleets exclude these games; AMD64 fleets need explicit resource reservations.
 
 ## Native Linux games
@@ -297,7 +298,8 @@ bin/insta-game wake --config ./aws.json \
 
 bin/insta-game wake --url http://127.0.0.1:3000 --token-file .insta-game/token \
   --route xonotic://100.YOUR.TAILNET.IP:26000=friday \
-  --route bzflag://100.YOUR.TAILNET.IP:5154=tanks
+  --route bzflag://100.YOUR.TAILNET.IP:5154=tanks \
+  --route goldsrc://100.YOUR.TAILNET.IP:27015=counter-strike
 ```
 
 Repeat `--route PROTOCOL://ADDRESS=INSTANCE_ID` for other saved games. Protocols
@@ -309,8 +311,14 @@ Keep listeners on private/tailnet addresses.
 Players use the gateway address once. The gateway holds the connection while
 the game starts, then completes the real server handshake. Quake and Xonotic
 show loading text. Quake II/III and OpenArena receive connection progress; UT99
-keeps its connecting screen alive; BZFlag receives server messages. Startup is
-bounded to three minutes. A failed start reports an error through the game protocol.
+keeps its connecting screen alive; BZFlag receives server messages. The Steam
+games stay on their connecting screen and print loading text in the console.
+Startup is bounded to three minutes. A failed start reports an error through the game protocol.
+
+GoldSrc holds clients before Steam authentication. Temporary legacy challenge
+replies are discarded; the real server supplies the Steam challenge and validates
+the ticket. No client settings, reconnect commands, or server authentication
+changes are needed. GoldSrc browser queries do not wake the game.
 
 Each player has a separate backend socket. BZFlag's TCP greeting and UDP link
 negotiation use the same front port. Its initial greeting is shared by joins and

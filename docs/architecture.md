@@ -106,6 +106,12 @@ advancing sign-on sequences. Its initial HELLO is retained. After readiness, eac
 client relays through its own UDP socket with unchanged payloads and sequences. UT99 GameSpy
 queries are ignored; extra query services require direct hosting.
 
+GoldSrc sends legacy challenges while waiting, refreshing the client's connection
+attempt timer without accepting a channel or issuing a Steam ticket. Temporary
+legacy replies are discarded, including late arrivals after readiness. The real
+server's challenge, Steam ticket exchange and gameplay relay unchanged. Loading
+text uses connectionless prints; authentication remains with the backend.
+
 BZFlag sends its protocol greeting and a virtual player ID immediately, then
 buffers the client handshake while starting the server. A per-client permutation
 translates player IDs in both directions, including shots and flag ownership.
