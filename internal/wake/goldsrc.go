@@ -60,6 +60,7 @@ func (s *session) goldsrc(ctx context.Context, first []byte) error {
 	var incoming, incomingReliable, reliable uint32
 	sequence := uint32(1)
 	var pending []byte
+	var retrySent bool
 	var retryAt time.Time
 	lastSeen, noticeAt := time.Now(), time.Time{}
 	ticker := time.NewTicker(time.Second)
@@ -111,6 +112,9 @@ func (s *session) goldsrc(ctx context.Context, first []byte) error {
 			}
 			lastSeen = time.Now()
 			incoming = current
+			if current == 1 {
+				log.Printf("wake %s %s: client entered loading channel", s.listener.instanceID, s.address)
+			}
 			if value&goldsrcReliable != 0 {
 				incomingReliable ^= goldsrcReliable
 			}
@@ -124,12 +128,16 @@ func (s *session) goldsrc(ctx context.Context, first []byte) error {
 			}
 			if !retryAt.IsZero() && !now.Before(retryAt) {
 				fail("Server is ready. Please retry this address.")
-				return errors.New("client did not retry after loading")
+				return fmt.Errorf("client did not retry after loading (incoming sequence %d, retry sent %t, awaiting acknowledgement %t)", incoming, retrySent, pending != nil)
 			}
-			if pending == nil && incoming > 0 {
+			if pending == nil {
 				payload := []byte{1}
 				if !retryAt.IsZero() {
 					payload = append([]byte{9}, []byte("retry\n\x00")...)
+					if !retrySent {
+						log.Printf("wake %s %s: sending retry command", s.listener.instanceID, s.address)
+						retrySent = true
+					}
 				} else if !now.Before(noticeAt) {
 					payload = printMessage("Starting server... Please wait.\n")
 					noticeAt = now.Add(5 * time.Second)

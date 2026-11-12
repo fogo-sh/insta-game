@@ -46,17 +46,15 @@ func TestGoldSrcLoadingThenAuthenticatedHandshakeRelay(t *testing.T) {
 		t.Fatalf("loading accept: %x", accepted)
 	}
 	ack := make([]byte, 8)
-	binary.LittleEndian.PutUint32(ack, 0x80000001)
-	sendUDP(t, client, front, ack)
 	loading, _ := receiveUDP(t, client)
-	if binary.LittleEndian.Uint32(loading) != 0x80000001 || binary.LittleEndian.Uint32(loading[4:]) != 0x80000001 {
+	if binary.LittleEndian.Uint32(loading) != 0x80000001 || binary.LittleEndian.Uint32(loading[4:]) != 0 {
 		t.Fatalf("loading header: %x", loading)
 	}
-	binary.LittleEndian.PutUint32(ack, 2)
+	binary.LittleEndian.PutUint32(ack, 1)
 	binary.LittleEndian.PutUint32(ack[4:], 0x80000001)
 	sendUDP(t, client, front, ack)
 	close(ready)
-	expectPacket(t, client, goldsrcPacket(0x80000002, 0x80000002, []byte("\x09retry\n\x00")))
+	expectPacket(t, client, goldsrcPacket(0x80000002, 1, []byte("\x09retry\n\x00")))
 	sendUDP(t, client, front, handshake)
 	peer := expectPacket(t, backend, handshake)
 	challenge := []byte("\xff\xff\xff\xffA00000000 123 3 90071996842377217 1\n\x00")
