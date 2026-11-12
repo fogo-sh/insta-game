@@ -29,6 +29,46 @@ Game images keep a seed copy outside `/opt` and populate each instance's full
 layer. Completed seeding is recorded and existing files are preserved. Changing
 an image does not upgrade an existing seeded root.
 
+## Steam servers
+
+Counter-Strike 1.6 (`cstrike`), Half-Life Deathmatch (`hldm`), and Sven Co-op
+(`svencoop`) require AMD64 Linux. SteamCMD downloads are anonymous; no Steam
+password or server login token is needed.
+
+```sh
+docker compose --profile images build cstrike hldm svencoop
+bin/insta-game create --provider docker --game cstrike --id cs16 --name "Counter-Strike"
+```
+
+Rebuild images to update server files; existing containers retain their installation.
+Native HLDS uses app `90`, mod `cstrike` or `valve`. Sven uses app `276060`
+without `app_set_config`; see its [installation guide](https://wiki.svencoop.com/Running_a_server/Installation).
+
+For native servers, run the executable from each instance's copied assets:
+
+```json
+{
+  "cstrike": {
+    "command": "hlds_linux",
+    "assets": "/srv/games/hlds",
+    "configPath": "cstrike/server.cfg",
+    "args": ["-console", "-game", "cstrike", "-port", "{port}",
+             "+maxplayers", "12", "+map", "de_dust2", "+exec", "server.cfg"],
+    "env": {"LD_LIBRARY_PATH": "{data}:{data}/linux32", "HOME": "{data}/steam-home"}
+  }
+}
+```
+
+Copy SteamCMD's `linux32/steamclient.so` to
+`steam-home/.steam/sdk32/steamclient.so` inside the assets. Allow disk space for
+an installation per instance. `env` overrides inherited values and supports the
+same placeholders as arguments. Keep secrets in the private native profile.
+
+Defaults cap server frames at 100 FPS and client rates at 100 kB/s. Sven uses
+`deathmatch 1` and 50 updates/s; see its [configuration guide](https://wiki.svencoop.com/Running_a_server/Configuration).
+Start servers in the UI before connecting; in-game wake is unsupported.
+ARM fleets exclude these games; AMD64 fleets need explicit resource reservations.
+
 ## Native Linux games
 
 Install the engine and assets yourself, then define their paths and arguments in
@@ -57,11 +97,15 @@ bin/insta-game create --provider local --game fteqw --name "Quake night"
 The FTE example caps the QuakeC VM at 64 MiB; its default 2 GiB allocation can fail
 on small hosts. Larger mods may need a higher value.
 
-`command` and `assets` must be absolute; `configPath` is relative to the copied
-assets. Arguments support `{data}`, `{config}`, `{port}`, and `{port:27960}` for
+`assets` must be absolute. A relative `command` runs from the copied assets;
+an absolute `command` runs an operator-installed engine. Steam servers should
+use relative commands so each engine loads its own instance files. `configPath`
+is relative to the copied assets. Arguments support `{data}`, `{config}`, `{port}`, and `{port:27960}` for
 another catalog port. Configure every engine port that could collide. Native
 game bind addresses are controlled by engine arguments/configuration;
 `--game-bind` controls Docker port publishing. Native supervision requires Linux.
+When systemd manages the controller, use `KillMode=process` so restarting it
+leaves the independent native agents and games running.
 
 ## AWS
 

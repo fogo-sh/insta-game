@@ -1,0 +1,27 @@
+{
+  "id": "cstrike",
+  "displayName": "Counter-Strike 1.6",
+  "protocol": "goldsrc",
+  "agentPort": 5001,
+  "gamePort": 27015,
+  "ports": {
+    "27015/udp": {},
+    "5001/tcp": {}
+  },
+  "gameCmd": "./hlds_run",
+  "gameArgs": "-console -norestart -strictportbind -game cstrike -port {port} +maxplayers 12 +map de_dust2 +exec server.cfg",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15,
+  "configPath": "/opt/cstrike/server.cfg",
+  "build": {
+    "dockerfile": "docker-containers/goldsrc/Dockerfile",
+    "args": {
+      "STEAM_APP": "90",
+      "STEAM_MOD": "cstrike",
+      "GAME_ID": "cstrike"
+    }
+  },
+  "platforms": [
+    "linux/amd64"
+  ]
+}

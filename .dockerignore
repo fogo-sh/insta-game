@@ -1,0 +1,10 @@
+**
+!Dockerfile
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!docker-containers/
+!docker-containers/**

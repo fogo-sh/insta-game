@@ -139,7 +139,7 @@ func TestFleetCodeUpdatePreservesDeployedPolicyAndCopiesInputs(t *testing.T) {
 	if defaults.MaxHosts != 2 || defaults.IdleMinutes != 3 || defaults.MaxMinutes != 40 || defaults.Deadline != 1234567890 || defaults.Games[0].Resources.CPU != 90 {
 		t.Fatal("code update reset explicit runtime, expiry, host limit, or resources", defaults)
 	}
-	prepared, err := prepareFleetRelease(FleetReleaseOptions{Config: defaults}, previous)
+	prepared, err := prepareFleetRelease(FleetReleaseOptions{Config: defaults}, previous, "linux/arm64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,17 +166,17 @@ func TestFleetCodeUpdatePreservesDeployedPolicyAndCopiesInputs(t *testing.T) {
 func TestFleetAssetRequirementsAllowDurableReuseAndPartialOverlay(t *testing.T) {
 	config := DefaultFleetConfig(2, 32)
 	previous := &FleetRelease{Catalog: []control.Game{{ID: "fteqw", DisplayName: "Quake"}, {ID: "ut99", DisplayName: "Unreal"}}, Assets: map[string]string{"fteqw": "assets/retained.zip"}}
-	if _, err := prepareFleetRelease(FleetReleaseOptions{Config: config}, nil); err == nil {
+	if _, err := prepareFleetRelease(FleetReleaseOptions{Config: config}, nil, "linux/arm64"); err == nil {
 		t.Fatal("initial release accepted missing catalog")
 	}
-	if _, err := prepareFleetRelease(FleetReleaseOptions{Config: config}, previous); err == nil {
+	if _, err := prepareFleetRelease(FleetReleaseOptions{Config: config}, previous, "linux/arm64"); err == nil {
 		t.Fatal("new commercial game accepted without durable assets")
 	}
 	assets := t.TempDir()
 	if err := os.WriteFile(filepath.Join(assets, "ut99.zip"), []byte("archive checked by extractor"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	prepared, err := prepareFleetRelease(FleetReleaseOptions{Config: config, Assets: assets}, previous)
+	prepared, err := prepareFleetRelease(FleetReleaseOptions{Config: config, Assets: assets}, previous, "linux/arm64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +184,7 @@ func TestFleetAssetRequirementsAllowDurableReuseAndPartialOverlay(t *testing.T) 
 		t.Fatal("partial overlay discarded existing durable asset")
 	}
 	previous.Assets["ut99"] = "assets/unreal.zip"
-	if _, err := prepareFleetRelease(FleetReleaseOptions{Config: config}, previous); err != nil {
+	if _, err := prepareFleetRelease(FleetReleaseOptions{Config: config}, previous, "linux/arm64"); err != nil {
 		t.Fatal("durable commercial data required a local archive again", err)
 	}
 }
@@ -194,5 +194,28 @@ func TestWorkloadCompatibilityIgnoresCatalogDisplayOrder(t *testing.T) {
 	changed := FleetRelease{Catalog: []control.Game{{ID: "unreal", DisplayName: "A", Image: "image-two"}, {ID: "quake", DisplayName: "Z", Image: "image-one"}}}
 	if workloadFingerprint(original) != workloadFingerprint(changed) {
 		t.Fatal("display-name ordering made the same workload incompatible")
+	}
+}
+
+func TestARMFleetCatalogExcludesAMD64Games(t *testing.T) {
+	assets := t.TempDir()
+	for _, id := range []string{"fteqw", "q2repro", "ioquake3", "ut99"} {
+		if err := os.WriteFile(filepath.Join(assets, id+".zip"), []byte("checked during extraction"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	prepared, err := prepareFleetRelease(FleetReleaseOptions{
+		Catalog: "../../docker-containers", Assets: assets, Config: DefaultFleetConfig(2, 32),
+	}, nil, "linux/arm64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prepared.Catalog) != 7 {
+		t.Fatalf("expected the seven existing ARM games, got %d", len(prepared.Catalog))
+	}
+	for _, game := range prepared.Catalog {
+		if game.Protocol == "goldsrc" {
+			t.Fatalf("AMD64-only game %s entered ARM deployment", game.ID)
+		}
 	}
 }

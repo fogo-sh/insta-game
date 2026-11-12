@@ -1,0 +1,27 @@
+{
+  "id": "svencoop",
+  "displayName": "Sven Co-op",
+  "protocol": "goldsrc",
+  "agentPort": 5001,
+  "gamePort": 27015,
+  "ports": {
+    "27015/udp": {},
+    "5001/tcp": {}
+  },
+  "gameCmd": "./svends_run",
+  "gameArgs": "-console -norestart -strictportbind -game svencoop -port {port} +maxplayers 8 +servercfgfile server.cfg +map svencoop1",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15,
+  "configPath": "/opt/svencoop/server.cfg",
+  "build": {
+    "dockerfile": "docker-containers/goldsrc/Dockerfile",
+    "args": {
+      "STEAM_APP": "276060",
+      "STEAM_MOD": "svencoop",
+      "GAME_ID": "svencoop"
+    }
+  },
+  "platforms": [
+    "linux/amd64"
+  ]
+}

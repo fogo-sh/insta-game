@@ -1,0 +1,27 @@
+{
+  "id": "hldm",
+  "displayName": "Half-Life Deathmatch",
+  "protocol": "goldsrc",
+  "agentPort": 5001,
+  "gamePort": 27015,
+  "ports": {
+    "27015/udp": {},
+    "5001/tcp": {}
+  },
+  "gameCmd": "./hlds_run",
+  "gameArgs": "-console -norestart -strictportbind -game valve -port {port} +maxplayers 12 +map crossfire +exec server.cfg",
+  "gameQuitCmd": "quit",
+  "gameQuitTimeout": 15,
+  "configPath": "/opt/valve/server.cfg",
+  "build": {
+    "dockerfile": "docker-containers/goldsrc/Dockerfile",
+    "args": {
+      "STEAM_APP": "90",
+      "STEAM_MOD": "valve",
+      "GAME_ID": "hldm"
+    }
+  },
+  "platforms": [
+    "linux/amd64"
+  ]
+}

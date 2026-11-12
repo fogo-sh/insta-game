@@ -40,7 +40,13 @@ or 120 minutes by default; `--idle 0` and `--max-runtime 0` disable those limits
 | Xonotic | `xonotic` | `xonotic` | UDP |
 | Unreal Tournament 99 | `ut99` | `ut99` | UDP |
 | BZFlag | `bzflag` | `bzflag` | TCP and UDP on the same port |
+| Counter-Strike 1.6 | `cstrike` | — | UDP |
+| Half-Life Deathmatch | `hldm` | — | UDP |
+| Sven Co-op | `svencoop` | — | UDP |
 
+
+The Steam games require AMD64 Linux with 32-bit runtime support and use anonymous
+downloads. Start them in the UI before connecting; in-game wake is unsupported. See [setup](docs/running.md#steam-servers).
 
 Supply commercial game assets yourself. Native games need an installed engine
 and a profile; Docker images contain the runtime. See [running servers](docs/running.md)

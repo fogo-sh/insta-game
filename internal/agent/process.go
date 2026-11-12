@@ -28,6 +28,7 @@ func (p *Process) Start(c Config) error {
 	}
 	cmd := exec.Command(c.GameCmd, c.GameArgs...)
 	cmd.Dir = c.GameDir
+	cmd.Env = append(os.Environ(), c.GameEnv...)
 	cmd.SysProcAttr = gameProcessAttributes()
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

@@ -27,10 +27,11 @@ import (
 // NativeGame describes an operator-installed engine and its asset layout.
 // Assets are copied into each instance's working directory.
 type NativeGame struct {
-	Command    string   `json:"command"`
-	Args       []string `json:"args"`
-	Assets     string   `json:"assets"`
-	ConfigPath string   `json:"configPath"`
+	Command    string            `json:"command"`
+	Env        map[string]string `json:"env,omitempty"`
+	Args       []string          `json:"args"`
+	Assets     string            `json:"assets"`
+	ConfigPath string            `json:"configPath"`
 }
 
 type Native struct {
@@ -227,11 +228,8 @@ func (n *Native) Ensure(ctx context.Context, i Instance) (Observation, error) {
 	if !ok {
 		return Observation{}, fmt.Errorf("native engine %q is not configured", i.Game.ID)
 	}
-	if !filepath.IsAbs(game.Command) || !filepath.IsAbs(game.Assets) || !filepath.IsLocal(game.ConfigPath) {
-		return Observation{}, fmt.Errorf("native command/assets must be absolute and configPath must be relative")
-	}
-	if _, err := os.Stat(game.Command); err != nil {
-		return Observation{}, err
+	if (!filepath.IsAbs(game.Command) && !filepath.IsLocal(game.Command)) || !filepath.IsAbs(game.Assets) || !filepath.IsLocal(game.ConfigPath) {
+		return Observation{}, fmt.Errorf("native assets must be absolute; command must be absolute or local, configPath must be local")
 	}
 	dir := n.directory(i)
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -258,6 +256,13 @@ func (n *Native) Ensure(ctx context.Context, i Instance) (Observation, error) {
 	}
 	work := filepath.Join(dir, "work")
 	if err := copyAssets(ctx, game.Assets, work); err != nil {
+		return Observation{}, err
+	}
+	command := game.Command
+	if filepath.IsLocal(command) {
+		command = filepath.Join(work, command)
+	}
+	if _, err := os.Stat(command); err != nil {
 		return Observation{}, err
 	}
 	config := filepath.Join(work, game.ConfigPath)
@@ -302,7 +307,13 @@ func (n *Native) Ensure(ctx context.Context, i Instance) (Observation, error) {
 	if err := os.WriteFile(filepath.Join(dir, "default.cfg"), []byte(i.Config), 0600); err != nil {
 		return Observation{}, err
 	}
-	c := agent.Config{Protocol: i.Game.Protocol, GameDir: work, GameCmd: game.Command, GameArgs: args, GamePort: reserved[i.Game.GamePort], GameQuitCmd: i.Game.GameQuitCmd, GameQuitTimeout: time.Duration(i.Game.GameQuitTimeout) * time.Second, ConfigPath: config, DefaultConfig: filepath.Join(dir, "default.cfg"), RconPassword: i.RconPassword, Token: i.AgentToken, Host: "127.0.0.1", Port: state.Port}
+	c := agent.Config{Protocol: i.Game.Protocol, GameDir: work, GameCmd: command, GameArgs: args, GamePort: reserved[i.Game.GamePort], GameQuitCmd: i.Game.GameQuitCmd, GameQuitTimeout: time.Duration(i.Game.GameQuitTimeout) * time.Second, ConfigPath: config, DefaultConfig: filepath.Join(dir, "default.cfg"), RconPassword: i.RconPassword, Token: i.AgentToken, Host: "127.0.0.1", Port: state.Port}
+	for key, value := range game.Env {
+		if key == "" || strings.ContainsAny(key, "=\x00") || strings.ContainsRune(value, 0) {
+			return Observation{}, fmt.Errorf("invalid native environment entry")
+		}
+		c.GameEnv = append(c.GameEnv, key+"="+replacer.Replace(value))
+	}
 	if err := writePrivateJSON(filepath.Join(dir, "agent.json"), c); err != nil {
 		return Observation{}, err
 	}

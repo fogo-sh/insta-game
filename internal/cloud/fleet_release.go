@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -77,7 +78,7 @@ func PlanFleetRelease(ctx context.Context, sdk aws.Config, name string, options 
 	if err != nil {
 		return "", err
 	}
-	prepared, err := prepareFleetRelease(options, previous)
+	prepared, err := prepareFleetRelease(options, previous, "linux/"+architecture)
 	if err != nil {
 		return "", err
 	}
@@ -192,13 +193,19 @@ func PlanFleetRelease(ctx context.Context, sdk aws.Config, name string, options 
 	return aws.ToString(out.Id), nil
 }
 
-func prepareFleetRelease(options FleetReleaseOptions, previous *FleetRelease) (FleetRelease, error) {
+func prepareFleetRelease(options FleetReleaseOptions, previous *FleetRelease, platform string) (FleetRelease, error) {
 	var games []control.Game
 	if options.Catalog != "" {
 		var err error
 		games, err = control.LoadCatalog(options.Catalog)
 		if err != nil {
 			return FleetRelease{}, err
+		}
+		games = slices.DeleteFunc(games, func(g control.Game) bool {
+			return len(g.Platforms) > 0 && !slices.Contains(g.Platforms, platform)
+		})
+		if len(games) == 0 {
+			return FleetRelease{}, fmt.Errorf("catalog has no games for %s", platform)
 		}
 	} else if previous != nil {
 		games = append([]control.Game(nil), previous.Catalog...)

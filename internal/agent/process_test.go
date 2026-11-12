@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -45,5 +47,26 @@ func TestProcessReapsNaturalExitAndCanRestart(t *testing.T) {
 func TestPortableAgentRequiresCredentials(t *testing.T) {
 	if err := Run(context.Background(), Config{GameCmd: "does-not-matter"}); err == nil {
 		t.Fatal("agent accepted an empty management token")
+	}
+}
+
+func TestProcessEnvironmentOverridesWithoutLosingInheritedValues(t *testing.T) {
+	t.Setenv("INSTA_GAME_PROCESS_TEST", "parent")
+	t.Setenv("INSTA_GAME_PROCESS_INHERITED", "kept")
+	root := t.TempDir()
+	var p Process
+	c := Config{GameCmd: "/bin/sh", GameDir: root, GameArgs: []string{"-c", `printf '%s:%s' "$INSTA_GAME_PROCESS_TEST" "$INSTA_GAME_PROCESS_INHERITED" > environment`}, GameEnv: []string{"INSTA_GAME_PROCESS_TEST=child"}}
+	if err := p.Start(c); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-p.done:
+	case <-time.After(5 * time.Second):
+		p.Stop(c)
+		t.Fatal("process did not finish")
+	}
+	data, err := os.ReadFile(filepath.Join(root, "environment"))
+	if err != nil || string(data) != "child:kept" {
+		t.Fatalf("environment: %q %v", data, err)
 	}
 }
