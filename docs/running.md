@@ -29,6 +29,57 @@ Game images keep a seed copy outside `/opt` and populate each instance's full
 layer. Completed seeding is recorded and existing files are preserved. Changing
 an image does not upgrade an existing seeded root.
 
+## Steam servers
+
+Counter-Strike 1.6 (`cstrike`), Half-Life Deathmatch (`hldm`), and Sven Co-op
+(`svencoop`) use stock servers downloaded anonymously through SteamCMD. No Steam
+password or game-server login token is needed for these installations.
+
+Build the AMD64 images before creating Docker instances:
+
+```sh
+docker compose --profile images build cstrike hldm svencoop
+bin/insta-game create --provider docker --game cstrike --id cs16 --name "Counter-Strike"
+```
+
+The shared recipe is `docker-containers/goldsrc/Dockerfile`; each game's metadata
+selects its Steam app and mod. Rebuild images to update server files. Existing
+containers retain their seeded installation until deleted and recreated.
+
+Native instances use operator-installed server files and the profile format
+below. Install HLDS with app `90` and mod `cstrike` or `valve`; Sven uses app
+`276060` without HLDS's `app_set_config` option. The upstream
+[Sven installation guide](https://wiki.svencoop.com/Running_a_server/Installation)
+documents its anonymous download.
+
+Native engines can receive per-instance environment values through `env`:
+
+```json
+{
+  "cstrike": {
+    "command": "/srv/games/hlds/hlds_linux",
+    "assets": "/srv/games/hlds",
+    "configPath": "cstrike/server.cfg",
+    "args": ["-console", "-game", "cstrike", "-port", "{port}",
+             "+maxplayers", "12", "+map", "de_dust2", "+exec", "server.cfg"],
+    "env": {"LD_LIBRARY_PATH": "{data}:{data}/linux32", "HOME": "{data}/steam-home"}
+  }
+}
+```
+
+Include SteamCMD's `linux32/steamclient.so` in the asset tree at
+`steam-home/.steam/sdk32/steamclient.so`. Keep these files and instance data on a
+disk with room for several copies of the installation. The `env` values expand
+`{data}`, `{config}`, and reserved port placeholders; they override inherited
+environment values. Keep private values in the operator profile, not game metadata.
+
+The agent uses Valve status queries for readiness, maps, and human player counts,
+and the engine's standard input for console commands. GoldSrc queries handle
+Steam's challenge response and exclude identified bots from idle accounting.
+These additions have no measured AWS capacity profile or in-game wake support.
+Start a stopped server in the UI before connecting. AWS deployments need a
+curated catalog excluding these AMD64-only games; the default fleet is ARM64.
+
 ## Native Linux games
 
 Install the engine and assets yourself, then define their paths and arguments in
@@ -62,6 +113,8 @@ assets. Arguments support `{data}`, `{config}`, `{port}`, and `{port:27960}` for
 another catalog port. Configure every engine port that could collide. Native
 game bind addresses are controlled by engine arguments/configuration;
 `--game-bind` controls Docker port publishing. Native supervision requires Linux.
+When systemd manages the controller, use `KillMode=process` so restarting it
+leaves the independent native agents and games running.
 
 ## AWS
 

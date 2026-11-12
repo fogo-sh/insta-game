@@ -27,10 +27,11 @@ import (
 // NativeGame describes an operator-installed engine and its asset layout.
 // Assets are copied into each instance's working directory.
 type NativeGame struct {
-	Command    string   `json:"command"`
-	Args       []string `json:"args"`
-	Assets     string   `json:"assets"`
-	ConfigPath string   `json:"configPath"`
+	Command    string            `json:"command"`
+	Env        map[string]string `json:"env,omitempty"`
+	Args       []string          `json:"args"`
+	Assets     string            `json:"assets"`
+	ConfigPath string            `json:"configPath"`
 }
 
 type Native struct {
@@ -303,6 +304,12 @@ func (n *Native) Ensure(ctx context.Context, i Instance) (Observation, error) {
 		return Observation{}, err
 	}
 	c := agent.Config{Protocol: i.Game.Protocol, GameDir: work, GameCmd: game.Command, GameArgs: args, GamePort: reserved[i.Game.GamePort], GameQuitCmd: i.Game.GameQuitCmd, GameQuitTimeout: time.Duration(i.Game.GameQuitTimeout) * time.Second, ConfigPath: config, DefaultConfig: filepath.Join(dir, "default.cfg"), RconPassword: i.RconPassword, Token: i.AgentToken, Host: "127.0.0.1", Port: state.Port}
+	for key, value := range game.Env {
+		if key == "" || strings.ContainsAny(key, "=\x00") || strings.ContainsRune(value, 0) {
+			return Observation{}, fmt.Errorf("invalid native environment entry")
+		}
+		c.GameEnv = append(c.GameEnv, key+"="+replacer.Replace(value))
+	}
 	if err := writePrivateJSON(filepath.Join(dir, "agent.json"), c); err != nil {
 		return Observation{}, err
 	}

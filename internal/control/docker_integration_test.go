@@ -21,14 +21,18 @@ func TestDockerTwoServersSurviveControllerRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	gameID := os.Getenv("INSTA_GAME_DOCKER_GAME")
+	if gameID == "" {
+		gameID = "xonotic"
+	}
 	var game Game
 	for _, g := range games {
-		if g.ID == "xonotic" {
+		if g.ID == gameID {
 			game = g
 		}
 	}
 	if game.ID == "" {
-		t.Fatal("integration catalog must contain xonotic")
+		t.Fatalf("integration catalog must contain %s", gameID)
 	}
 	path := filepath.Join(t.TempDir(), "instances.db")
 	store, err := OpenStore(path)
@@ -36,8 +40,9 @@ func TestDockerTwoServersSurviveControllerRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	provider := NewDocker("/var/run/docker.sock", "localhost", "127.0.0.1")
+	defer provider.Close()
 	controller := NewController(store, games, map[string]Provider{"docker": provider}, "docker")
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 	prefix := "smoke-" + NewToken()[:10]
 	ids := []string{prefix + "-a", prefix + "-b"}
@@ -52,8 +57,11 @@ func TestDockerTwoServersSurviveControllerRestart(t *testing.T) {
 		controller.Store.Close()
 	}()
 	for index, id := range ids {
-		name := []string{"Friday instagib", "Sunday CTF"}[index]
-		config := game.DefaultConfig + "\nhostname \"" + name + "\"\nminplayers 0\nminplayers_per_team 0\n"
+		name := []string{"Friday games", "Sunday games"}[index]
+		config := game.DefaultConfig + "\nhostname \"" + name + "\"\n"
+		if game.Protocol == "xonotic" {
+			config += "minplayers 0\nminplayers_per_team 0\n"
+		}
 		if _, err := controller.Create(CreateRequest{ID: id, Game: game.ID, Name: name, Config: &config}); err != nil {
 			t.Fatal(err)
 		}
@@ -68,6 +76,14 @@ func TestDockerTwoServersSurviveControllerRestart(t *testing.T) {
 			}
 			if i.Phase == phase {
 				return i
+			}
+			if i.Phase == "failed" {
+				if response, err := provider.client.Get("http://docker" + containerPath(i) + "/logs?stdout=true&stderr=true&tail=12"); err == nil {
+					output, _ := io.ReadAll(io.LimitReader(response.Body, 8192))
+					response.Body.Close()
+					t.Logf("Game startup log: %q", output)
+				}
+				t.Fatalf("%s failed: %s", id, i.Error)
 			}
 			if ctx.Err() != nil {
 				t.Fatalf("waiting for %s=%s: phase=%s error=%s", id, phase, i.Phase, i.Error)
@@ -136,5 +152,5 @@ func TestDockerTwoServersSurviveControllerRestart(t *testing.T) {
 	if err != nil || !other.Running {
 		t.Fatalf("deleting first affected second: %v", err)
 	}
-	t.Logf("Verified separate Xonotic endpoints %s and %s, configuration, recovery, stop/start and deletion", first.Connect(), second.Connect())
+	t.Logf("Verified %s: separate endpoints %s and %s, configuration, recovery, stop/start and deletion", game.ID, first.Connect(), second.Connect())
 }

@@ -15,6 +15,7 @@ type Config struct {
 	Protocol        string
 	GameDir         string
 	GameCmd         string
+	GameEnv         []string
 	GameArgs        []string
 	GameQuitCmd     string
 	GameQuitTimeout time.Duration

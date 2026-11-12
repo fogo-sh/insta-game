@@ -233,11 +233,13 @@ func startUDPServer(t *testing.T, handler func(conn *net.UDPConn, addr *net.UDPA
 
 	go func() {
 		buf := make([]byte, 4096)
-		n, addr, err := conn.ReadFromUDP(buf)
-		if err != nil {
-			return
+		for {
+			n, addr, err := conn.ReadFromUDP(buf)
+			if err != nil {
+				return
+			}
+			handler(conn, addr, buf[:n])
 		}
-		handler(conn, addr, buf[:n])
 	}()
 
 	return conn.LocalAddr().(*net.UDPAddr).Port

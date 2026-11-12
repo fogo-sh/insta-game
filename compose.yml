@@ -45,6 +45,24 @@
         ]
       }
     },
+    "cstrike": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:cstrike",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/goldsrc/Dockerfile",
+        "platforms": [
+          "linux/amd64"
+        ],
+        "args": {
+          "STEAM_APP": "90",
+          "STEAM_MOD": "cstrike",
+          "GAME_ID": "cstrike"
+        }
+      }
+    },
     "fteqw": {
       "profiles": [
         "images"
@@ -56,6 +74,24 @@
         "platforms": [
           "${GAME_PLATFORM:-linux/arm64}"
         ]
+      }
+    },
+    "hldm": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:hldm",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/goldsrc/Dockerfile",
+        "platforms": [
+          "linux/amd64"
+        ],
+        "args": {
+          "STEAM_APP": "90",
+          "STEAM_MOD": "valve",
+          "GAME_ID": "hldm"
+        }
       }
     },
     "ioquake3": {
@@ -95,6 +131,24 @@
         "platforms": [
           "${GAME_PLATFORM:-linux/arm64}"
         ]
+      }
+    },
+    "svencoop": {
+      "profiles": [
+        "images"
+      ],
+      "image": "ghcr.io/fogo-sh/insta-game:svencoop",
+      "build": {
+        "context": ".",
+        "dockerfile": "docker-containers/goldsrc/Dockerfile",
+        "platforms": [
+          "linux/amd64"
+        ],
+        "args": {
+          "STEAM_APP": "276060",
+          "STEAM_MOD": "svencoop",
+          "GAME_ID": "svencoop"
+        }
       }
     },
     "ut99": {

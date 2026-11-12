@@ -144,3 +144,23 @@ The DynamoDB checks require a table from the isolated check stack. They cover
 concurrent starts, duplicate creation, server discovery, and request ordering. Cleanup
 checks create their own tagged bucket/table stacks, refuse occupied fixture
 names, and verify deletion with both nonempty and already-missing code buckets.
+
+## Local Steam servers
+
+Counter-Strike 1.6, Half-Life Deathmatch, and Sven Co-op have been run concurrently
+on AMD64 Linux through native agents. Each connected anonymously to Steam and
+reported VAC secure mode. Controller tests confirmed live map changes, separate
+ports, isolated stop/start, retained data, and map/player queries. A real Steam
+player connection and connection-preserving cold wake remain separate acceptance
+checks; status queries do not prove gameplay authentication.
+
+The two-server Docker lifecycle check passed for all three games. It can use
+any installed catalog game:
+
+```sh
+INSTA_GAME_DOCKER_CATALOG="$PWD/docker-containers" INSTA_GAME_DOCKER_GAME=cstrike \
+  go test ./internal/control -run '^TestDockerTwoServersSurviveControllerRestart$' -count=1 -v
+```
+
+The check creates two temporary servers and removes them afterward. It verifies
+separate configuration and ports, controller recovery, stop/start, and deletion.

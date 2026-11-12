@@ -71,19 +71,24 @@ jobs:
           for entry in sorted(os.listdir(docker_root)):
               dockerfile = os.path.join(docker_root, entry, "Dockerfile")
               metadata = os.path.join(docker_root, entry, "game.json")
-              if not os.path.isfile(dockerfile):
-                  continue
               if not os.path.isfile(metadata):
+                  continue
+              with open(metadata) as source:
+                  build = json.load(source).get("build", {})
+              dockerfile = build.get("dockerfile", dockerfile)
+              if not os.path.isfile(dockerfile):
                   continue
 
               image = {
                   "image": entry,
                   "dockerfile": dockerfile,
-                  "watch_paths": [f"{docker_root}/{entry}/"],
+                  "watch_paths": [f"{docker_root}/{entry}/", os.path.dirname(dockerfile) + "/"],
+                  "runner": "ubuntu-24.04" if build.get("platforms") == ["linux/amd64"] else "ubuntu-24.04-arm",
+                  "build_args": "\n".join(f"{k}={v}" for k, v in build.get("args", {}).items()),
               }
 
               makefile = os.path.join(docker_root, entry, "Makefile")
-              if os.path.isfile(makefile):
+              if os.path.isfile(makefile) and "download:" in open(makefile).read():
                   image["prep"] = f"make -C ./{docker_root}/{entry} download clean"
 
               images.append(image)
@@ -103,7 +108,7 @@ jobs:
   build-and-push:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.has_changes == 'true' }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
@@ -134,6 +139,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.image }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.image }}-cache
