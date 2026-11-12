@@ -32,35 +32,19 @@ an image does not upgrade an existing seeded root.
 ## Steam servers
 
 Counter-Strike 1.6 (`cstrike`), Half-Life Deathmatch (`hldm`), and Sven Co-op
-(`svencoop`) use stock servers downloaded anonymously through SteamCMD. No Steam
-password or game-server login token is needed for these installations.
-
-Build the AMD64 images before creating Docker instances:
+(`svencoop`) require AMD64 Linux. SteamCMD downloads are anonymous; no Steam
+password or server login token is needed.
 
 ```sh
 docker compose --profile images build cstrike hldm svencoop
 bin/insta-game create --provider docker --game cstrike --id cs16 --name "Counter-Strike"
 ```
 
-The shared recipe is `docker-containers/goldsrc/Dockerfile`; each game's metadata
-selects its Steam app and mod. Rebuild images to update server files. Existing
-containers retain their seeded installation until deleted and recreated.
+Rebuild images to update server files; existing containers retain their installation.
+Native HLDS uses app `90`, mod `cstrike` or `valve`. Sven uses app `276060`
+without `app_set_config`; see its [installation guide](https://wiki.svencoop.com/Running_a_server/Installation).
 
-Native instances use operator-installed server files and the profile format
-below. Install HLDS with app `90` and mod `cstrike` or `valve`; Sven uses app
-`276060` without HLDS's `app_set_config` option. The upstream
-[Sven installation guide](https://wiki.svencoop.com/Running_a_server/Installation)
-documents its anonymous download.
-
-Defaults retain Steam authentication, ban-file loading, and unpaused play with
-cheats disabled. Servers use a 100 FPS ceiling and allow up to 100 kB/s per
-client. Sven keeps its required `deathmatch 1` and 50 updates/s; its
-[configuration guide](https://wiki.svencoop.com/Running_a_server/Configuration)
-warns that excessive frame rates break physics. Counter-Strike and Half-Life
-preserve the movement settings in their shipped `server.cfg`. These are a baseline
-for casual play on stock servers, not measured competitive tuning.
-
-Native engines can receive per-instance environment values through `env`:
+For native servers, run the executable from each instance's copied assets:
 
 ```json
 {
@@ -75,19 +59,15 @@ Native engines can receive per-instance environment values through `env`:
 }
 ```
 
-Include SteamCMD's `linux32/steamclient.so` in the asset tree at
-`steam-home/.steam/sdk32/steamclient.so`. Keep these files and instance data on a
-disk with room for several copies of the installation. The `env` values expand
-`{data}`, `{config}`, and reserved port placeholders; they override inherited
-environment values. Keep private values in the operator profile, not game metadata.
+Copy SteamCMD's `linux32/steamclient.so` to
+`steam-home/.steam/sdk32/steamclient.so` inside the assets. Allow disk space for
+an installation per instance. `env` overrides inherited values and supports the
+same placeholders as arguments. Keep secrets in the private native profile.
 
-The agent uses Valve status queries for readiness, maps, and human player counts,
-and the engine's standard input for console commands. GoldSrc queries handle
-Steam's challenge response and exclude identified bots from idle accounting.
-These additions have no measured AWS capacity profile or in-game wake support.
-Start a stopped server in the UI before connecting. ARM fleet catalogs
-automatically exclude these AMD64-only games; AMD64 fleets still need explicit
-resource reservations.
+Defaults cap server frames at 100 FPS and client rates at 100 kB/s. Sven uses
+`deathmatch 1` and 50 updates/s; see its [configuration guide](https://wiki.svencoop.com/Running_a_server/Configuration).
+Start servers in the UI before connecting; in-game wake is unsupported.
+ARM fleets exclude these games; AMD64 fleets need explicit resource reservations.
 
 ## Native Linux games
 

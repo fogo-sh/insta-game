@@ -45,10 +45,8 @@ or 120 minutes by default; `--idle 0` and `--max-runtime 0` disable those limits
 | Sven Co-op | `svencoop` | — | UDP |
 
 
-The three Steam games use anonymous SteamCMD downloads and require an AMD64
-Linux host with 32-bit runtime support. They support direct connections and UI
-start/stop; game-connection wake routing is not implemented for them. See
-[Steam servers](docs/running.md#steam-servers).
+The Steam games require AMD64 Linux with 32-bit runtime support and use anonymous
+downloads. Start them in the UI before connecting; in-game wake is unsupported. See [setup](docs/running.md#steam-servers).
 
 Supply commercial game assets yourself. Native games need an installed engine
 and a profile; Docker images contain the runtime. See [running servers](docs/running.md)

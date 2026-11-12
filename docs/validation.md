@@ -147,23 +147,14 @@ names, and verify deletion with both nonempty and already-missing code buckets.
 
 ## Local Steam servers
 
-Counter-Strike 1.6, Half-Life Deathmatch, and Sven Co-op have been run concurrently
-on AMD64 Linux through native agents. Each connected anonymously to Steam and
-reported VAC secure mode. Live console reads verified frame/rate limits,
-Steam mode, cheat/pause settings, and Sven deathmatch mode. Native engines run
-from their instance copies so Sven loads its own configuration. Controller
-tests confirmed live map changes, separate
-ports, isolated stop/start, retained data, and map/player queries. A real Steam
-player connection and connection-preserving cold wake remain separate acceptance
-checks; status queries do not prove gameplay authentication.
+Native and Docker lifecycle checks passed for Counter-Strike 1.6, Half-Life
+Deathmatch, and Sven Co-op, including Steam/VAC connectivity, configuration,
+isolated stop/start, retained data, and controller recovery. Authenticated Steam
+player joins remain untested; in-game wake is unsupported.
 
-The two-server Docker lifecycle check passed for all three games. It can use
-any installed catalog game:
+Run the two-server Docker check with a built image. It removes its test containers:
 
 ```sh
 INSTA_GAME_DOCKER_CATALOG="$PWD/docker-containers" INSTA_GAME_DOCKER_GAME=cstrike \
   go test ./internal/control -run '^TestDockerTwoServersSurviveControllerRestart$' -count=1 -v
 ```
-
-The check creates two temporary servers and removes them afterward. It verifies
-separate configuration and ports, controller recovery, stop/start, and deletion.
