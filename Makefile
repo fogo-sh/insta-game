@@ -12,7 +12,7 @@ ui:
 	npm --prefix web run build
 
 test-browser:
-	uv run --no-project --with playwright==1.64.1 python scripts/test-lobby-browser.py
+	uv run --no-project --with playwright==1.65.1 python scripts/test-lobby-browser.py
 
 check: lint-templates
 	go vet ./...
@@ -23,7 +23,7 @@ images:
 	docker compose --profile images build
 
 lint-templates:
-	uv run --no-project --with cfn-lint==1.58.0 env INSTA_GAME_LINT_TEMPLATES=1 go test ./internal/cloud -run '^TestCloudFormationTemplates$$' -count=1
+	uv run --no-project --with cfn-lint==1.60.0 env INSTA_GAME_LINT_TEMPLATES=1 go test ./internal/cloud -run '^TestCloudFormationTemplates$$' -count=1
 
 dist:
 	python3 scripts/package-release.py
