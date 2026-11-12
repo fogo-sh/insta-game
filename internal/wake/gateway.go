@@ -62,7 +62,7 @@ func New(mappings []Mapping, start func(context.Context, string) (string, error)
 			mappings[i].Protocol = m.Protocol
 		}
 		switch m.Protocol {
-		case "quake1", "quake2", "quake3", "xonotic", "ut99", "bzflag":
+		case "quake1", "quake2", "quake3", "xonotic", "ut99", "bzflag", "goldsrc":
 		default:
 			return nil, fmt.Errorf("unsupported wake protocol %q", m.Protocol)
 		}
@@ -213,7 +213,11 @@ func (g *Gateway) read(ctx context.Context, l *listener) error {
 			first := append([]byte(nil), incoming...)
 			g.work.Go(func() {
 				defer g.remove(s)
-				if err := s.relay(ctx, first); err != nil && ctx.Err() == nil {
+				relay := s.relay
+				if l.protocol == "goldsrc" {
+					relay = s.goldsrc
+				}
+				if err := relay(ctx, first); err != nil && ctx.Err() == nil {
 					log.Printf("wake %s: %v", l.instanceID, err)
 				}
 			})

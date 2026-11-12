@@ -14,11 +14,14 @@ func connectionRequest(protocol string, packet []byte) bool {
 		return false
 	}
 	switch protocol {
-	case "quake2", "quake3":
+	case "quake2", "quake3", "goldsrc":
 		if !bytes.HasPrefix(packet, []byte{255, 255, 255, 255}) {
 			return false
 		}
 		command := bytes.TrimSpace(bytes.TrimRight(packet[4:], "\x00"))
+		if protocol == "goldsrc" {
+			return bytes.Equal(command, []byte("getchallenge")) || bytes.Equal(command, []byte("getchallenge steam"))
+		}
 		return bytes.Equal(command, []byte("getchallenge")) || bytes.HasPrefix(command, []byte("getchallenge "))
 	case "ut99":
 		// GameSpy status requests are separate from the binary game handshake.
