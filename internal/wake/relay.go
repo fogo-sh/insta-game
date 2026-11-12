@@ -89,6 +89,9 @@ drained:
 		case <-timer.C:
 			return nil
 		case packet := <-s.input:
+			if s.listener.protocol == "goldsrc" && goldsrcHoldingReply(packet) {
+				continue
+			}
 			timer.Reset(clientTimeout)
 			if _, err := backend.Write(packet); err != nil {
 				return err
@@ -111,6 +114,10 @@ func (s *session) waitForGame(ctx, parent context.Context) (string, error) {
 	switch s.listener.protocol {
 	case "quake2", "quake3":
 		progress = []byte("\xff\xff\xff\xffprint\nStarting server...\n\x00")
+	case "goldsrc":
+		// Type 2 refreshes the connection timer without creating a Steam ticket.
+		progress = []byte("\xff\xff\xff\xffA00000000 0 2\n\x00")
+		interval = time.Second
 	case "ut99":
 		// Packet -1 refreshes receive time without advancing the initial sequence.
 		progress, interval = []byte{0xff, 0x7f}, time.Second
@@ -123,13 +130,19 @@ func (s *session) waitForGame(ctx, parent context.Context) (string, error) {
 		ready <- destination{address, err}
 	})
 	notice := func(message string) error {
-		return s.send(append([]byte{255, 255, 255, 255}, []byte("print\n"+message+"\n\x00")...))
+		command := "print\n"
+		if s.listener.protocol == "goldsrc" {
+			command = "l"
+		}
+		return s.send(append([]byte{255, 255, 255, 255}, []byte(command+message+"\n\x00")...))
 	}
 	fail := func(message string) {
 		if s.listener.protocol == "ut99" {
 			for range 3 {
 				s.send(ut99Rejection())
 			}
+		} else if s.listener.protocol == "goldsrc" {
+			s.send(append([]byte("\xff\xff\xff\xff9"), []byte(message+"\n\x00")...))
 		} else {
 			notice(message)
 		}
@@ -139,6 +152,7 @@ func (s *session) waitForGame(ctx, parent context.Context) (string, error) {
 			return "", err
 		}
 	}
+	var nextNotice time.Time
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	idle := time.NewTimer(clientTimeout)
@@ -157,9 +171,15 @@ func (s *session) waitForGame(ctx, parent context.Context) (string, error) {
 				fail("Unable to start server. Please try again.")
 			}
 			return result.address, result.err
-		case <-ticker.C:
+		case now := <-ticker.C:
 			if err := s.send(progress); err != nil {
 				return "", err
+			}
+			if s.listener.protocol == "goldsrc" && !now.Before(nextNotice) {
+				if err := notice("Starting server... Please wait."); err != nil {
+					return "", err
+				}
+				nextNotice = now.Add(5 * time.Second)
 			}
 		case <-s.input:
 			// The client resends its challenge request until the backend answers.

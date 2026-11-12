@@ -213,11 +213,7 @@ func (g *Gateway) read(ctx context.Context, l *listener) error {
 			first := append([]byte(nil), incoming...)
 			g.work.Go(func() {
 				defer g.remove(s)
-				relay := s.relay
-				if l.protocol == "goldsrc" {
-					relay = s.goldsrc
-				}
-				if err := relay(ctx, first); err != nil && ctx.Err() == nil {
+				if err := s.relay(ctx, first); err != nil && ctx.Err() == nil {
 					log.Printf("wake %s: %v", l.instanceID, err)
 				}
 			})
