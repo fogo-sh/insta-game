@@ -19,9 +19,9 @@
       "STEAM_APP": "90",
       "STEAM_MOD": "valve",
       "GAME_ID": "hldm"
-    },
-    "platforms": [
-      "linux/amd64"
-    ]
-  }
+    }
+  },
+  "platforms": [
+    "linux/amd64"
+  ]
 }

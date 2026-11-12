@@ -7,6 +7,7 @@ import (
 )
 
 type Game struct {
+	Platforms       []string                   `json:"platforms,omitempty"`
 	ID              string                     `json:"id"`
 	DisplayName     string                     `json:"displayName"`
 	Protocol        string                     `json:"protocol"`

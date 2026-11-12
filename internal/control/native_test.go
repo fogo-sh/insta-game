@@ -27,12 +27,12 @@ func TestNativeAgentsRecoverAndKeepSeparateData(t *testing.T) {
 		t.Fatal(err)
 	}
 	script := "#!/bin/sh\nprintf 'started\\n'\nwhile IFS= read -r command; do\n case \"$command\" in quit) exit 0;; *) printf '%s\\n' \"$command\" >> saved.txt;; esac\ndone\n"
-	command := filepath.Join(root, "game.sh")
+	command := filepath.Join(assets, "game.sh")
 	if err := os.WriteFile(command, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	game := Game{ID: "test", Protocol: "unsupported", GamePort: 26000, AgentPort: 5001, GameQuitCmd: "quit", GameQuitTimeout: 1, Ports: map[string]json.RawMessage{"26000/udp": json.RawMessage(`{}`)}}
-	n := &Native{Root: filepath.Join(root, "instances"), Binary: binary, PublicHost: "localhost", Games: map[string]NativeGame{"test": {Command: command, Assets: assets, ConfigPath: "server.cfg", Env: map[string]string{"INSTA_GAME_NATIVE_DATA": "{data}"}}}}
+	n := &Native{Root: filepath.Join(root, "instances"), Binary: binary, PublicHost: "localhost", Games: map[string]NativeGame{"test": {Command: "game.sh", Assets: assets, ConfigPath: "server.cfg", Env: map[string]string{"INSTA_GAME_NATIVE_DATA": "{data}"}}}}
 	instances := []Instance{
 		{ID: "first", Game: game, AgentToken: NewToken(), RconPassword: NewToken(), Config: "hostname first"},
 		{ID: "second", Game: game, AgentToken: NewToken(), RconPassword: NewToken(), Config: "hostname second"},
@@ -76,9 +76,15 @@ func TestNativeAgentsRecoverAndKeepSeparateData(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var config struct{ GameEnv []string }
+		var config struct {
+			GameEnv []string
+			GameCmd string
+		}
 		if err := json.Unmarshal(data, &config); err != nil {
 			t.Fatal(err)
+		}
+		if config.GameCmd != filepath.Join(n.directory(i), "work", "game.sh") {
+			t.Fatalf("engine did not use the instance copy: %s", config.GameCmd)
 		}
 		expected := "INSTA_GAME_NATIVE_DATA=" + filepath.Join(n.directory(i), "work")
 		if len(config.GameEnv) != 1 || config.GameEnv[0] != expected {

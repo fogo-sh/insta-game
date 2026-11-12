@@ -34,7 +34,7 @@ def generate():
             "build": {
                 "context": ".",
                 "dockerfile": "docker-containers/" + game["id"] + "/Dockerfile",
-                "platforms": ["${GAME_PLATFORM:-linux/arm64}"],
+                "platforms": game.get("platforms", ["${GAME_PLATFORM:-linux/arm64}"]),
                 **game.get("build", {}),
             },
         }

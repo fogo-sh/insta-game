@@ -52,12 +52,20 @@ below. Install HLDS with app `90` and mod `cstrike` or `valve`; Sven uses app
 [Sven installation guide](https://wiki.svencoop.com/Running_a_server/Installation)
 documents its anonymous download.
 
+Defaults retain Steam authentication, ban-file loading, and unpaused play with
+cheats disabled. Servers use a 100 FPS ceiling and allow up to 100 kB/s per
+client. Sven keeps its required `deathmatch 1` and 50 updates/s; its
+[configuration guide](https://wiki.svencoop.com/Running_a_server/Configuration)
+warns that excessive frame rates break physics. Counter-Strike and Half-Life
+preserve the movement settings in their shipped `server.cfg`. These are a baseline
+for casual play on stock servers, not measured competitive tuning.
+
 Native engines can receive per-instance environment values through `env`:
 
 ```json
 {
   "cstrike": {
-    "command": "/srv/games/hlds/hlds_linux",
+    "command": "hlds_linux",
     "assets": "/srv/games/hlds",
     "configPath": "cstrike/server.cfg",
     "args": ["-console", "-game", "cstrike", "-port", "{port}",
@@ -77,8 +85,9 @@ The agent uses Valve status queries for readiness, maps, and human player counts
 and the engine's standard input for console commands. GoldSrc queries handle
 Steam's challenge response and exclude identified bots from idle accounting.
 These additions have no measured AWS capacity profile or in-game wake support.
-Start a stopped server in the UI before connecting. AWS deployments need a
-curated catalog excluding these AMD64-only games; the default fleet is ARM64.
+Start a stopped server in the UI before connecting. ARM fleet catalogs
+automatically exclude these AMD64-only games; AMD64 fleets still need explicit
+resource reservations.
 
 ## Native Linux games
 
@@ -108,8 +117,10 @@ bin/insta-game create --provider local --game fteqw --name "Quake night"
 The FTE example caps the QuakeC VM at 64 MiB; its default 2 GiB allocation can fail
 on small hosts. Larger mods may need a higher value.
 
-`command` and `assets` must be absolute; `configPath` is relative to the copied
-assets. Arguments support `{data}`, `{config}`, `{port}`, and `{port:27960}` for
+`assets` must be absolute. A relative `command` runs from the copied assets;
+an absolute `command` runs an operator-installed engine. Steam servers should
+use relative commands so each engine loads its own instance files. `configPath`
+is relative to the copied assets. Arguments support `{data}`, `{config}`, `{port}`, and `{port:27960}` for
 another catalog port. Configure every engine port that could collide. Native
 game bind addresses are controlled by engine arguments/configuration;
 `--game-bind` controls Docker port publishing. Native supervision requires Linux.

@@ -9,6 +9,7 @@ on:
       - "internal/**"
       - "go.mod"
       - "go.sum"
+      - ".dockerignore"
       - ".github/workflows/publish-images.yml"
   workflow_dispatch:
 
@@ -74,7 +75,8 @@ jobs:
               if not os.path.isfile(metadata):
                   continue
               with open(metadata) as source:
-                  build = json.load(source).get("build", {})
+                  game = json.load(source)
+                  build = game.get("build", {})
               dockerfile = build.get("dockerfile", dockerfile)
               if not os.path.isfile(dockerfile):
                   continue
@@ -83,17 +85,17 @@ jobs:
                   "image": entry,
                   "dockerfile": dockerfile,
                   "watch_paths": [f"{docker_root}/{entry}/", os.path.dirname(dockerfile) + "/"],
-                  "runner": "ubuntu-24.04" if build.get("platforms") == ["linux/amd64"] else "ubuntu-24.04-arm",
+                  "runner": "ubuntu-24.04" if game.get("platforms") == ["linux/amd64"] else "ubuntu-24.04-arm",
                   "build_args": "\n".join(f"{k}={v}" for k, v in build.get("args", {}).items()),
               }
 
               makefile = os.path.join(docker_root, entry, "Makefile")
-              if os.path.isfile(makefile) and "download:" in open(makefile).read():
+              if os.path.isfile(makefile):
                   image["prep"] = f"make -C ./{docker_root}/{entry} download clean"
 
               images.append(image)
 
-          global_prefixes = ("internal/", "cmd/", "go.mod", "go.sum", ".github/workflows/publish-images.yml")
+          global_prefixes = ("internal/", "cmd/", "go.mod", "go.sum", ".dockerignore", ".github/workflows/publish-images.yml")
           selected = []
           for image in images:
               if any(path.startswith(global_prefixes) for path in changed) or any(

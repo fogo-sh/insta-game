@@ -149,7 +149,10 @@ names, and verify deletion with both nonempty and already-missing code buckets.
 
 Counter-Strike 1.6, Half-Life Deathmatch, and Sven Co-op have been run concurrently
 on AMD64 Linux through native agents. Each connected anonymously to Steam and
-reported VAC secure mode. Controller tests confirmed live map changes, separate
+reported VAC secure mode. Live console reads verified frame/rate limits,
+Steam mode, cheat/pause settings, and Sven deathmatch mode. Native engines run
+from their instance copies so Sven loads its own configuration. Controller
+tests confirmed live map changes, separate
 ports, isolated stop/start, retained data, and map/player queries. A real Steam
 player connection and connection-preserving cold wake remain separate acceptance
 checks; status queries do not prove gameplay authentication.

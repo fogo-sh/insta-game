@@ -78,11 +78,6 @@ func TestDockerTwoServersSurviveControllerRestart(t *testing.T) {
 				return i
 			}
 			if i.Phase == "failed" {
-				if response, err := provider.client.Get("http://docker" + containerPath(i) + "/logs?stdout=true&stderr=true&tail=12"); err == nil {
-					output, _ := io.ReadAll(io.LimitReader(response.Body, 8192))
-					response.Body.Close()
-					t.Logf("Game startup log: %q", output)
-				}
 				t.Fatalf("%s failed: %s", id, i.Error)
 			}
 			if ctx.Err() != nil {

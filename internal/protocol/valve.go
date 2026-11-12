@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// QueryValve supports modern A2S_INFO and the legacy GoldSrc info response.
+// QueryValve sends A2S_INFO to a current Steam dedicated server.
 func QueryValve(port int) (*ServerInfo, error) {
 	conn, err := net.DialTimeout("udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), 2*time.Second)
 	if err != nil {
@@ -45,77 +45,21 @@ func QueryValve(port int) (*ServerInfo, error) {
 }
 
 func parseValveInfo(packet []byte) (*ServerInfo, error) {
-	if len(packet) < 2 {
-		return nil, fmt.Errorf("truncated Valve info")
+	if len(packet) < 2 || packet[0] != 'I' {
+		return nil, fmt.Errorf("expected A2S_INFO response")
 	}
-	kind := packet[0]
-	data := packet[1:]
-	readString := func() (string, bool) {
-		end := bytes.IndexByte(data, 0)
-		if end < 0 {
-			return "", false
+	data := packet[2:] // Response type and protocol version.
+	var fields [4]string
+	for i := range fields {
+		value, rest, ok := bytes.Cut(data, []byte{0})
+		if !ok {
+			return nil, fmt.Errorf("truncated Valve server information")
 		}
-		s := string(data[:end])
-		data = data[end+1:]
-		return s, true
+		fields[i], data = string(value), rest
 	}
-	switch kind {
-	case 'I':
-		data = data[1:] // Protocol version.
-	case 'm':
-		if _, ok := readString(); !ok {
-			return nil, fmt.Errorf("missing GoldSrc address")
-		}
-	default:
-		return nil, fmt.Errorf("unsupported Valve info response %x", kind)
+	// App ID (2 bytes), players, capacity, bots.
+	if len(data) < 5 || data[4] > data[2] {
+		return nil, fmt.Errorf("invalid Valve player counts")
 	}
-	hostname, ok := readString()
-	if !ok {
-		return nil, fmt.Errorf("missing Valve hostname")
-	}
-	level, ok := readString()
-	if !ok {
-		return nil, fmt.Errorf("missing Valve map")
-	}
-	for range 2 {
-		if _, ok := readString(); !ok {
-			return nil, fmt.Errorf("truncated Valve game information")
-		}
-	}
-	if kind == 'I' {
-		if len(data) < 5 {
-			return nil, fmt.Errorf("missing Valve player counts")
-		}
-		// App ID occupies two bytes before players, capacity, and bots.
-		players, bots := int(data[2]), int(data[4])
-		if bots > players {
-			return nil, fmt.Errorf("Valve bot count exceeds player count")
-		}
-		return &ServerInfo{Hostname: hostname, Map: level, Players: players - bots}, nil
-	}
-	if len(data) < 7 {
-		return nil, fmt.Errorf("missing GoldSrc player counts")
-	}
-	players, mod := int(data[0]), data[6] != 0
-	data = data[7:]
-	if mod {
-		for range 2 {
-			if _, ok := readString(); !ok {
-				return nil, fmt.Errorf("truncated GoldSrc mod information")
-			}
-		}
-		if len(data) < 11 {
-			return nil, fmt.Errorf("truncated GoldSrc mod properties")
-		}
-		// Separator, version, download size, and two mod flags.
-		data = data[11:]
-	}
-	if len(data) < 2 {
-		return nil, fmt.Errorf("missing GoldSrc bot count")
-	}
-	bots := int(data[1])
-	if bots > players {
-		return nil, fmt.Errorf("GoldSrc bot count exceeds player count")
-	}
-	return &ServerInfo{Hostname: hostname, Map: level, Players: players - bots}, nil
+	return &ServerInfo{Hostname: fields[0], Map: fields[1], Players: int(data[2] - data[4])}, nil
 }
