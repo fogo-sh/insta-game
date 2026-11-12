@@ -17,7 +17,7 @@ jobs:
           cache-dependency-path: go.sum
       - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24
+          node-version: 26
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Validate and rebuild web assets
@@ -26,7 +26,7 @@ jobs:
           npm --prefix web run build
           npm --prefix web audit --audit-level=moderate
           git diff --exit-code -- internal/serverui/dist
-      - uses: astral-sh/setup-uv@v10.3.2
+      - uses: astral-sh/setup-uv@v10.3.3
       - name: Lint CloudFormation templates
         run: make lint-templates
       - name: Validate
@@ -38,7 +38,7 @@ jobs:
           docker compose config --quiet
       - name: Check launch page in Chromium
         run: |
-          uv run --no-project --with playwright==1.64.1 playwright install --only-shell chromium
+          uv run --no-project --with playwright==1.65.1 playwright install --only-shell chromium
           make test-browser
       - name: Package supported targets
         run: python3 scripts/package-release.py --output /tmp/insta-game-dist

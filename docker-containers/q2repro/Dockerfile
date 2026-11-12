@@ -1,10 +1,10 @@
-FROM --platform=$BUILDPLATFORM golang:1.27.3-bookworm AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.27.4-bookworm AS go-builder
 ARG TARGETARCH
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY internal/ ./internal/
 COPY cmd/ ./cmd/
-RUN GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o /insta-game ./cmd/insta-game
+RUN GOMAXPROCS=2 GOOS=linux GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -p 2 -o /insta-game ./cmd/insta-game
 
 FROM debian:bookworm-slim AS q2repro-builder
 
@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m venv /opt/meson \
-    && /opt/meson/bin/pip install --no-cache-dir meson==1.10.0
+    && /opt/meson/bin/pip install --no-cache-dir meson==1.12.1
 ENV PATH="/opt/meson/bin:${PATH}"
 
 RUN git clone --recurse-submodules https://github.com/Paril/q2repro.git /src/q2repro
@@ -35,7 +35,7 @@ RUN git clone --recurse-submodules https://github.com/Paril/q2repro.git /src/q2r
 WORKDIR /src/q2repro
 
 RUN meson setup builddir \
-    && meson compile -C builddir \
+    && meson compile -C builddir -j 2 \
     && install -m 0755 "$(find builddir -type f \( -name q2reproded -o -name q2proded -o -name q2pro \) -perm /111 | head -n 1)" /usr/local/bin/q2proded \
     && mkdir -p /usr/local/share/baseq2 \
     && find builddir -type f -name 'game*.so' -exec install -m 0755 {} /usr/local/share/baseq2/ \;
