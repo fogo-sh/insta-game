@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-go@v7.0.0
+      - uses: actions/setup-go@v7.1.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -26,7 +26,7 @@ jobs:
           npm --prefix web run build
           npm --prefix web audit --audit-level=moderate
           git diff --exit-code -- internal/serverui/dist
-      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: astral-sh/setup-uv@v10.4.0
       - name: Lint CloudFormation templates
         run: make lint-templates
       - name: Validate
